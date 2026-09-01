@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · 功能详述（Feature Spec）</title>
+<style>
+  :root{
+    --primary:#4f6ef7; --primary-dark:#1e3a8a;
+    --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --bg:#f5f7fb; --card:#ffffff;
+    --code-bg:#0d1526; --code-ink:#dbe4f3;
+    --ok-bg:#ecfdf5; --ok-line:#a7f3d0; --ok-ink:#047857;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px;
+  }
+  /* ===== 侧边目录 ===== */
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:252px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:26px 0 28px 24px;z-index:10}
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin:2px 0 20px}
+  .toc a{display:block;color:#94a3b8;text-decoration:none;font-size:12.5px;
+    padding:4px 14px 4px 12px;margin-left:-12px;border-left:2px solid transparent;transition:all .15s}
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .toc-gap{margin-top:12px}
+  /* ===== 主内容 ===== */
+  .main{margin-left:252px;padding:0 40px 80px}
+  .content{max-width:980px;margin:0 auto}
+  .hero{margin:0 -40px 34px;padding:56px 40px 50px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%)}
+  .hero .inner{max-width:980px;margin:0 auto}
+  .hero h1{font-size:32px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:15.5px;color:#c7d6ff;max-width:760px}
+  .hero .meta{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:30px 34px;margin-bottom:24px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{font-size:21px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h2 .no{font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px}
+  h3{font-size:16.5px;margin:22px 0 10px;color:#0f172a}
+  h3::before{content:"▍";color:var(--primary);margin-right:6px}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:4px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;vertical-align:1.5px;white-space:nowrap}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.p1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.p2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.p3{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+  .badge.opt{background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0;font-size:13px;color:#475569}
+  /* ===== 统计卡 ===== */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:6px 0 16px}
+  .stat{background:linear-gradient(160deg,#eef2ff,#f8fafc);border:1px solid #c7d2fe;border-radius:12px;padding:16px 18px}
+  .stat b{display:block;font-size:26px;color:var(--primary-dark);line-height:1.2}
+  .stat span{font-size:12.5px;color:#64748b}
+  /* ===== 表格 ===== */
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th{background:#f1f5f9;text-align:left;font-weight:600;color:#334155}
+  th,td{border:1px solid var(--line);padding:7px 11px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fafbfe}
+  td.num{color:#94a3b8;font-family:Consolas,monospace;font-size:12px;width:34px}
+  code{font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:.9em;
+    background:#eef2f7;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#4338ca}
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;margin:12px 0;font-size:13px;line-height:1.7}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  .callout{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;
+    padding:12px 16px;margin:14px 0;font-size:14px;color:#7c2d12}
+  .goal{font-size:13px;color:var(--ok-ink);background:var(--ok-bg);border:1px solid var(--ok-line);border-radius:8px;padding:8px 12px;margin-top:10px}
+  .rules{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:12px 16px;margin:12px 0}
+  .rules li{font-size:13.5px}
+  footer{max-width:980px;margin:0 auto;color:#94a3b8;font-size:12.5px;text-align:center}
+  @media (max-width:1080px){
+    .sidebar{display:none}
+    .main{margin-left:0;padding:0 16px 60px}
+    .hero{margin:0 -16px 24px;padding:40px 16px}
+    section{padding:22px 18px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边目录 ============ -->
+<aside class="sidebar">
+  <div class="brand">Portal<em>.</em></div>
+  <div class="sub">功能详述 Feature Spec · v1.0</div>
+  <nav class="toc">
+    <a href="#ov">文档说明</a>
+    <a href="#map">功能全景</a>
+    <a class="toc-gap" href="#m01">M01 认证与账户</a>
+    <a href="#m02">M02 首页仪表盘</a>
+    <a href="#m03">M03 应用与书签</a>
+    <a href="#m04">M04 多访问方式 ★</a>
+    <a href="#m05">M05 AI 助手</a>
+    <a href="#m06">M06 Flow 自动化</a>
+    <a href="#m07">M07 应用探活与可用性</a>
+    <a href="#m08">M08 Docker 管理</a>
+    <a href="#m09">M09 通知中心</a>
+    <a href="#m10">M10 工具箱</a>
+    <a href="#m11">M11 文件管理</a>
+    <a href="#m12">M12 下载与媒体</a>
+    <a href="#m13">M13 日程与提醒</a>
+    <a href="#m14">M14 开放 API</a>
+    <a href="#m15">M15 系统设置</a>
+    <a href="#m16">M16 移动端与 PWA</a>
+    <a href="#m17">M17 服务器性能监控 ★</a>
+    <a href="#m18">M18 端口监控 ★</a>
+    <a class="toc-gap" href="#perm">权限矩阵</a>
+    <a href="#plan">阶段规划汇总</a>
+    <a href="#new">新增功能清单</a>
+    <a href="#next">下一步</a>
+  </nav>
+</aside>
+
+<div class="main">
+<div class="content">
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="inner">
+    <h1>Portal<span class="dot"> · </span>功能详述（Feature Spec）</h1>
+    <p class="tagline">系统全部功能的权威清单：18 个功能模块、221 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
+    <div class="meta">
+      <span class="chip">版本 v1.2</span>
+      <span class="chip">日期 2026-09-01</span>
+      <span class="chip">关联 design-proposal v0.2</span>
+      <span class="chip">18 模块</span>
+      <span class="chip">221 功能点</span>
+      <span class="chip">v1.2 新增：MySQL 数据同步</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 文档说明 ============ -->
+<section id="ov">
+  <h2><span class="no">00</span>文档说明与图例</h2>
+  <p>本文档是 Portal 系统的<strong>功能清单与功能细节</strong>的权威来源，按模块列出全部功能点与落地阶段；《总体设计方案》负责架构、技术选型、数据模型与部署，两份配合阅读。内容与 Markdown 版一致，<strong>评审以本 HTML 版为准</strong>。</p>
+  <div class="legend">
+    <span><span class="badge p1">M1</span> MVP 必做（第 1~3 周）</span>
+    <span><span class="badge p2">M2</span> 第二阶段（第 4~6 周）</span>
+    <span><span class="badge p3">M3</span> 进阶/远期（第 7 周起）</span>
+    <span><span class="badge opt">可选</span> 按需启用的独立模块</span>
+    <span><span class="badge core">★ 核心</span> 差异化重点</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>18</b><span>功能模块</span></div>
+    <div class="stat"><b>221</b><span>功能点</span></div>
+    <div class="stat"><b>4</b><span>可选独立模块</span></div>
+    <div class="stat"><b>3</b><span>个落地阶段</span></div>
+  </div>
+</section>
+
+<!-- ============ 功能全景 ============ -->
+<section id="map">
+  <h2><span class="no">01</span>功能全景</h2>
+  <table>
+    <thead><tr><th style="width:8%">编码</th><th style="width:22%">模块</th><th>一句话定位</th><th style="width:10%">功能点</th><th style="width:14%">主力阶段</th></tr></thead>
+    <tbody>
+      <tr><td>M01</td><td><a href="#m01">认证与账户</a></td><td>登录、权限、账号安全</td><td>14</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M02</td><td><a href="#m02">首页仪表盘</a></td><td>磁贴布局、搜索、小组件</td><td>21</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M03</td><td><a href="#m03">应用与书签管理</a></td><td>应用的组织与全生命周期</td><td>16</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M04</td><td><a href="#m04">多访问方式管理 <span class="badge core">★ 核心</span></a></td><td>多入口 + 环境识别 + 智能解析</td><td>18</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M05</td><td><a href="#m05">AI 助手</a></td><td>对话、意图导航、辅助配置</td><td>17</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td>M06</td><td><a href="#m06">Flow 自动化</a></td><td>触发器-条件-动作编排</td><td>19</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
+      <tr><td>M07</td><td><a href="#m07">应用探活与可用性</a></td><td>应用状态、可用率与外部可达性</td><td>7</td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
+      <tr><td>M08</td><td><a href="#m08">Docker 容器管理 <span class="badge opt">可选</span></a></td><td>容器查看与操作</td><td>8</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
+      <tr><td>M09</td><td><a href="#m09">通知中心</a></td><td>多渠道推送 + 站内通知</td><td>12</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td>M10</td><td><a href="#m10">工具箱</a></td><td>网络与开发小工具集合</td><td>12</td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
+      <tr><td>M11</td><td><a href="#m11">文件管理 <span class="badge opt">可选</span></a></td><td>NAS 文件浏览与传输</td><td>7</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
+      <tr><td>M12</td><td><a href="#m12">下载与媒体集成 <span class="badge opt">可选</span></a></td><td>下载器/媒体库联动</td><td>6</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
+      <tr><td>M13</td><td><a href="#m13">日程与提醒</a></td><td>日历待办与提醒推送</td><td>6</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td>M14</td><td><a href="#m14">开放 API 与扩展</a></td><td>Token、主题、插件预留</td><td>7</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
+      <tr><td>M15</td><td><a href="#m15">系统设置</a></td><td>全局配置中心</td><td>12</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M16</td><td><a href="#m16">移动端与 PWA</a></td><td>响应式与安装体验</td><td>6</td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
+      <tr><td><strong>M17</strong></td><td><a href="#m17"><strong>服务器性能监控 <span class="badge core">★ 核心</span></strong></a></td><td><strong>CPU/内存/磁盘/网络/进程等整机监控</strong></td><td><strong>21</strong></td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
+      <tr><td><strong>M18</strong></td><td><a href="#m18"><strong>端口监控 <span class="badge core">★ 核心</span></strong></a></td><td><strong>端口监听、探活、变更告警与安全检查</strong></td><td><strong>12</strong></td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M01 ============ -->
+<section id="m01">
+  <h2><span class="no">M01</span>认证与账户 <span class="badge p1">14 项</span></h2>
+  <p>定位：系统的安全底座。MVP 只做"够用且安全"，企业级登录方式放在 M3。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>登录页</td><td>用户名 + 密码，支持"记住我"（延长 refresh 有效期）</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>首次初始化向导</td><td>系统无用户时进入引导页：创建管理员 → 站点命名 → 完成</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">3</td><td>JWT 认证</td><td>access（30min）+ refresh（7d），前端拦截器自动续期，登出即失效</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>修改密码</td><td>校验旧密码；改密后其他会话强制下线</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">5</td><td>密码强度校验</td><td>长度 ≥ 8 且含字母数字，弱密码拒绝</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">6</td><td>登录失败限速</td><td>同 IP 5 次/分钟失败即临时锁定，防爆破</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>TOTP 两步验证</td><td>绑定扫码（otpauth 二维码）+ 恢复码；可全局强制开启</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>会话/设备管理</td><td>查看当前登录设备列表（IP/时间/UA），可单个踢出</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">9</td><td>角色权限</td><td>admin（全部）/ user（首页 + 个人偏好），见权限矩阵</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">10</td><td>访客模式</td><td>开启后免登录可看首页，仅展示"公开"标记的应用</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>用户管理</td><td>管理员增删用户、重置密码、禁用账号</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>OIDC / LDAP 登录</td><td>对接公司单点登录 / 企业 LDAP，账号自动映射</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">13</td><td>Passkey 免密登录</td><td>WebAuthn 指纹/Face ID 登录（可选）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">14</td><td>审计日志</td><td>记录登录、配置变更、容器操作、Flow 执行，可筛选导出</td><td><span class="badge p2">M2</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M02 ============ -->
+<section id="m02">
+  <h2><span class="no">M02</span>首页仪表盘 <span class="badge p1">21 项</span></h2>
+  <p>定位：每天打开的第一屏，"好看、好用、高定制"。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>应用磁贴网格</td><td>响应式列数（宽屏 6~8 列，窄屏自动减少），磁贴 = 图标 + 名称 + 状态点</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>拖拽排序</td><td>磁贴、分组均支持拖拽，位置即时保存</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">3</td><td>卡片尺寸</td><td>每个应用可选 1x / 2x 宽度，重点服务放大展示</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>分组区块</td><td>按分组横向成区，标题栏可折叠/展开，折叠状态记忆</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">5</td><td>多标签页仪表盘</td><td>多套首页布局（如"常用 / 开发 / 媒体"），顶部 Tab 切换，独立排序</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>全局搜索（命令面板）</td><td>Ctrl+K / 点击唤起，模糊匹配应用名/描述/标签，回车直达</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>快捷搜索语法</td><td><code>gh xxx</code> → GitHub 搜索、<code>bd xxx</code> → 百度等，关键词可自定义</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>最近使用</td><td>自动记录打开频率，"常用"分组智能置顶（可关闭）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">9</td><td>收藏/置顶</td><td>应用可标记收藏，搜索与首页优先展示</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">10</td><td>小组件：时钟问候</td><td>时钟 + 按时段问候语（早安/晚安）</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">11</td><td>小组件：天气</td><td>免费天气 API + IP 自动定位，未来 3 天预报</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>小组件：NAS 资源速览</td><td>CPU/内存/磁盘环形图，点击进监控页（联动 M17）</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">13</td><td>小组件：最近通知</td><td>最近 N 条站内通知，点击标记已读</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">14</td><td>小组件：Flow 状态</td><td>最近 Flow 执行结果一览，失败标红</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">15</td><td>小组件：容器状态</td><td>运行中/停止容器数量概览（需开启 Docker 模块）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">16</td><td>小组件：下载器状态</td><td>qBittorrent 当前速度与任务数（需开启下载集成）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">17</td><td>小组件：RSS/一言/日历</td><td>扩展信息卡，内容源可配置</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">18</td><td>暗色模式</td><td>跟随系统 / 手动切换，全部页面适配</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">19</td><td>主题色自定义</td><td>内置若干主题色 + 自定义色值，全站联动</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">20</td><td>自定义壁纸</td><td>上传图片 / 渐变 / 纯色，可设模糊与遮罩透明度</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">21</td><td>移动端自适应</td><td>磁贴单列、导航折叠为底部栏，与 PC 布局互不影响</td><td><span class="badge p1">M1</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M03 ============ -->
+<section id="m03">
+  <h2><span class="no">M03</span>应用与书签管理 <span class="badge p1">16 项</span></h2>
+  <p>定位：门户管理的是"应用"这个核心对象，本模块负责它的全生命周期。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>应用 CRUD</td><td>名称/描述/分组/图标，编辑走右侧抽屉，保存即生效</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>分组管理</td><td>分组增删改、排序、图标、折叠默认态</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">3</td><td>标签</td><td>应用可打多个自由标签，用于搜索与筛选</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>排序</td><td>拖拽排序 + 批量移动到分组</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">5</td><td>图标：URL / 上传 / Emoji</td><td>三种来源，上传自动压缩为方形图标</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">6</td><td>图标：自动抓取 favicon</td><td>输入地址后一键尝试抓取目标站图标</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>内置图标库</td><td>预置 Jellyfin/qBittorrent/Home Assistant 等常见服务图标（本地文件，不依赖外网 CDN）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>探活状态点</td><td>磁贴右上角绿/红/灰点 + hover 显示延迟与最近检查时间</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">9</td><td>打开方式</td><td>新标签页（默认）/ 当前页 / iframe 内嵌弹窗</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">10</td><td>可见性</td><td>所有人可见 / 仅管理员 / 仅指定用户</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>备注与文档链接</td><td>应用可附备注（如默认账号提示）和 Wiki 链接，详情浮层展示</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>回收站</td><td>删除应用进回收站，30 天内可恢复</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">13</td><td>导入/导出</td><td>JSON 全量导入导出（应用 + 分组 + 入口）</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">14</td><td>浏览器书签导入</td><td>解析书签 HTML：文件夹 → 分组、书签 → 应用</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">15</td><td>应用模板库</td><td>预置常见服务模板（名称+图标+默认探活方式），一键创建后只填地址</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">16</td><td>批量操作</td><td>列表多选 → 批量删除/移动分组/改可见性</td><td><span class="badge p2">M2</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M04 ============ -->
+<section id="m04">
+  <h2><span class="no">M04</span>多访问方式管理 <span class="badge core">★ 核心</span> <span class="badge p1">18 项</span></h2>
+  <p>定位：<strong>本系统差异化核心</strong>——解决"同一个服务，在家、在公司、在外网要用不同地址访问"的问题。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>入口管理</td><td>每个应用可挂 1..N 个访问入口：类型 + 地址 + 标签 + 排序</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>入口类型：域名 domain</td><td>公网/域名地址（走反向代理），如 <code>https://jf.example.com</code></td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">3</td><td>入口类型：内网 lan</td><td>内网 IP:Port 直连，如 <code>http://192.168.1.10:8096</code></td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>入口类型：SSH 隧道 ssh</td><td>经跳板机访问，配合功能 15/16 使用</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">5</td><td>入口类型：VPN vpn</td><td>VPN 网段地址，如 <code>http://10.8.0.1:8096</code></td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">6</td><td>入口类型：自定义 custom</td><td>任意地址 + 自定义说明</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>网络环境档案</td><td>定义环境（家庭内网/公司/VPN…）：名称 + CIDR + 入口优先顺序 + 是否默认兜底</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">8</td><td>环境自动识别</td><td>后端按请求来源 IP 匹配 CIDR 判定当前环境；未命中走默认档案</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">9</td><td>环境手动切换器</td><td>顶栏环境徽标，可手动覆盖自动识别结果，选择被记忆</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">10</td><td>智能解析</td><td><code>GET /api/apps/{id}/resolve</code>：按当前环境的入口优先级返回推荐入口 + 备选列表</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">11</td><td>点击前预检</td><td>可选：打开前快速 TCP/HTTP 探测推荐入口（500ms 超时），不通自动给备选</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>多入口选择浮层</td><td>可按应用配置"点击弹层手选"，浮层内标注每个入口适用的环境与状态</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">13</td><td>连通性测试矩阵</td><td>设置页一键探测全部入口，输出 应用×入口 的通断/延迟矩阵</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">14</td><td>入口历史延迟</td><td>记录每次探测延迟，查看趋势图定位"哪条线路慢"</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">15</td><td>SSH 本地命令模式</td><td>为 ssh 入口生成现成命令 <code>ssh -L 18096:内网:端口 user@jump</code>，弹窗一键复制后打开本地端口</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">16</td><td>SSH 服务端托管隧道</td><td>后端 asyncssh 维护隧道，门户提供 <code>/tunnel/{id}</code> 反代路径，点击直达；空闲超时断开；支持密码/私钥</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">17</td><td>入口二维码</td><td>为当前环境的入口生成二维码，手机扫码直达（配 PWA 体验极佳）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">18</td><td>环境探测调试页</td><td>显示"服务器看到的你的 IP、命中的档案、各档案匹配结果"，方便排查识别不准</td><td><span class="badge p2">M2</span></td></tr>
+    </tbody>
+  </table>
+  <div class="rules"><strong>关键规则：</strong>
+    <ul>
+      <li>未配置任何环境档案时，系统退化为普通面板（直接打开第一个入口），<strong>零配置可用</strong>；</li>
+      <li>环境识别优先级：<strong>手动选择 &gt; 自动识别</strong>，手动选择存于用户偏好；</li>
+      <li>预检失败回退严格按该环境的入口优先顺序，全部不可用时提示"当前环境可能无法访问该应用"。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ M05 ============ -->
+<section id="m05">
+  <h2><span class="no">M05</span>AI 助手 <span class="badge p2">17 项</span></h2>
+  <p>定位：不绑死某一家模型——任何 OpenAI 兼容 API（DeepSeek/智谱/Kimi/通义…）或 NAS 本地 Ollama 都能接；除了聊天，重点是"<strong>能帮你操作门户</strong>"。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>多 Provider 配置</td><td>多套"名称 + base_url + api_key + 默认模型"配置，下拉切换</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>本地 Ollama 接入</td><td>填 <code>http://nas:11434</code> 即接入本地模型，隐私数据不出内网</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>连接测试与模型拉取</td><td>配置保存前测试连通性，自动拉取可用模型列表供选择</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>全局侧边抽屉</td><td>任意页面唤起侧边 AI 抽屉，不打断当前操作</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>独立对话页</td><td>全屏对话界面，适合长对话</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>流式输出</td><td>SSE 逐字输出，可随时停止生成</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>Markdown 渲染</td><td>表格/代码块/代码高亮，一键复制代码</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>多会话管理</td><td>新建/重命名/删除/导出会话，历史落库</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">9</td><td>上下文轮数控制</td><td>携带历史轮数可配（省 Token）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>意图导航 <span class="badge core">★</span></td><td>系统提示词注入应用清单，AI 返回 <code>{action:"navigate", app_id}</code> 直接跳转："帮我打开下载器"</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>上下文感知</td><td>可开关注入 NAS 负载/容器状态/当前环境摘要，回答"NAS 现在卡不卡"</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>快捷指令库</td><td>预设常用 Prompt（翻译/总结/周报…），支持自定义，一键发送</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">13</td><td>AI 生成应用条目</td><td>粘贴一段服务描述，AI 产出名称/分组/图标建议/探活方式的应用草稿</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">14</td><td>AI 生成 Flow 草稿</td><td>"每天 8 点检查下载并通知我" → 生成 Flow 配置，人工确认后保存</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">15</td><td>Token 用量统计</td><td>按会话/按天统计 tokens 与估算费用</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">16</td><td>图片理解</td><td>多模态模型发送截图问答（如"这个报错怎么办"）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">17</td><td>本地知识库问答</td><td>对 NAS 文档/说明文件做检索增强问答（远期，大工程）</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M06 ============ -->
+<section id="m06">
+  <h2><span class="no">M06</span>Flow 自动化 <span class="badge p2">19 项</span></h2>
+  <p>定位：轻量版 n8n/IFTTT。M2 用"触发器→条件→动作"表单编排快速落地，M3 升级画布。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>Flow 列表</td><td>全部 Flow 一览：状态开关、最近执行、手动运行按钮</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>表单式编排</td><td>下拉选择触发器/条件/动作并填参数，上下拖拽排序</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>画布编排</td><td>Vue Flow 拖拽节点、连线、分支并行、节点内联调试</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">4</td><td>触发器：定时 cron</td><td>可视化选择（每 N 分钟/每天 HH:mm/自定义 cron）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>触发器：Webhook</td><td>自动生成随机 token URL <code>POST /api/hooks/flow/{token}</code>，可吊销重置</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>触发器：手动</td><td>列表/详情一键运行</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>触发器：事件</td><td>应用离线/恢复、CPU/内存/磁盘超阈值、容器启停、通知事件</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>条件节点</td><td>表达式引用上游输出，如 <code>prev.status_code == 200</code>，不满足则跳过后续</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">9</td><td>动作：HTTP 请求</td><td>method/url/headers/body，常用于联动其他服务 API</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>动作：通知推送</td><td>发送到指定通知渠道，标题/内容支持变量插值</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>动作：SSH 命令</td><td>指定主机（复用凭据库）执行命令，返回输出</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">12</td><td>动作：Docker 操作</td><td>容器 start/stop/restart</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">13</td><td>动作：AI 调用</td><td>把上游输出交给 AI 处理（总结/判断），结果继续向下游传递</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">14</td><td>动作：延时/变量</td><td>等待 N 秒；设置/修改变量供后续节点引用</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">15</td><td>试运行 dry-run</td><td>不真正执行副作用动作，逐步显示"将执行什么、输出是什么"</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">16</td><td>执行历史</td><td>每次执行记录状态/耗时/每步输入输出日志，可重看</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">17</td><td>失败重试</td><td>失败自动重试 N 次、间隔 M 秒，可配置</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">18</td><td>失败告警</td><td>Flow 执行失败自动推送通知渠道</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">19</td><td>模板/导入导出</td><td>内置常用模板（下载完成通知、离线自动重启等），支持 JSON 导入导出分享</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+  <div class="rules"><strong>典型场景：</strong>
+    <ul>
+      <li>每天 08:00 查询 qBittorrent 完成数 → 有新增则 Bark 推送"昨夜新增下载 X 个"；</li>
+      <li>探活发现 Jellyfin 离线 → Docker 自动重启 → 仍失败升级为 error 通知；</li>
+      <li>手机快捷指令 POST Webhook → AI 总结剪贴板文本 → 推回 Telegram。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ M07 ============ -->
+<section id="m07">
+  <h2><span class="no">M07</span>应用探活与可用性 <span class="badge p1">7 项</span></h2>
+  <p>定位：知道"每个服务活没活"。整机资源监控见 <a href="#m17">M17</a>，端口级监控见 <a href="#m18">M18</a>。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>探活配置</td><td>按应用配置：HTTP 状态码 / TCP 端口 / HTTP 关键字三种方式，间隔默认 60s</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>状态实时推送</td><td>探活结果经 WebSocket 推送，首页状态点即时变化</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">3</td><td>事件时间线</td><td>上线/下线/延迟突增事件流水，按应用筛选</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>可用率统计</td><td>24h/7d/30d 在线率百分比，纳入应用详情</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>离线/恢复告警</td><td>应用状态变化即推送，避免"服务挂了半天才发现"</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">6</td><td>域名证书监控</td><td>监控域名入口的 HTTPS 证书到期天数，提前 30/7/1 天提醒</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>域名解析检查</td><td>定期解析域名入口，公网 IP 变化（DDNS）后提醒</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M17 ============ -->
+<section id="m17">
+  <h2><span class="no">M17</span>服务器性能监控 <span class="badge core">★ 核心</span> <span class="badge p1">21 项</span></h2>
+  <p>定位：NAS 整机的"体检中心"，也是本项目<strong>最高优先级模块</strong>——性能、资源、进程一目了然。基础能力随 M1 落地，不是"以后再说"的可选项。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>系统信息概览</td><td>主机名/操作系统/内核版本/架构/运行时长/实时负载（1/5/15min）</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>CPU 监控</td><td>总使用率 + 每核使用率曲线 + 负载均值</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">3</td><td>内存监控</td><td>已用/可用/缓存/缓冲/Swap 使用率</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>磁盘空间监控</td><td>各分区/挂载点的容量、已用、使用率与 inode 用量</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">5</td><td>网络流量监控</td><td>各网卡实时上下行速率、当日/累计流量统计</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">6</td><td>资源历史图表</td><td>全指标历史曲线（ECharts），实时 + 24h/7d/30d 区间切换</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>采样存储与自动清理</td><td>默认每分钟采样入库，保留天数可配（默认 7 天）自动清理</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">8</td><td>实时刷新推送</td><td>监控数据经 WebSocket 秒级推送，无需手动刷新</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">9</td><td>监控仪表盘页</td><td>独立"监控"页，一屏看全部指标 + 应用状态</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">10</td><td>磁盘 IO 监控</td><td>各磁盘读写速率、IOPS、IO 利用率</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>温度监控</td><td>CPU/主板/硬盘温度（依赖传感器可用性，无传感器自动隐藏）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>进程监控</td><td>按 CPU/内存排序的进程 Top 榜（PID/用户/命令行），支持搜索</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">13</td><td>Docker 资源占用</td><td>按容器维度统计 CPU/内存/网络（联动 M08）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">14</td><td>资源阈值告警</td><td>CPU/内存/磁盘用量超阈值持续 N 分钟 → 推送通知</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">15</td><td>告警规则自定义</td><td>每项指标独立配置阈值/持续时间/通知级别，可单独启停</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">16</td><td>历史数据导出</td><td>指定指标与时间区间导出 CSV</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">17</td><td>Web SSH 终端</td><td>浏览器内 xterm.js 直连 NAS Shell，可配置开关、操作留审计</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">18</td><td>多机监控 Agent</td><td>在其他服务器部署轻量 Agent，门户统一纳管多台主机</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">19</td><td>SNMP 等协议采集</td><td>对不支持 Agent 的设备（路由器/交换机）经 SNMP 采集</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">20</td><td>监控大屏</td><td>全屏只读大屏轮播，适合挂在显示器上</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">21</td><td>性能报表</td><td>按天/周生成资源使用摘要（均值/峰值/告警次数），可定时推送</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+  <div class="rules"><strong>技术说明：</strong>容器内通过挂载宿主机只读 <code>/proc</code>、<code>/sys</code>（psutil 指向宿主数据源）采集，Docker 场景以 <code>docker stats</code> 兜底；NAS 专属 API（群晖 DSM 等）作为增强适配。</div>
+</section>
+
+<!-- ============ M18 ============ -->
+<section id="m18">
+  <h2><span class="no">M18</span>端口监控 <span class="badge core">★ 核心</span> <span class="badge p2">12 项</span></h2>
+  <p>定位：以"端口"为中心的网络层监控。与 M07 的区别——M07 面向"应用"整体死活，M18 关注<strong>端口监听、可达性与变更</strong>，是排查"服务挂了还是端口不通"的利器。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>端口监听清单</td><td>展示 NAS 当前所有监听端口（协议/监听地址/端口/进程），定时自动发现</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>端口探活监控</td><td>对任意 host:port 定时 TCP 探测，记录通断状态与响应延迟</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>端口变更告警</td><td>端口 通→断 / 断→通 即时推送通知，可挂 Flow 联动</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>端口-应用关联</td><td>端口监控项与门户应用/入口双向跳转、状态互认</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>端口占用检索</td><td>输入端口号查占用进程与命令行，快速排查端口冲突</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>批量导入</td><td>粘贴 host:port 列表批量创建监控项</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>端口总览看板</td><td>全部端口通断一屏一览，异常置顶、支持筛选</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>端口延迟曲线</td><td>每个监控项的响应延迟历史趋势图</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">9</td><td>监听变更历史</td><td>记录监听端口增减流水，及时发现异常服务</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">10</td><td>裸露端口安全提示</td><td>检测 0.0.0.0 监听但未配置任何入口的端口，给出暴露面安全建议</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">11</td><td>公网可达性对比</td><td>对比内网/外网环境对同一端口的探测结果，验证端口映射/防火墙是否生效</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">12</td><td>端口分组与标签</td><td>按用途分组管理监控项，支持批量启停</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M08 ============ -->
+<section id="m08">
+  <h2><span class="no">M08</span>Docker 容器管理 <span class="badge opt">可选模块</span> <span class="badge p2">8 项</span></h2>
+  <p>定位：不开则已、开则好用的"轻运维"面板。需挂载 <code>docker.sock</code>，默认关闭。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>容器列表</td><td>名称/状态/镜像/CPU/内存占用，运行中排前</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>启动/停止/重启</td><td>单容器操作 + 确认弹窗，写审计日志</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>容器日志</td><td>查看尾部 N 行 + 实时滚动 + 关键字过滤</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>容器详情</td><td>端口映射/卷挂载/环境变量（敏感值脱敏）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>批量操作</td><td>多选启动/停止</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">6</td><td>容器事件通知</td><td>容器意外退出 → 通知/挂 Flow（如自动重启）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">7</td><td>镜像管理</td><td>镜像列表、悬空镜像清理</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">8</td><td>更新检测</td><td>对比本地与远端 tag，提示可更新的容器（远期）</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M09 ============ -->
+<section id="m09">
+  <h2><span class="no">M09</span>通知中心 <span class="badge p2">12 项</span></h2>
+  <p>定位：所有事件的"出口"。站内看历史，站外发手机。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>站内通知</td><td>顶栏铃铛 + 角标 + 列表，WebSocket 实时推送</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>已读管理</td><td>单条已读/全部已读/删除</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>级别与过滤</td><td>info/warn/error 三级，列表按级别筛选</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>渠道：Bark</td><td>iOS Bark 推送，填 URL 即用</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>渠道：Telegram</td><td>Bot Token + chat_id</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>渠道：钉钉/企微/飞书</td><td>群机器人 Webhook</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>渠道：SMTP 邮件</td><td>服务器/端口/账号/授权码，支持 TLS</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>渠道：通用 Webhook / ntfy</td><td>自定义 POST 模板，模板变量</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">9</td><td>渠道测试发送</td><td>每个渠道一键发测试消息</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>通知规则</td><td>"什么事件 → 发到哪些渠道"的路由矩阵（如离线告警→Bark，Flow 失败→TG）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>免打扰时段</td><td>指定时段只进站内不发外部渠道</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>聚合去重</td><td>同一事件短时间重复触发时合并为一条（如探测抖动）</td><td><span class="badge p2">M2</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M10 ============ -->
+<section id="m10">
+  <h2><span class="no">M10</span>工具箱 <span class="badge p1">12 项</span></h2>
+  <p>定位：NAS 场景高频小工具集合，提升"天天打开门户"的理由。均为轻实现。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>网络唤醒 Wake-on-LAN</td><td>保存局域网设备 MAC 列表，一键魔术包唤醒</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>局域网设备发现</td><td>扫描网段存活 IP + 尝试识别主机名，辅助找设备</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>Ping / 端口测试</td><td>从 NAS 侧发起 ping 与 TCP 端口连通测试</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>DNS 查询</td><td>指定域名查 A/AAAA/CNAME 记录</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">5</td><td>二维码生成</td><td>文本/链接转二维码，支持下载 PNG</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">6</td><td>门户短链接</td><td>生成 <code>/s/xxxx</code> 跳转链，便于分享门户内地址</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>编解码工具</td><td>Base64 / URL 编解码、JWT 解析可视化</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">8</td><td>时间戳转换</td><td>秒/毫秒时间戳 ↔ 日期时间互转</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">9</td><td>正则测试</td><td>正则表达式实时匹配高亮</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>密码生成器</td><td>长度/字符集可配，一键生成强密码</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">11</td><td>迷你 API 测试器</td><td>自定义 method/url/headers/body 发请求看响应（内网调试神器）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">12</td><td>局域网快传</td><td>临时上传文件生成取件码，同网段设备凭码下载</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M11 ============ -->
+<section id="m11">
+  <h2><span class="no">M11</span>文件管理 <span class="badge opt">可选模块</span> <span class="badge p2">7 项</span></h2>
+  <p>定位：轻量文件面板，主要服务于"图标上传"与临时取文件，不做重型网盘。需在设置中白名单挂载目录。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>目录浏览</td><td>白名单目录树 + 文件列表（大小/时间），面包屑导航</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>上传/下载</td><td>大文件分片上传；下载支持限速</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>文件操作</td><td>新建文件夹/重命名/删除/移动/复制</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>媒体预览</td><td>图片预览、视频播放（浏览器原生能力）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>文本编辑</td><td>小文本文件在线编辑保存</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">6</td><td>图标目录联动</td><td>上传应用图标自动归档到图标目录，可复用</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>空间分析</td><td>目录占用排行（Top 大文件），辅助清理</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M12 ============ -->
+<section id="m12">
+  <h2><span class="no">M12</span>下载与媒体集成 <span class="badge opt">可选模块</span> <span class="badge p2">6 项</span></h2>
+  <p>定位：与下载器、媒体库"只读联动"为主，不做全套客户端。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>qBittorrent 集成</td><td>登录 WebUI API，展示任务列表/进度/速度</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>添加下载任务</td><td>粘贴磁力/URL 直接下发</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>Aria2 / Transmission 适配</td><td>同一套界面适配其他下载器</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">4</td><td>下载完成通知</td><td>状态变化对接通知渠道（也可用 Flow 自定义）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>媒体最近入库</td><td>Jellyfin/Emby API 拉取最新海报墙小组件</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>播放状态展示</td><td>显示"谁正在看什么"（可选）</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M13 ============ -->
+<section id="m13">
+  <h2><span class="no">M13</span>日程与提醒 <span class="badge p2">6 项</span></h2>
+  <p>定位：把门户变成"每天会打开的效率入口"。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>日历视图</td><td>月视图日历，点日期加事件</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>待办清单</td><td>简单待办（勾选完成），按日期分组</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>提醒推送</td><td>到点经通知渠道推送（Bark/TG），也可只在站内提醒</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>重复规则</td><td>每天/每周/每月/自定义间隔</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>节日/生日提醒</td><td>农历节日与自定义生日/纪念日</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>日历订阅导出</td><td>生成 ics 订阅链接，可导入手机日历</td><td><span class="badge p3">M3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M14 ============ -->
+<section id="m14">
+  <h2><span class="no">M14</span>开放 API 与扩展 <span class="badge p2">7 项</span></h2>
+  <p>定位：门户不只是"给人用"，也要"给程序用"。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>API Token 管理</td><td>生成/吊销 Token，可限定权限范围（只读/读写）与过期时间</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">2</td><td>开放 REST API</td><td>全量接口 + <code>/docs</code> OpenAPI 文档，第三方可用 Token 调用</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>Webhook 出站订阅</td><td>指定事件 POST 到外部地址，带签名</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">4</td><td>自定义 CSS</td><td>设置页注入自定义样式，深度换装</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>插件机制预留</td><td>统一的前端卡片注册与后端服务注册约定（远期）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">6</td><td>全量导出/导入</td><td>一键导出全部配置为 JSON（应用/入口/环境/Flow/设置），可导入恢复</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>恢复出厂</td><td>清空业务数据（二次确认 + 输密码），可选保留管理员账号</td><td><span class="badge p2">M2</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M15 ============ -->
+<section id="m15">
+  <h2><span class="no">M15</span>系统设置 <span class="badge p1">12 项</span></h2>
+  <p>定位：全局配置中心，集中管理、即改即生效。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>常规设置</td><td>站点名称/Logo/默认语言/时区</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>注册与访客</td><td>是否开放注册、默认角色、访客模式开关</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>外观设置</td><td>默认主题色/默认暗色/全局壁纸</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>访问方式设置</td><td>环境档案管理（详见 M04）</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">5</td><td>AI 设置</td><td>Provider/模型/温度/上下文注入开关（详见 M05）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">6</td><td>通知设置</td><td>渠道与通知规则（详见 M09）</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">7</td><td>安全设置</td><td>密码策略/会话有效期/强制 TOTP/失败锁定阈值</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">8</td><td>自动备份</td><td>定时导出全量 JSON 到指定目录（数据卷内），保留 N 份</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">9</td><td>版本更新检查</td><td>对比 GitHub Release 提示新版本与更新日志</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>健康自检</td><td>检查数据卷可写/外网连通/AI 连通/探活服务状态，输出体检报告</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">11</td><td>关于页</td><td>版本/构建时间/开源协议/项目地址</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">12</td><td>MySQL 数据同步</td><td>SQLite 为主库，定时镜像推送到 NAS MySQL：连接配置与测试、间隔可配、立即推送、每表同步状态与最近结果、失败退避重试、敏感表排除（会话/Token 不同步）、MySQL 不可达不影响本地运行、支持从 MySQL 恢复</td><td><span class="badge p2">M2</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M16 ============ -->
+<section id="m16">
+  <h2><span class="no">M16</span>移动端与 PWA <span class="badge p1">6 项</span></h2>
+  <p>定位：手机上的体验不能是"能看"，要"好用"。</p>
+  <table>
+    <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>全站响应式</td><td>所有页面适配窄屏，触控目标 ≥ 44px</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>PWA 可安装</td><td>manifest + service worker，浏览器"添加到主屏幕"像原生 App</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">3</td><td>移动端底部导航</td><td>首页/应用/AI/更多 的底部 Tab</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">4</td><td>主屏图标与启动屏</td><td>自定义图标与启动画面</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">5</td><td>移动端专属布局</td><td>手机上独立的小组件排列方案（与 PC 互不影响）</td><td><span class="badge p3">M3</span></td></tr>
+      <tr><td class="num">6</td><td>暗色跟随系统</td><td>系统切暗色自动跟随</td><td><span class="badge p1">M1</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 权限矩阵 ============ -->
+<section id="perm">
+  <h2><span class="no">02</span>权限矩阵</h2>
+  <table>
+    <thead><tr><th style="width:28%">能力</th><th>admin</th><th>user</th><th>访客（开启访客模式）</th></tr></thead>
+    <tbody>
+      <tr><td>查看首页 / 打开应用</td><td>✓ 全部</td><td>✓ 按应用可见性</td><td>仅"公开"应用</td></tr>
+      <tr><td>管理 应用/分组/入口</td><td>✓</td><td>✗</td><td>✗</td></tr>
+      <tr><td>环境档案管理</td><td>✓</td><td>✗（可手动切换自己的环境）</td><td>✗</td></tr>
+      <tr><td>查看监控</td><td>✓ 全部</td><td>✓ 基础资源图</td><td>✗</td></tr>
+      <tr><td>Docker 操作</td><td>✓</td><td>✗</td><td>✗</td></tr>
+      <tr><td>Flow</td><td>创建/编辑/执行</td><td>仅可手动触发被允许的 Flow</td><td>✗</td></tr>
+      <tr><td>AI 对话</td><td>✓</td><td>✓（可限额）</td><td>✗</td></tr>
+      <tr><td>工具箱</td><td>✓</td><td>✓</td><td>✗</td></tr>
+      <tr><td>文件管理</td><td>✓（白名单目录）</td><td>可配</td><td>✗</td></tr>
+      <tr><td>系统设置 / 用户管理</td><td>✓</td><td>仅个人偏好</td><td>✗</td></tr>
+      <tr><td>备份 / 恢复</td><td>✓</td><td>✗</td><td>✗</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 阶段规划 ============ -->
+<section id="plan">
+  <h2><span class="no">03</span>阶段规划汇总</h2>
+  <h3>M1 · MVP（第 1~3 周）—— "骨架 + 核心差异化"</h3>
+  <ul>
+    <li>项目骨架（前后端 + Docker 多阶段构建 + compose）</li>
+    <li>M01 基础（1~6, 9）：登录、初始化向导、JWT、角色、防爆破</li>
+    <li>M02 基础（1~4, 6, 9, 12, 18~21）：磁贴/分组/拖拽/搜索/收藏/资源速览/主题/暗色/壁纸/响应式</li>
+    <li>M03 基础（1~6, 8, 9, 13）：应用与分组 CRUD、图标、状态点、导入导出</li>
+    <li><strong>M04 核心（1~10, 12, 13, 15）</strong>：多入口 + 环境档案 + 智能解析 + 测试矩阵 + SSH 本地命令</li>
+    <li>M10 快速工具（1, 3, 5, 7, 8, 10）：轻量提升日用价值</li>
+    <li><strong>M17 基础（1~9）</strong>：系统信息/每核 CPU/内存/磁盘空间/网卡流量采集、历史图表、监控页与实时刷新</li>
+    <li>M15 基础（1, 3, 4, 11）：常规/外观/访问方式/关于</li>
+    <li>M16 基础（1, 3, 6）：响应式与底部导航</li>
+  </ul>
+  <div class="goal">验收：NAS 单容器跑通——登录 → 建应用并配多入口 → 住宅/公司两个网段访问自动切入口 → 磁贴搜索直达；监控页实时展示 NAS 的 CPU/内存/磁盘/网络曲线。</div>
+
+  <h3>M2 · 增强（第 4~6 周）—— "智能与运维能力"</h3>
+  <ul>
+    <li>M05 AI 助手（1~14）：多 Provider、流式对话、意图导航、生成应用条目</li>
+    <li>M06 Flow 表单版（1~2, 4~10, 15~18）：cron/Webhook/事件 → HTTP/通知 + 条件 + 试运行 + 历史重试（11~14 SSH/Docker/AI/变量动作随画布在 M3）</li>
+    <li>M07 可用性（3~4, 6）：事件时间线、可用率、证书监控</li>
+    <li><strong>M17 增强（10~15）</strong>：磁盘 IO、温度、进程、Docker 资源占用、阈值告警与自定义告警规则</li>
+    <li><strong>M18 端口监控（1~7）</strong>：监听清单、端口探活、变更告警、端口-应用关联、占用检索、批量导入、总览看板</li>
+    <li>M08 Docker 基础（1~4）；M09 通知中心（1~12）</li>
+    <li>M11 文件管理基础（1~4, 6）；M12 基础（1~2, 4~5）；M13 日程提醒（1~5）</li>
+    <li>M14（1~2, 4, 6~7）：API Token、开放 API、自定义 CSS、全量导出导入、恢复出厂（自动备份属 M15-8）</li>
+    <li>M01 增强（7~8, 10~11, 14）：TOTP、会话管理、访客模式、用户管理、审计</li>
+    <li>M02/M03/M04 增强：多标签页、天气/资源小组件、模板库、回收站、预检、托管隧道、二维码、调试页</li>
+    <li>M15 增强（2, 5~10, 12，含 MySQL 数据同步）、M16 PWA（2, 4）</li>
+  </ul>
+  <div class="goal">验收：应用离线告警、服务器指标阈值告警、端口断通告警、AI 意图导航、定时通知五个场景真实可用。</div>
+
+  <h3>M3 · 进阶（第 7 周起）—— "画布与企业化"</h3>
+  <ul>
+    <li>M06 Flow 画布（3, 11~14, 19）：拖拽编排、SSH/AI/变量动作、模板市场</li>
+    <li>M04 SSH 服务端托管隧道（16）成熟化</li>
+    <li>M08 增强（5~8）：批量、事件通知、镜像管理、更新检测</li>
+    <li>M10 增强（2, 4, 6, 9, 11, 12）；M11 增强（5, 7）；M12（3, 6）；M13（6）</li>
+    <li>M14（3, 5）；M07（7）域名解析检查；M01（12~13）：OIDC/LDAP、Passkey</li>
+    <li><strong>M17 进阶（16~21）</strong>：数据导出、Web SSH 终端、多机 Agent、SNMP 采集、监控大屏、性能报表</li>
+    <li><strong>M18 进阶（8~12）</strong>：延迟曲线、监听变更历史、裸露端口提示、公网可达性对比、分组标签</li>
+    <li>M02/M05/M16 远期项：最近使用、RSS 组件、Flow 生成、用量统计、图片理解、移动专属布局</li>
+  </ul>
+  <div class="goal">验收：Flow 画布编排一条含分支的自动化；公司网络免命令直达内网服务；支持企业 SSO。</div>
+</section>
+
+<!-- ============ 新增清单 ============ -->
+<section id="new">
+  <h2><span class="no">04</span>相比 v0.1 总体方案新增的功能</h2>
+  <p>本次详述在原方案基础上<strong>新增/明确</strong>了以下内容（原方案的架构与技术选型不变）：</p>
+  <ol>
+    <li><strong>多标签页仪表盘</strong>：多套首页布局切换（M02-5）</li>
+    <li><strong>命令面板式全局搜索</strong> Ctrl+K 与<strong>快捷搜索语法</strong>（M02-6/7）</li>
+    <li><strong>应用模板库</strong>：常见自托管服务一键创建（M03-15）</li>
+    <li><strong>回收站</strong>：应用软删除可恢复（M03-12）</li>
+    <li><strong>内置图标库</strong>：本地化常见服务图标，不依赖外网（M03-7）</li>
+    <li><strong>入口历史延迟曲线</strong> 与 <strong>环境探测调试页</strong>（M04-14/18）</li>
+    <li><strong>入口二维码</strong>：手机扫码直达（M04-17）</li>
+    <li><strong>AI 多 Provider 切换 + 模型列表拉取</strong>（M05-1/3）</li>
+    <li><strong>AI 快捷指令库</strong> 与 <strong>AI 生成 Flow/应用草稿</strong>（M05-12/13/14）</li>
+    <li><strong>AI Token 用量统计、图片理解、本地知识库问答</strong>（M05-15/16/17）</li>
+    <li><strong>Flow 试运行 dry-run、失败重试、模板/导入导出</strong>（M06-15/17/19）</li>
+    <li><strong>域名 HTTPS 证书到期监控</strong> 与 <strong>域名解析（DDNS）检查</strong>（M07-10/11）</li>
+    <li><strong>可用率统计与事件时间线</strong>（M07-3/4）</li>
+    <li><strong>工具箱整组</strong>：网络唤醒、设备发现、编解码、时间戳、正则、密码生成、迷你 API 测试器、局域网快传等（M10）</li>
+    <li><strong>文件管理模块</strong>（可选，M11）</li>
+    <li><strong>下载器与媒体库集成</strong>（可选，M12）</li>
+    <li><strong>日程与提醒模块</strong>（M13）</li>
+    <li><strong>开放 API Token 体系</strong> 与 <strong>Webhook 出站</strong>（M14）</li>
+    <li><strong>自动定时备份、健康自检、版本更新检查</strong>（M15-8/9/10）</li>
+    <li><strong>PWA</strong>：可安装、主屏图标、启动屏（M16）</li>
+    <li><strong>通知规则路由矩阵、免打扰、聚合去重</strong>（M09-10/11/12）</li>
+    <li><strong>权限矩阵</strong>：明确 admin/user/访客三级边界（§权限矩阵）</li>
+    <li><strong>服务器性能监控模块 M17</strong> ★：系统信息、每核 CPU/内存/磁盘空间与 IO/网卡流量/温度/进程 Top/Docker 资源占用、阈值告警与自定义规则、监控大屏、Web SSH 终端、多机监控 Agent、性能报表（v1.1 新增）</li>
+    <li><strong>端口监控模块 M18</strong> ★：端口监听清单、端口探活与变更告警、端口-应用关联、占用检索、裸露端口安全提示、公网可达性对比（v1.1 新增）</li>
+    <li><strong>M07 调整</strong>：聚焦"应用探活与可用性"，NAS 资源类能力并入 M17，避免职责重叠（v1.1 调整）</li>
+    <li><strong>MySQL 数据同步</strong>：SQLite 主库 + 定时镜像推送 NAS MySQL（灾备/集中存储），支持立即推送、同步状态、失败重试与从 MySQL 恢复（v1.2 新增，M15-12）</li>
+  </ol>
+</section>
+
+<!-- ============ 下一步 ============ -->
+<section id="next">
+  <h2><span class="no">05</span>下一步</h2>
+  <ol>
+    <li>评审本功能清单，<strong>勾掉 M1 不做的项</strong>（做减法比加法重要）；</li>
+    <li>前置问题已闭环（见《总体设计方案》§11 决策表，均不阻塞开发；NAS 型号与跳板机信息部署期提供即可）；</li>
+    <li>《接口详述（api-spec）》已输出 ✅（字段级数据模型 + 全量 API 契约）；《页面交互稿（ui-prototype）》随 M1 开发按页面输出，随后进入 M1 编码。</li>
+  </ol>
+  <div class="callout">💡 说明：本项目的所有文档产出均提供 <strong>MD + HTML 双版本</strong>；工作过程记录见项目根目录 <code>logs/</code> 文件夹。</div>
+</section>
+
+<footer>Portal · 功能详述 v1.2 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>

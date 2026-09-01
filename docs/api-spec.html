@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · 接口与数据模型详述（API Spec）</title>
+<style>
+  :root{
+    --primary:#4f6ef7; --primary-dark:#1e3a8a;
+    --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --bg:#f5f7fb; --card:#ffffff; --code-bg:#0d1526; --code-ink:#dbe4f3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:252px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:26px 0 28px 24px;z-index:10}
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin:2px 0 20px}
+  .toc a{display:block;color:#94a3b8;text-decoration:none;font-size:12.5px;
+    padding:4px 14px 4px 12px;margin-left:-12px;border-left:2px solid transparent;transition:all .15s}
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .toc-gap{margin-top:12px}
+  .main{margin-left:252px;padding:0 40px 80px}
+  .content{max-width:1000px;margin:0 auto}
+  .hero{margin:0 -40px 34px;padding:56px 40px 50px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%)}
+  .hero .inner{max-width:1000px;margin:0 auto}
+  .hero h1{font-size:32px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:15.5px;color:#c7d6ff;max-width:780px}
+  .hero .meta{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:30px 34px;margin-bottom:24px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{font-size:21px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h2 .no{font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px}
+  h3{font-size:16px;margin:24px 0 10px;color:#0f172a;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h3::before{content:"▍";color:var(--primary)}
+  h4{font-size:14px;margin:18px 0 6px;color:#0f172a;font-family:Consolas,Menlo,monospace}
+  h4::before{content:"◈ ";color:var(--primary)}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:4px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+  .badge.m1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.m2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.m3{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+  th{background:#f1f5f9;text-align:left;font-weight:600;color:#334155}
+  th,td{border:1px solid var(--line);padding:6px 10px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fafbfe}
+  td.c{font-family:Consolas,Menlo,monospace;font-size:12px;white-space:nowrap;color:#4338ca}
+  code{font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:.9em;
+    background:#eef2f7;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#4338ca}
+  pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;margin:12px 0;font-size:13px;line-height:1.7}
+  pre code{background:none;border:none;color:inherit;padding:0}
+  pre .k{color:#7dd3fc} pre .s{color:#a5e8b8} pre .c{color:#64748b}
+  .callout{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;color:#7c2d12}
+  .note{background:#f0f6ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13.5px}
+  footer{max-width:1000px;margin:0 auto;color:#94a3b8;font-size:12.5px;text-align:center}
+  @media (max-width:1080px){
+    .sidebar{display:none}
+    .main{margin-left:0;padding:0 16px 60px}
+    .hero{margin:0 -16px 24px;padding:40px 16px}
+    section{padding:22px 18px}
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">Portal<em>.</em></div>
+  <div class="sub">接口与数据模型 API Spec · v1.0</div>
+  <nav class="toc">
+    <a href="#intro">通用约定</a>
+    <a href="#errors">错误码表</a>
+    <a href="#dm">数据模型（31 张表）</a>
+    <a class="lv2" href="#dm-acc">3.1 账户与安全</a>
+    <a class="lv2" href="#dm-core">3.2 门户核心</a>
+    <a class="lv2" href="#dm-env">3.3 网络环境</a>
+    <a class="lv2" href="#dm-mon">3.4 探活与监控 ★</a>
+    <a class="lv2" href="#dm-port">3.5 端口监控 ★</a>
+    <a class="lv2" href="#dm-ssh">3.6 SSH 凭据与隧道</a>
+    <a class="lv2" href="#dm-flow">3.7 Flow</a>
+    <a class="lv2" href="#dm-notify">3.8 通知</a>
+    <a class="lv2" href="#dm-ai">3.9 AI</a>
+    <a class="lv2" href="#dm-eff">3.10 效率模块</a>
+    <a class="lv2" href="#dm-sys">3.11 系统与同步</a>
+    <a class="toc-gap" href="#api">API 端点明细</a>
+    <a class="lv2" href="#api-auth">4.1 认证与账户</a>
+    <a class="lv2" href="#api-apps">4.2 分类与应用</a>
+    <a class="lv2" href="#api-env">4.3 网络环境与隧道</a>
+    <a class="lv2" href="#api-mon">4.4 服务器监控 ★</a>
+    <a class="lv2" href="#api-port">4.5 端口监控 ★</a>
+    <a class="lv2" href="#api-rest">4.6~4.12 其余模块</a>
+    <a class="toc-gap" href="#rt">实时协议（WS/SSE）</a>
+    <a href="#env">环境与配置附录</a>
+  </nav>
+</aside>
+
+<div class="main">
+<div class="content">
+
+<header class="hero">
+  <div class="inner">
+    <h1>Portal<span class="dot"> · </span>接口与数据模型详述（API Spec）</h1>
+    <p class="tagline">后端建表与前后端联调的契约依据：31 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
+    <div class="meta">
+      <span class="chip">版本 v1.0</span>
+      <span class="chip">日期 2026-09-01</span>
+      <span class="chip">关联 feature-spec v1.2 · design-proposal v0.2</span>
+      <span class="chip">31 张表</span>
+      <span class="chip">90+ 端点</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 通用约定 ============ -->
+<section id="intro">
+  <h2><span class="no">01</span>通用约定</h2>
+  <table>
+    <thead><tr><th style="width:16%">项</th><th>约定</th></tr></thead>
+    <tbody>
+      <tr><td>Base URL</td><td><code>/api</code>（同源部署；开发期 Vite proxy）</td></tr>
+      <tr><td>认证</td><td><code>Authorization: Bearer &lt;access_token&gt;</code>；豁免：<code>/api/health</code>、<code>/api/auth/init</code>、<code>/api/auth/login</code>、<code>/api/hooks/*</code>、短链跳转</td></tr>
+      <tr><td>统一响应</td><td><code>{"code":0,"message":"ok","data":{...}}</code>；code=0 成功；HTTP 状态码同时有意义（401/403/404/500）</td></tr>
+      <tr><td>分页</td><td>请求 <code>?page=1&amp;page_size=20</code>；响应 <code>data:{items,total,page,page_size}</code></td></tr>
+      <tr><td>时间</td><td>ISO8601 字符串（UTC 存储），前端本地化</td></tr>
+      <tr><td>ID 与敏感值</td><td>自增整数；Token/密钥只回传脱敏掩码</td></tr>
+      <tr><td>核心枚举</td><td><code>access_type</code>: domain/lan/ssh/vpn/custom；<code>role</code>: admin/user；<code>state</code>: up/down/unknown；<code>level</code>: info/warn/error；<code>trigger_type</code>: cron/webhook/manual/event；<code>open_mode</code>: newtab/current/iframe</td></tr>
+      <tr><td>文档</td><td>FastAPI 自动 <code>/docs</code>（OpenAPI）；本文为业务契约补充</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 错误码 ============ -->
+<section id="errors">
+  <h2><span class="no">02</span>错误码表</h2>
+  <table>
+    <thead><tr><th style="width:12%">code</th><th>含义</th><th style="width:12%">HTTP</th></tr></thead>
+    <tbody>
+      <tr><td class="c">0</td><td>成功</td><td class="c">200</td></tr>
+      <tr><td class="c">1001</td><td>用户名或密码错误</td><td class="c">401</td></tr>
+      <tr><td class="c">1002</td><td>token 无效</td><td class="c">401</td></tr>
+      <tr><td class="c">1003</td><td>token 已过期（前端用 refresh 静默续期）</td><td class="c">401</td></tr>
+      <tr><td class="c">1004</td><td>系统未初始化（跳转初始化向导）</td><td class="c">403</td></tr>
+      <tr><td class="c">1005</td><td>系统已初始化（重复初始化拒绝）</td><td class="c">403</td></tr>
+      <tr><td class="c">1006</td><td>登录失败次数过多，已锁定</td><td class="c">429</td></tr>
+      <tr><td class="c">2001</td><td>参数校验失败（message 携带明细）</td><td class="c">422</td></tr>
+      <tr><td class="c">3001</td><td>无权限（未登录/角色不足）</td><td class="c">401/403</td></tr>
+      <tr><td class="c">4001</td><td>资源不存在</td><td class="c">404</td></tr>
+      <tr><td class="c">4002</td><td>名称/唯一键重复</td><td class="c">409</td></tr>
+      <tr><td class="c">4003</td><td>操作冲突（已删除/已停用等）</td><td class="c">409</td></tr>
+      <tr><td class="c">4004</td><td>目标不可达（探活/推送失败等业务失败）</td><td class="c">200</td></tr>
+      <tr><td class="c">5001</td><td>服务器内部错误</td><td class="c">500</td></tr>
+      <tr><td class="c">5002</td><td>依赖服务不可用（MySQL/AI/通知渠道）</td><td class="c">502</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 数据模型 ============ -->
+<section id="dm">
+  <h2><span class="no">03</span>数据模型（31 张表）</h2>
+  <p><strong>建表策略</strong>：随开发阶段建表（"建表"列），M1 建 12 张。所有表含 <code>created_at</code>，业务表含 <code>updated_at</code>（MySQL 同步依赖），各表不再重复列出。</p>
+
+  <h3 id="dm-acc">3.1 账户与安全</h3>
+  <h4>users <span class="badge m1">M1</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">id</td><td class="c">INTEGER</td><td>PK 自增</td></tr>
+    <tr><td class="c">username</td><td class="c">TEXT</td><td>UNIQUE NOT NULL</td></tr>
+    <tr><td class="c">password_hash</td><td class="c">TEXT</td><td>NOT NULL，bcrypt</td></tr>
+    <tr><td class="c">role</td><td class="c">TEXT</td><td>admin / user，默认 user</td></tr>
+    <tr><td class="c">is_active</td><td class="c">INTEGER</td><td>默认 1，禁用=0</td></tr>
+    <tr><td class="c">totp_secret</td><td class="c">TEXT</td><td>NULL，M2 启用</td></tr>
+    <tr><td class="c">prefs</td><td class="c">TEXT(JSON)</td><td>个人偏好：主题/手动环境偏好/语言等</td></tr>
+  </tbody></table>
+  <p><strong>user_sessions</strong>（M2）：id；user_id FK；refresh_hash；device；ip；last_seen_at；revoked —— 会话列表与踢出。<br>
+  <strong>api_tokens</strong>（M2）：id；name；token_hash UNIQUE；scope（readonly/readwrite）；expires_at；last_used_at。<br>
+  <strong>audit_logs</strong>（M1 基础）：id；user_id NULL；action（login/update_config/container_op/flow_run…）；detail；ip。</p>
+
+  <h3 id="dm-core">3.2 门户核心</h3>
+  <h4>categories <span class="badge m1">M1</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">name</td><td class="c">TEXT</td><td>NOT NULL</td></tr>
+    <tr><td class="c">icon</td><td class="c">TEXT</td><td>NULL</td></tr>
+    <tr><td class="c">sort / collapsed</td><td class="c">INTEGER</td><td>排序；默认折叠</td></tr>
+  </tbody></table>
+  <h4>apps <span class="badge m1">M1</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">name</td><td class="c">TEXT</td><td>NOT NULL</td></tr>
+    <tr><td class="c">description</td><td class="c">TEXT</td><td>默认 ''</td></tr>
+    <tr><td class="c">icon / icon_type</td><td class="c">TEXT</td><td>icon_type：url / upload / emoji</td></tr>
+    <tr><td class="c">category_id</td><td class="c">INTEGER</td><td>FK categories，NULL 可不属于分组</td></tr>
+    <tr><td class="c">sort / enabled</td><td class="c">INTEGER</td><td>排序；启用</td></tr>
+    <tr><td class="c">health_type</td><td class="c">TEXT</td><td>'' / http / tcp / keyword</td></tr>
+    <tr><td class="c">health_target</td><td class="c">TEXT</td><td>URL 或 host:port</td></tr>
+    <tr><td class="c">health_interval</td><td class="c">INTEGER</td><td>默认 60 秒</td></tr>
+    <tr><td class="c">open_mode</td><td class="c">TEXT</td><td>newtab（默认）/ current / iframe</td></tr>
+    <tr><td class="c">visibility</td><td class="c">TEXT</td><td>all / admin / users</td></tr>
+    <tr><td class="c">favorite</td><td class="c">INTEGER</td><td>收藏置顶</td></tr>
+    <tr><td class="c">tags</td><td class="c">TEXT(JSON)</td><td>'[]'</td></tr>
+    <tr><td class="c">remark / doc_url</td><td class="c">TEXT</td><td>备注与文档链接</td></tr>
+    <tr><td class="c">deleted / deleted_at</td><td class="c">INT/TS</td><td>回收站软删除</td></tr>
+  </tbody></table>
+  <h4>app_urls <span class="badge m1">M1</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">app_id</td><td class="c">INTEGER</td><td>FK apps，CASCADE</td></tr>
+    <tr><td class="c">access_type</td><td class="c">TEXT</td><td>domain / lan / ssh / vpn / custom</td></tr>
+    <tr><td class="c">url</td><td class="c">TEXT</td><td>NOT NULL</td></tr>
+    <tr><td class="c">label / sort</td><td class="c">TEXT/INT</td><td>标签与排序</td></tr>
+  </tbody></table>
+
+  <p><strong>dashboard_layouts</strong>（M1）：id；user_id FK；tab（标签页名）；sort；layout(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。</p>
+
+  <h3 id="dm-env">3.3 网络环境</h3>
+  <h4>network_profiles <span class="badge m1">M1</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">name</td><td class="c">TEXT</td><td>NOT NULL</td></tr>
+    <tr><td class="c">match_type</td><td class="c">TEXT</td><td>cidr / default（兜底档案）</td></tr>
+    <tr><td class="c">cidrs</td><td class="c">TEXT(JSON)</td><td>如 ["192.168.1.0/24"]</td></tr>
+    <tr><td class="c">prefer_types</td><td class="c">TEXT(JSON)</td><td>如 ["lan","domain","vpn"]</td></tr>
+    <tr><td class="c">is_default / sort / enabled</td><td class="c">INTEGER</td><td>兜底标记 / 排序 / 启用</td></tr>
+  </tbody></table>
+
+  <h3 id="dm-mon">3.4 探活与服务器监控 ★</h3>
+  <h4>app_status <span class="badge m1">M1</span>（app_id 为主键，1:1）</h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">state</td><td class="c">TEXT</td><td>up / down / unknown</td></tr>
+    <tr><td class="c">latency_ms</td><td class="c">INTEGER</td><td>NULL</td></tr>
+    <tr><td class="c">checked_at / since</td><td class="c">TIMESTAMP</td><td>最近检查；当前状态起始（可用率计算）</td></tr>
+    <tr><td class="c">message</td><td class="c">TEXT</td><td>失败原因</td></tr>
+  </tbody></table>
+  <p><strong>probe_events</strong>（M1 建表）：id；app_id FK；event（up/down/slow）；latency_ms；created_at。索引 (app_id, created_at)。</p>
+  <h4>monitor_samples <span class="badge m1">M1</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">ts</td><td class="c">TIMESTAMP</td><td>采样时间，索引；默认每分钟一条</td></tr>
+    <tr><td class="c">cpu / load</td><td class="c">REAL / JSON</td><td>总使用率；[l1,l5,l15]</td></tr>
+    <tr><td class="c">mem</td><td class="c">TEXT(JSON)</td><td>{total, used, swap_used}</td></tr>
+    <tr><td class="c">disks</td><td class="c">TEXT(JSON)</td><td>[{mount,total,used,inode_p}]</td></tr>
+    <tr><td class="c">nets</td><td class="c">TEXT(JSON)</td><td>[{iface,rx,tx,rx_total,tx_total}]</td></tr>
+    <tr><td class="c">io / temps / procs</td><td class="c">TEXT(JSON)</td><td>M2：磁盘 IO；温度；Top 进程快照</td></tr>
+  </tbody></table>
+  <p><strong>alert_rules</strong>（M2）：id；name；metric（cpu/mem/disk/disk_io/temp）；target（如挂载点）；op（'&gt;'/'&lt;'）；threshold；duration_min（持续 N 分钟触发）；level（warn/error）；enabled；last_fired_at。</p>
+
+  <h3 id="dm-port">3.5 端口监控 ★</h3>
+  <p><strong>port_monitors</strong>（M2）：id；name；host（默认 127.0.0.1）；port；app_id FK NULL（与应用关联）；interval 60；enabled；state（up/down/unknown）；last_latency_ms；last_checked_at。<br>
+  <strong>port_events</strong>（M2）：id；monitor_id FK；event（up/down）；latency_ms；created_at。索引 (monitor_id, created_at)。<br>
+  <strong>port_listen_history</strong>（M3）：id；ts；added(JSON)；removed(JSON)（监听快照差异）。</p>
+
+  <h3 id="dm-ssh">3.6 SSH 凭据与隧道</h3>
+  <p><strong>credentials</strong>（M2）：id；name；type（password/key）；host；port 22；username；secret（加密存储，只回掩码）。<br>
+  <strong>tunnels</strong>（M2）：id；url_id FK；credential_id FK；local_port；status（running/stopped/error）；pid；last_active_at；auto_close_min 30。</p>
+
+  <h3 id="dm-flow">3.7 Flow</h3>
+  <p><strong>flows</strong>（M2）：id；name；description；trigger_type（cron/webhook/manual/event）；trigger_config(JSON)；actions(JSON)；enabled；webhook_token UNIQUE；retry；retry_interval；last_run_at。<br>
+  <strong>flow_runs</strong>（M2）：id；flow_id FK；trigger；status（running/success/failed）；steps_log(JSON)（每步输入输出）；started_at；finished_at；duration_ms。</p>
+
+  <h3 id="dm-notify">3.8 通知</h3>
+  <p><strong>notifications</strong>（M2）：id；title；body；level（info/warn/error）；source（probe/metric/port/flow/system）；is_read；dedup_key（聚合去重）。<br>
+  <strong>notify_channels</strong>（M2）：id；type（bark/telegram/smtp/webhook/wecom/dingtalk/feishu/ntfy）；name；config(JSON)（敏感回传脱敏）；enabled。<br>
+  <strong>notify_rules</strong>（M2）：id；event（app_down/app_up/metric_alert/port_down/port_up/flow_failed/system）；channel_ids(JSON)；enabled；quiet_start/quiet_end。</p>
+
+  <h3 id="dm-ai">3.9 AI</h3>
+  <p><strong>ai_conversations</strong>（M2）：id；user_id FK；title；provider。<br>
+  <strong>ai_messages</strong>（M2）：id；conversation_id FK CASCADE；role（user/assistant/system）；content；tokens；created_at。</p>
+
+  <h3 id="dm-eff">3.10 效率模块</h3>
+  <p><strong>calendar_events</strong>（M2）：id；user_id；title；date；time；repeat（none/daily/weekly/monthly/custom）；repeat_config(JSON)；remind_before_min；channel_ids(JSON)。<br>
+  <strong>todos</strong>（M2）：id；user_id；title；done；due_date。<br>
+  <strong>wol_targets</strong>（M1）：id；name；mac NOT NULL；note。<br>
+  <strong>short_links</strong>（M2）：id；code UNIQUE；target；hits。</p>
+
+  <h3 id="dm-sys">3.11 系统与同步</h3>
+  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.*</code> / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code> / <code>backup.*</code> / <code>sync.*</code>。<br>
+  <strong>sync_state</strong>（M2）：id；table_name UNIQUE；last_push_at；rows_pushed；status（idle/running/failed）；message。</p>
+</section>
+
+<!-- ============ API ============ -->
+<section id="api">
+  <h2><span class="no">04</span>API 端点明细</h2>
+  <p>权限列：<strong>P</strong>=公开（免认证）、<strong>A</strong>=任意登录用户、<strong>M</strong>=仅管理员。阶段列 = 端点落地阶段（对应 dev-plan）。</p>
+
+  <h3 id="api-auth">4.1 认证与账户</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">GET</td><td class="c">/api/health</td><td>健康检查（含初始化状态）</td><td class="c">P</td><td class="c">P0</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/auth/init</td><td>首次初始化创建管理员（无用户时可用，否则 1005）</td><td class="c">P</td><td class="c">P1</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/auth/login</td><td>登录 → {access, refresh, user}；失败 1001/1006</td><td class="c">P</td><td class="c">P1</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/auth/refresh · /logout</td><td>续期 / 登出</td><td class="c">A</td><td class="c">P1</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/auth/me</td><td>当前用户 + 偏好</td><td class="c">A</td><td class="c">P1</td></tr>
+    <tr><td class="c">PUT</td><td class="c">/api/auth/password</td><td>修改密码（其他会话失效）</td><td class="c">A</td><td class="c">P1</td></tr>
+    <tr><td class="c">GET/DEL</td><td class="c">/api/auth/sessions · /{id}</td><td>会话列表 / 踢出</td><td class="c">A/M</td><td class="c">M2</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/auth/totp/{setup,enable,disable}</td><td>两步验证</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">CRUD</td><td class="c">/api/users…</td><td>用户管理（增删改/重置密码/禁用）</td><td class="c">M</td><td class="c">M2</td></tr>
+  </tbody></table>
+
+  <h3 id="api-apps">4.2 分类与应用</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">CRUD</td><td class="c">/api/categories · /{id} · /sort</td><td>分组 CRUD / 排序</td><td class="c">A读 M写</td><td class="c">P2</td></tr>
+    <tr><td class="c">GET/POST</td><td class="c">/api/apps · /{id}</td><td>应用列表（聚合状态点、按可见性过滤）/ CRUD</td><td class="c">A读 M写</td><td class="c">P2</td></tr>
+    <tr><td class="c">PUT</td><td class="c">/api/apps/sort</td><td>批量保存排序与分组</td><td class="c">M</td><td class="c">P2</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/apps/{id}/favorite</td><td>收藏 / 取消</td><td class="c">A</td><td class="c">P4</td></tr>
+    <tr><td class="c">GET/POST</td><td class="c">/api/apps/{id}/urls · PUT/DELETE /api/app-urls/{id}</td><td>访问入口 CRUD</td><td class="c">M</td><td class="c">P2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/apps/{id}/resolve?env=auto|{id}</td><td>智能解析：{recommended, alternatives[]}</td><td class="c">A</td><td class="c">P3</td></tr>
+    <tr><td class="c">GET/POST</td><td class="c">/api/apps/export · /import</td><td>JSON 导出 / 导入</td><td class="c">M</td><td class="c">P2</td></tr>
+    <tr><td class="c">GET/POST</td><td class="c">/api/apps/templates · /from-template</td><td>应用模板库</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/apps/{id}/restore · /purge</td><td>回收站恢复 / 彻底删除</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">POST/GET</td><td class="c">/api/apps/{id}/check · /history</td><td>立即探活 / 探活历史与可用率</td><td class="c">A</td><td class="c">P6/M2</td></tr>
+    <tr><td class="c">POST/GET</td><td class="c">/api/apps/upload-icon · /favicon?url=</td><td>图标上传 / favicon 抓取</td><td class="c">M</td><td class="c">P2</td></tr>
+  </tbody></table>
+
+  <h3 id="api-env">4.3 网络环境与隧道</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">CRUD</td><td class="c">/api/network-profiles · /{id}</td><td>环境档案 CRUD</td><td class="c">A读 M写</td><td class="c">P3</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/network-profiles/detect</td><td>{client_ip, matched_profile, candidates}</td><td class="c">A</td><td class="c">P3</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/network-profiles/{id}/test</td><td>档案连通性测试</td><td class="c">M</td><td class="c">P3</td></tr>
+    <tr><td class="c">PUT</td><td class="c">/api/me/env</td><td>手动环境偏好（覆盖自动识别）</td><td class="c">A</td><td class="c">P3</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/connectivity/matrix</td><td>全应用×全入口探测矩阵</td><td class="c">A读 M执行</td><td class="c">P3</td></tr>
+    <tr><td class="c">POST/GET/DEL</td><td class="c">/api/tunnels/{urlId}/open · /api/tunnels</td><td>SSH 隧道开关（服务端托管）</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">CRUD</td><td class="c">/api/credentials…</td><td>SSH 凭据管理（回传脱敏）</td><td class="c">M</td><td class="c">M2</td></tr>
+  </tbody></table>
+
+  <h3 id="api-mon">4.4 服务器监控 ★</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">GET</td><td class="c">/api/monitor/system</td><td>实时概览：系统信息/CPU/内存/磁盘/网络</td><td class="c">A</td><td class="c">P5</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/monitor/history?metric=cpu&amp;range=24h</td><td>历史曲线（cpu/mem/disk/net/io/temp）</td><td class="c">A</td><td class="c">P5</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/monitor/processes?sort=cpu</td><td>进程 Top 榜</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/monitor/temps</td><td>温度（无传感器返回空数组）</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/monitor/docker-stats</td><td>按容器资源占用</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">CRUD</td><td class="c">/api/alerts/rules · /{id} · /{id}/test</td><td>阈值告警规则 CRUD / 测试</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/alerts/events?level=&amp;range=</td><td>告警事件历史</td><td class="c">A</td><td class="c">M2</td></tr>
+  </tbody></table>
+
+  <h3 id="api-port">4.5 端口监控 ★</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">GET</td><td class="c">/api/ports/listen</td><td>当前监听清单（协议/地址/端口/进程）</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">CRUD</td><td class="c">/api/ports/monitors · /{id}</td><td>端口监控项 CRUD</td><td class="c">A读 M写</td><td class="c">M2</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/ports/monitors/import</td><td>批量导入 host:port</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/ports/monitors/{id}/history</td><td>通断/延迟历史</td><td class="c">A</td><td class="c">M3</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/ports/lookup?port=8080</td><td>端口占用检索（进程/命令行）</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/ports/events?monitor_id=</td><td>通断事件流水</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/ports/security-scan</td><td>裸露端口（0.0.0.0 监听无入口）检查</td><td class="c">M</td><td class="c">M3</td></tr>
+  </tbody></table>
+
+  <h3 id="api-rest">4.6~4.12 其余模块</h3>
+  <table><thead><tr><th style="width:22%">模块</th><th style="width:44%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td>Docker 管理</td><td class="c">GET /api/docker/containers · POST .../{name}/{op} · GET .../logs · /detail</td><td>容器列表 / 启停重启（审计）/ 日志 / 详情（脱敏）</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td>Flow</td><td class="c">CRUD /api/flows · POST /{id}/run · /dry-run · GET /{id}/runs</td><td>Flow CRUD / 执行 / 试运行 / 历史</td><td class="c">A读 M写</td><td class="c">M2</td></tr>
+    <tr><td>Flow Webhook</td><td class="c">POST /api/hooks/flow/{token}</td><td>Webhook 触发入口</td><td class="c">P(token)</td><td class="c">M2</td></tr>
+    <tr><td>AI</td><td class="c">CRUD /api/ai/providers · POST /api/ai/chat(SSE) · CRUD /api/ai/conversations · POST /api/ai/generate/app-draft</td><td>Provider/流式对话/会话/生成草稿</td><td class="c">A/M</td><td class="c">M2</td></tr>
+    <tr><td>通知</td><td class="c">GET /api/notifications · PUT read-all · CRUD /api/notify-channels · /{id}/test · GET/PUT /api/notify-rules</td><td>站内通知 / 渠道 / 路由规则</td><td class="c">A/M</td><td class="c">M2</td></tr>
+    <tr><td>工具箱</td><td class="c">POST /api/tools/wol · /ping · /port-check · GET /api/tools/qr · POST /codec · /timestamp · /passgen · /api-test · CRUD /api/tools/wol-targets · /short-links</td><td>小工具集</td><td class="c">A</td><td class="c">P7/M2</td></tr>
+    <tr><td>日历/待办</td><td class="c">CRUD /api/calendar/events · /api/todos</td><td>日程与待办</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td>文件</td><td class="c">GET /api/files/list · GET download · POST upload/mkdir/rename/delete/move · GET/PUT content(M3) · POST analyze(M3)</td><td>文件管理（白名单目录）</td><td class="c">A/M</td><td class="c">M2</td></tr>
+    <tr><td>下载/媒体</td><td class="c">GET /api/downloads/summary · /tasks · POST /tasks · GET /api/media/recent</td><td>qBittorrent 集成 / 最近入库</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore</td><td>键值设置 / MySQL 同步</td><td class="c">M</td><td class="c">P7/P23</td></tr>
+    <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs · GET /api/system/info · /check · /check-update</td><td>备份 / Token / 审计 / 系统</td><td class="c">M</td><td class="c">P2~M2</td></tr>
+  </tbody></table>
+</section>
+
+<!-- ============ 实时协议 ============ -->
+<section id="rt">
+  <h2><span class="no">05</span>实时协议（WebSocket / SSE）</h2>
+  <h3>WS /ws/monitor（P5 起）</h3>
+  <p>连接后服务端每 2 秒推送：</p>
+<pre><code>{"type": <span class="s">"monitor"</span>, "data": {
+  "cpu": <span class="k">12.3</span>, "cpu_per_core": [<span class="k">8.1</span>, <span class="k">15.2</span>],
+  "load": [<span class="k">0.5</span>, <span class="k">0.4</span>, <span class="k">0.3</span>],
+  "mem": {"total": <span class="k">17179869184</span>, "used": <span class="k">8589934592</span>, "swap_used": <span class="k">0</span>},
+  "disks": [{"mount": <span class="s">"/volume1"</span>, "total": <span class="k">4000787030016</span>, "used": <span class="k">1200234496000</span>}],
+  "nets": [{"iface": <span class="s">"eth0"</span>, "rx": <span class="k">1048576</span>, "tx": <span class="k">524288</span>}]
+}}</code></pre>
+  <h3>WS /ws/notify（P6 起）</h3>
+<pre><code>{"type": <span class="s">"app_status"</span>,  "data": {"app_id": <span class="k">12</span>, "state": <span class="s">"down"</span>, "latency": <span class="k">null</span>, "message": <span class="s">"connect timeout"</span>}}
+{"type": <span class="s">"port_status"</span>, "data": {"monitor_id": <span class="k">3</span>, "state": <span class="s">"up"</span>, "latency": <span class="k">2</span>}}   <span class="c">// M2</span>
+{"type": <span class="s">"notification"</span>,"data": {"id": <span class="k">9</span>, "title": <span class="s">"…"</span>, "level": <span class="s">"warn"</span>}}          <span class="c">// M2</span></code></pre>
+  <h3>SSE POST /api/ai/chat（M2）</h3>
+<pre><code>data: {"type": <span class="s">"delta"</span>,  "content": <span class="s">"…"</span>}
+data: {"type": <span class="s">"action"</span>, "action": <span class="s">"navigate"</span>, "app_id": <span class="k">12</span>}   <span class="c">// 意图导航，前端解析后跳转</span>
+data: {"type": <span class="s">"done"</span>,   "usage": {"prompt": <span class="k">320</span>, "completion": <span class="k">118</span>}}
+data: {"type": <span class="s">"error"</span>,  "code": <span class="k">5002</span>, "message": <span class="s">"provider unreachable"</span>}</code></pre>
+</section>
+
+<!-- ============ 环境配置 ============ -->
+<section id="env">
+  <h2><span class="no">06</span>环境与配置附录</h2>
+  <h3>6.1 环境变量</h3>
+  <table><thead><tr><th style="width:30%">变量</th><th style="width:20%">默认</th><th>说明</th></tr></thead><tbody>
+    <tr><td class="c">PORT</td><td class="c">8000</td><td>服务监听端口</td></tr>
+    <tr><td class="c">SECRET_KEY</td><td class="c">必填</td><td>JWT 签名与敏感字段加密密钥</td></tr>
+    <tr><td class="c">TZ</td><td class="c">Asia/Shanghai</td><td>时区</td></tr>
+    <tr><td class="c">DATA_DIR</td><td class="c">/app/data</td><td>数据卷根目录</td></tr>
+    <tr><td class="c">DB__TYPE</td><td class="c">sqlite</td><td>运行主库固定 SQLite（MySQL 仅作镜像目标）</td></tr>
+    <tr><td class="c">SYNC__ENABLED / SYNC__INTERVAL_MIN</td><td class="c">false / 30</td><td>MySQL 定时推送开关与间隔（分钟）</td></tr>
+    <tr><td class="c">SYNC__MYSQL__HOST / PORT / USER / PASSWORD / DATABASE</td><td class="c">—</td><td>MySQL 连接（也可在设置页配置，环境变量优先）</td></tr>
+    <tr><td class="c">HOST_PROC / HOST_SYS</td><td class="c">空</td><td>宿主机只读挂载路径（如 /host/proc），为空则读容器自身</td></tr>
+    <tr><td class="c">DOCKER_SOCK_ENABLED</td><td class="c">false</td><td>Docker 管理模块开关</td></tr>
+    <tr><td class="c">LOG_LEVEL</td><td class="c">info</td><td>日志级别</td></tr>
+  </tbody></table>
+
+  <h3>6.2 数据卷目录结构</h3>
+<pre><code>/app/data
+├── portal.db            <span class="c"># SQLite 主库</span>
+├── icons/               <span class="c"># 应用图标</span>
+├── uploads/             <span class="c"># 上传文件（壁纸/文件管理）</span>
+├── backups/             <span class="c"># 自动备份 JSON</span>
+└── keys/                <span class="c"># SSH 私钥（M2）</span></code></pre>
+
+  <h3>6.3 联动说明</h3>
+  <ul>
+    <li>表结构 / 端点变更 → 本文档升版本 → <code>logs/</code> 记录；</li>
+    <li>端点与功能点编号（M04-10 等）在代码中以注释互相索引，便于按 feature-spec 验收。</li>
+  </ul>
+  <div class="callout">💡 本文档与 dev-plan 的步骤联动：P0 建表即按 §3 的 M1 表执行；各阶段 API 开发按 §4 对应小节实现并以 §2 错误码返回。</div>
+</section>
+
+<footer>Portal · 接口与数据模型详述 v1.0 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>

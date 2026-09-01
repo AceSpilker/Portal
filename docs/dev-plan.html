@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · 开发计划与技术清单（Dev Plan）</title>
+<style>
+  :root{
+    --primary:#4f6ef7; --primary-dark:#1e3a8a;
+    --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --bg:#f5f7fb; --card:#ffffff;
+    --ok:#047857; --ok-bg:#ecfdf5; --ok-line:#a7f3d0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;width:252px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:26px 0 28px 24px;z-index:10}
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin:2px 0 20px}
+  .toc a{display:block;color:#94a3b8;text-decoration:none;font-size:12.5px;
+    padding:4px 14px 4px 12px;margin-left:-12px;border-left:2px solid transparent;transition:all .15s}
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .toc-gap{margin-top:12px}
+  .main{margin-left:252px;padding:0 40px 80px}
+  .content{max-width:1000px;margin:0 auto}
+  .hero{margin:0 -40px 34px;padding:56px 40px 50px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%)}
+  .hero .inner{max-width:1000px;margin:0 auto}
+  .hero h1{font-size:32px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:15.5px;color:#c7d6ff;max-width:780px}
+  .hero .meta{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:30px 34px;margin-bottom:24px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{font-size:21px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h2 .no{font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px}
+  h3{font-size:16px;margin:26px 0 10px;color:#0f172a;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h3::before{content:"▍";color:var(--primary)}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:4px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.m1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.m2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.m3{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+  /* 步骤状态 */
+  .st{display:inline-block;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+  .st.open{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1}
+  .st.doing{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+  .st.done{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .st.block{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th{background:#f1f5f9;text-align:left;font-weight:600;color:#334155}
+  th,td{border:1px solid var(--line);padding:7px 11px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fafbfe}
+  td.num{color:#94a3b8;font-family:Consolas,monospace;font-size:12px;white-space:nowrap}
+  code{font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:.9em;
+    background:#eef2f7;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#4338ca}
+  .gate{background:#f0f6ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:13.5px}
+  .gate b{color:#1e3a8a}
+  .gate ul{margin:4px 0 2px 20px}
+  .goal{font-size:13px;color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-line);border-radius:8px;padding:8px 12px;margin-top:10px}
+  .callout{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;color:#7c2d12}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0;font-size:13px;color:#475569;align-items:center}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:6px 0 16px}
+  .stat{background:linear-gradient(160deg,#eef2ff,#f8fafc);border:1px solid #c7d2fe;border-radius:12px;padding:16px 18px}
+  .stat b{display:block;font-size:26px;color:var(--primary-dark);line-height:1.2}
+  .stat span{font-size:12.5px;color:#64748b}
+  footer{max-width:1000px;margin:0 auto;color:#94a3b8;font-size:12.5px;text-align:center}
+  @media (max-width:1080px){
+    .sidebar{display:none}
+    .main{margin-left:0;padding:0 16px 60px}
+    .hero{margin:0 -16px 24px;padding:40px 16px}
+    section{padding:22px 18px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">Portal<em>.</em></div>
+  <div class="sub">开发计划 Dev Plan · v1.0</div>
+  <nav class="toc">
+    <a href="#intro">文档说明</a>
+    <a href="#tech">技术与工具清单</a>
+    <a href="#test">测试策略总则</a>
+    <a href="#board">阶段总览（进度看板）</a>
+    <a class="toc-gap" href="#m1">M1 阶段明细（P0~P8）</a>
+    <a class="toc-gap" href="#m2">M2 阶段明细（P9~P18、P23）</a>
+    <a class="toc-gap" href="#m3">M3 阶段明细（P19~P22）</a>
+    <a class="toc-gap" href="#rules">执行约定</a>
+  </nav>
+</aside>
+
+<div class="main">
+<div class="content">
+
+<header class="hero">
+  <div class="inner">
+    <h1>Portal<span class="dot"> · </span>开发计划与技术清单</h1>
+    <p class="tagline">把全部业务功能拆解为 24 个开发阶段、108 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
+    <div class="meta">
+      <span class="chip">版本 v1.1</span>
+      <span class="chip">日期 2026-09-01</span>
+      <span class="chip">关联 feature-spec v1.2</span>
+      <span class="chip">24 阶段</span>
+      <span class="chip">108 步骤</span>
+      <span class="chip">进度 0 / 108</span>
+      <span class="chip">v1.1 新增：MySQL 数据同步（SQLite 主库 → NAS MySQL 灾备）</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 文档说明 ============ -->
+<section id="intro">
+  <h2><span class="no">00</span>文档说明</h2>
+  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.2 的 221 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
+  <div class="legend">
+    <b>状态图例：</b>
+    <span class="st open">⬜ 未开始</span>
+    <span class="st doing">🔄 进行中</span>
+    <span class="st done">✅ 已完成（需通过两道测试关卡）</span>
+    <span class="st block">⛔ 阻塞</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>24</b><span>开发阶段</span></div>
+    <div class="stat"><b>108</b><span>开发步骤</span></div>
+    <div class="stat"><b>3</b><span>里程碑（M1/M2/M3）</span></div>
+    <div class="stat"><b>2×24</b><span>测试关卡（单测+业务）</span></div>
+  </div>
+</section>
+
+<!-- ============ 技术清单 ============ -->
+<section id="tech">
+  <h2><span class="no">01</span>技术与工具清单</h2>
+
+  <h3>前端</h3>
+  <table>
+    <thead><tr><th style="width:30%">工具</th><th>用途</th><th style="width:14%">引入阶段</th></tr></thead>
+    <tbody>
+      <tr><td>Vue 3（script setup）</td><td>UI 框架</td><td class="num">P0</td></tr>
+      <tr><td>TypeScript 5</td><td>类型系统</td><td class="num">P0</td></tr>
+      <tr><td>Vite</td><td>构建与开发服务器</td><td class="num">P0</td></tr>
+      <tr><td>Vue Router 4</td><td>路由与登录守卫</td><td class="num">P0</td></tr>
+      <tr><td>Pinia</td><td>状态管理（auth / apps / env / notify）</td><td class="num">P0</td></tr>
+      <tr><td>Element Plus</td><td>组件库（表格/表单/抽屉/消息）</td><td class="num">P0</td></tr>
+      <tr><td>axios</td><td>HTTP 客户端（拦截器统一封装、token 续期）</td><td class="num">P0</td></tr>
+      <tr><td>@vueuse/core</td><td>组合式工具集（暗色监听、剪贴板等）</td><td class="num">P0</td></tr>
+      <tr><td>dayjs</td><td>时间格式化</td><td class="num">P0</td></tr>
+      <tr><td>vuedraggable-plus</td><td>磁贴/分组拖拽排序</td><td class="num">P4</td></tr>
+      <tr><td>ECharts 5</td><td>监控图表</td><td class="num">P5</td></tr>
+      <tr><td>vite-plugin-pwa</td><td>PWA（manifest + service worker）</td><td class="num">P17</td></tr>
+      <tr><td>Vue Flow</td><td>Flow 画布编排</td><td class="num">P19</td></tr>
+      <tr><td>xterm.js</td><td>Web SSH 终端</td><td class="num">P21</td></tr>
+      <tr><td>Vitest + @vue/test-utils + jsdom</td><td>前端单元测试</td><td class="num">P0</td></tr>
+      <tr><td>ESLint + Prettier</td><td>代码规范</td><td class="num">P0</td></tr>
+    </tbody>
+  </table>
+
+  <h3>后端</h3>
+  <table>
+    <thead><tr><th style="width:30%">工具</th><th>用途</th><th style="width:14%">引入阶段</th></tr></thead>
+    <tbody>
+      <tr><td>Python 3.12</td><td>运行时</td><td class="num">P0</td></tr>
+      <tr><td>FastAPI</td><td>Web 框架（自动 OpenAPI 文档）</td><td class="num">P0</td></tr>
+      <tr><td>Uvicorn[standard]</td><td>ASGI 服务器（含 WebSocket）</td><td class="num">P0</td></tr>
+      <tr><td>SQLAlchemy 2.0 + aiosqlite</td><td>ORM（SQLite 运行主库，连接层兼容 MySQL）</td><td class="num">P0</td></tr>
+      <tr><td>PyMySQL / aiomysql</td><td>MySQL 连接（灾备镜像推送，NAS 已有 MySQL）</td><td class="num">P23</td></tr>
+      <tr><td>Pydantic v2 + pydantic-settings</td><td>数据校验与配置管理</td><td class="num">P0</td></tr>
+      <tr><td>passlib[bcrypt]</td><td>密码哈希</td><td class="num">P1</td></tr>
+      <tr><td>PyJWT</td><td>JWT 签发与校验</td><td class="num">P1</td></tr>
+      <tr><td>psutil</td><td>CPU/内存/磁盘/网络/进程/温度采集（指向宿主 /proc、/sys）</td><td class="num">P5</td></tr>
+      <tr><td>APScheduler</td><td>定时任务（探活/采样/阈值检查/Flow cron）</td><td class="num">P5</td></tr>
+      <tr><td>httpx</td><td>异步 HTTP（探活/AI 调用/通知推送/favicon 抓取）</td><td class="num">P6</td></tr>
+      <tr><td>asyncssh</td><td>SSH 托管隧道与 Web 终端</td><td class="num">P20/21</td></tr>
+      <tr><td>docker（Docker SDK）</td><td>容器管理、docker stats 兜底采集</td><td class="num">P12</td></tr>
+      <tr><td>python-multipart</td><td>文件/图标上传</td><td class="num">P2</td></tr>
+      <tr><td>sse-starlette</td><td>AI 流式输出（SSE）</td><td class="num">P13</td></tr>
+      <tr><td>pytest + pytest-asyncio + coverage</td><td>后端单元/接口测试与覆盖率</td><td class="num">P0</td></tr>
+      <tr><td>ruff</td><td>Lint + Format</td><td class="num">P0</td></tr>
+    </tbody>
+  </table>
+
+  <h3>部署与运维</h3>
+  <table>
+    <thead><tr><th style="width:30%">工具</th><th>用途</th><th style="width:14%">引入阶段</th></tr></thead>
+    <tbody>
+      <tr><td>Docker 多阶段构建</td><td>node 构建 → python 运行时，打包单镜像</td><td class="num">P0 建立 / P8 完善</td></tr>
+      <tr><td>docker compose v2</td><td>NAS 一键部署（数据卷/时区/SECRET_KEY）</td><td class="num">P8</td></tr>
+      <tr><td>NAS 反向代理（群晖自带 / Caddy）</td><td>HTTPS 与外部域名</td><td class="num">部署期</td></tr>
+      <tr><td>Git</td><td>版本管理</td><td class="num">P0</td></tr>
+    </tbody>
+  </table>
+
+  <h3>外部服务（可选，按需接入）</h3>
+  <table>
+    <thead><tr><th style="width:30%">服务</th><th>用途</th><th style="width:14%">引入阶段</th></tr></thead>
+    <tbody>
+      <tr><td>OpenAI 兼容 API / 本地 Ollama</td><td>AI 助手（DeepSeek/智谱/Kimi 等均可）</td><td class="num">P13</td></tr>
+      <tr><td>Bark / Telegram Bot / SMTP</td><td>通知推送（测试阶段即用真实渠道验证）</td><td class="num">P9</td></tr>
+      <tr><td>免费天气 API</td><td>天气小组件</td><td class="num">P15</td></tr>
+      <tr><td>qBittorrent / Jellyfin WebUI API</td><td>下载与媒体集成</td><td class="num">P16</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 测试策略 ============ -->
+<section id="test">
+  <h2><span class="no">02</span>测试策略总则</h2>
+  <ol>
+    <li><strong>单元测试</strong>：后端 pytest 覆盖 <code>services</code> / <code>core</code> 核心逻辑（环境解析、探活判定、采集换算、告警状态机、JWT/密码、Flow 表达式沙箱、通知路由）；前端 Vitest 覆盖 stores、搜索过滤、布局序列化、工具函数。</li>
+    <li><strong>接口测试</strong>：FastAPI TestClient + httpx AsyncClient，连接临时 SQLite（内存库），覆盖 API 契约与权限（401/403）。</li>
+    <li><strong>业务功能测试</strong>：以《功能详述》的<strong>功能点编号</strong>（如 M04-10）为验收单元，每阶段列手工测试清单逐条勾验；关键链路在 M1 末补 Playwright 自动化。</li>
+    <li><strong>覆盖率门禁</strong>：后端核心 services ≥ 80%、全局 ≥ 70%；不达标不得关闭阶段。</li>
+    <li><strong>状态更新约定</strong>：完成一个步骤 → 状态 ⬜→✅ 并在 <code>logs/</code> 记一笔；阶段内步骤全 ✅ 且两道测试关卡通过 → 阶段 ✅；被卡住 → ⛔ 并注明原因。</li>
+  </ol>
+</section>
+
+<!-- ============ 进度看板 ============ -->
+<section id="board">
+  <h2><span class="no">03</span>阶段总览（进度看板）</h2>
+  <table>
+    <thead><tr><th style="width:8%">阶段</th><th style="width:32%">名称</th><th style="width:12%">里程碑</th><th style="width:10%">步骤</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">P0</td><td><a href="#p0">项目脚手架与基础设施</a></td><td><span class="badge m1">M1</span></td><td>7</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P1</td><td><a href="#p1">认证与账户</a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P2</td><td><a href="#p2">应用、分组与入口管理</a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P3</td><td><a href="#p3">网络环境与智能解析 <span class="badge core">★</span></a></td><td><span class="badge m1">M1</span></td><td>8</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P4</td><td><a href="#p4">首页仪表盘</a></td><td><span class="badge m1">M1</span></td><td>8</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P5</td><td><a href="#p5">服务器性能监控基础 <span class="badge core">★</span></a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P6</td><td><a href="#p6">应用探活与状态点</a></td><td><span class="badge m1">M1</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P7</td><td><a href="#p7">设置中心与工具箱</a></td><td><span class="badge m1">M1</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P8</td><td><a href="#p8">Docker 交付与 M1 集成验收</a></td><td><span class="badge m1">M1</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P9</td><td><a href="#p9">通知中心</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P10</td><td><a href="#p10">监控增强与阈值告警 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P11</td><td><a href="#p11">端口监控 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P12</td><td><a href="#p12">Docker 容器管理基础</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P13</td><td><a href="#p13">AI 助手</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P14</td><td><a href="#p14">Flow 自动化（表单版）</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P15</td><td><a href="#p15">应用与仪表盘增强</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P16</td><td><a href="#p16">效率模块（日程/文件/下载媒体）</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P17</td><td><a href="#p17">安全增强与系统完善</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P18</td><td><a href="#p18">M2 集成验收</a></td><td><span class="badge m2">M2</span></td><td>2</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P23</td><td><a href="#p23">MySQL 数据同步（SQLite→MySQL）</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P19</td><td><a href="#p19">Flow 画布编排</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P20</td><td><a href="#p20">SSH 托管隧道与端口进阶</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P21</td><td><a href="#p21">监控与企业化进阶</a></td><td><span class="badge m3">M3</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P22</td><td><a href="#p22">其余远期项与 M3 验收</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ M1 明细 ============ -->
+<section id="m1">
+  <h2><span class="no">04-A</span>M1 阶段明细 <span class="badge m1">M1 · MVP</span></h2>
+
+  <h3 id="p0">P0 · 项目脚手架与基础设施 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">0.1</td><td>仓库与目录结构</td><td>Git 仓库、frontend/backend/docs/logs 骨架、.gitignore</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.2</td><td>后端骨架</td><td>FastAPI 入口、统一响应/异常处理、<code>GET /api/health</code>、pydantic-settings 配置</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.3</td><td>数据库层</td><td>SQLAlchemy 连接管理、启动建表、settings 键值表（ORM 抽象保持可切换/对接 MySQL）</td><td>M15</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.4</td><td>前端骨架</td><td>Vite+Vue3+TS、Element Plus、Router/Pinia、axios 封装、主布局空壳</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.5</td><td>开发联调</td><td>Vite proxy <code>/api</code> → Uvicorn 8000，前后端联调跑通</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.6</td><td>测试基建</td><td>pytest+coverage、Vitest 各跑通示例用例，ruff/ESLint 配置</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.7</td><td>Docker 雏形</td><td>多阶段 Dockerfile + compose 构建成功</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>health 接口 200；settings 读写；前端占位组件渲染。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li><code>docker compose up</code> 后浏览器打开页面、<code>curl /api/health</code> 通。</li></ul></div>
+  <div class="goal">退出标准：一键脚本完成 lint + 前后端测试且全绿。</div>
+
+  <h3 id="p1">P1 · 认证与账户 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1.1</td><td>用户模型与初始化向导</td><td>users 表、首个管理员创建接口（无用户时开放）</td><td>M01-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">1.2</td><td>登录与 JWT</td><td>bcrypt 哈希、登录接口、access/refresh 签发与刷新</td><td>M01-1/3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">1.3</td><td>权限依赖注入</td><td>get_current_user / 角色依赖，受保护接口样例</td><td>M01-9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">1.4</td><td>登录防爆破</td><td>失败计数限速（5 次/分钟锁定）</td><td>M01-6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">1.5</td><td>修改密码</td><td>旧密码校验、强度校验、改密后其他会话失效</td><td>M01-4/5</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">1.6</td><td>前端认证流</td><td>登录页/初始化引导页/路由守卫/token 自动续期/登出</td><td>M01-1/2/3</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>哈希与校验；JWT 过期/刷新/篡改拒绝；限速计数器；401/403 用例；改密后旧 refresh 失效。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>全新库 → 引导建 admin → 登录 → 刷新页面仍登录 → 改密 → 旧会话失效需重登。</li></ul></div>
+  <div class="goal">退出标准：认证用例全绿，auth 模块覆盖率 ≥ 80%。</div>
+
+  <h3 id="p2">P2 · 应用、分组与入口管理 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">2.1</td><td>分组 CRUD</td><td>categories 模型/接口/排序</td><td>M03-2/4</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">2.2</td><td>应用 CRUD</td><td>apps 模型/接口/批量排序</td><td>M03-1/4</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">2.3</td><td>访问入口 CRUD</td><td>app_urls 五种类型（domain/lan/ssh/vpn/custom）</td><td>M04-1~6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">2.4</td><td>图标体系</td><td>上传（自动压方）/URL/Emoji + favicon 自动抓取</td><td>M03-5/6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">2.5</td><td>导入导出</td><td>应用+分组+入口 JSON 全量导入导出</td><td>M03-13</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">2.6</td><td>前端管理页</td><td>应用列表/编辑抽屉（含入口编辑）/分组管理</td><td>M03/M04</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>CRUD 契约与权限；排序幂等；导入导出 round-trip 一致；favicon 抓取超时兜底。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>建"媒体"分组 → 建 Jellyfin 应用 → 挂 lan+domain 两入口 → 导出 → 清库导入 → 数据一致。</li></ul></div>
+  <div class="goal">退出标准：管理页可完整维护一个多入口应用。</div>
+
+  <h3 id="p3">P3 · 网络环境与智能解析 <span class="badge core">★ M1 核心</span> <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">3.1</td><td>环境档案</td><td>network_profiles 模型/接口 + CIDR 匹配服务</td><td>M04-7/8</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.2</td><td>环境探测</td><td><code>/api/network-profiles/detect</code>（按请求来源 IP 判定）</td><td>M04-8</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.3</td><td>智能解析接口</td><td><code>/api/apps/{id}/resolve</code>：按环境优先级返回推荐+备选</td><td>M04-10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.4</td><td>手动环境偏好</td><td>用户手动覆盖自动识别，选择持久化</td><td>M04-9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.5</td><td>访问方式设置页</td><td>环境档案管理 + 应用×入口矩阵 + 顶栏环境切换器</td><td>M04-7/9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.6</td><td>连通性测试矩阵</td><td>一键探测全部入口，输出通断/延迟矩阵</td><td>M04-13</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.7</td><td>SSH 本地命令</td><td>ssh 入口生成 <code>ssh -L</code> 命令弹窗一键复制</td><td>M04-15</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">3.8</td><td>多入口选择浮层</td><td>点击弹层手选入口，标注环境与状态</td><td>M04-12</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>CIDR 匹配（命中/不命中/多档案顺序/无默认兜底/边界地址）；resolve 排序与推荐；手动 &gt; 自动优先级；矩阵输出结构。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>配"家庭 192.168.1.0/24"档案 → 内网访问自动选中 lan 入口；用 detect 接口模拟外部来源 IP → 推荐 domain 入口；测试矩阵正确显示通/断；SSH 弹窗命令可复制可用。</li></ul></div>
+  <div class="goal">退出标准：解析用例全绿；真实双环境（内网 + 手机热点）实测自动切换成功。</div>
+
+  <h3 id="p4">P4 · 首页仪表盘 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">4.1</td><td>首页框架</td><td>分组区块 + 磁贴渲染 + 打开方式（新标签/当前/iframe）</td><td>M02-1、M03-9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.2</td><td>布局持久化</td><td>拖拽排序、位置即改即存</td><td>M02-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.3</td><td>卡片尺寸</td><td>1x / 2x 宽度</td><td>M02-3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.4</td><td>命令面板</td><td>Ctrl+K 全局搜索、模糊匹配、回车直达</td><td>M02-6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.5</td><td>收藏置顶</td><td>收藏标记、搜索与首页优先</td><td>M02-9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.6</td><td>主题系统</td><td>暗色（跟随系统/手动）、主题色、自定义壁纸</td><td>M02-18~20</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.7</td><td>时钟小组件</td><td>时钟 + 时段问候</td><td>M02-10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">4.8</td><td>移动端适配</td><td>磁贴单列、底部导航、触控目标 ≥44px</td><td>M02-21、M16-1/3/6</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>布局序列化/反序列化；搜索过滤与排序；主题状态切换逻辑。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>拖拽后刷新布局保持；Ctrl+K 搜"Jellyfin"回车新开标签；切暗色全页生效；窗口缩到手机宽度磁贴单列、底部导航可用。</li></ul></div>
+  <div class="goal">退出标准：首页无控制台报错，交互流畅，布局持久化正确。</div>
+
+  <h3 id="p5">P5 · 服务器性能监控基础 <span class="badge core">★ 最高优先级</span> <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">5.1</td><td>采集服务</td><td>psutil 指向宿主 <code>/proc</code>、<code>/sys</code>（挂载方案），docker stats 兜底开关；系统信息/CPU 每核/内存/磁盘分区/网卡流量</td><td>M17-1~5</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">5.2</td><td>采样入库与清理</td><td>每分钟采样 monitor_samples，保留天数可配自动清理</td><td>M17-7</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">5.3</td><td>实时接口与推送</td><td>实时概览接口 + <code>/ws/monitor</code> 秒级推送</td><td>M17-8</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">5.4</td><td>历史查询</td><td>按区间聚合（24h/7d/30d）历史接口</td><td>M17-6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">5.5</td><td>监控页</td><td>系统信息卡 + CPU/内存/磁盘/网络 ECharts 图表一屏</td><td>M17-1~6/9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">5.6</td><td>首页速览组件</td><td>NAS 资源速览环形图，点击进监控页</td><td>M02-12</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>采样数据结构与单位换算；清理任务只删过期；历史聚合空区间/超长区间边界。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>监控页秒级自动刷新；跑 stress 压测 CPU 曲线明显上扬后回落；重启容器监控历史不丢（数据卷持久化）。</li></ul></div>
+  <div class="goal">退出标准：NAS 实机连续运行 24h 采样无中断、库体积符合预期。</div>
+
+  <h3 id="p6">P6 · 应用探活与状态点 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">6.1</td><td>探活服务</td><td>HTTP 状态码/TCP/关键字三种探测 + APScheduler 注册</td><td>M07-1</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">6.2</td><td>状态落库</td><td>app_status 最新状态 + 翻转事件记录</td><td>M07-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">6.3</td><td>实时状态点</td><td><code>/ws/notify</code> 推送 + 首页磁贴状态点即时变色 + 延迟提示</td><td>M07-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">6.4</td><td>离线/恢复通知</td><td>状态变化产生站内通知（通知渠道后续接入）</td><td>M07-5</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>三种探测判定（命中/超时/重定向/关键字）；状态翻转去抖（避免抖动误报）。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li><code>docker stop</code> 某服务 → 磁贴变红 + 收到站内通知 → <code>start</code> 后恢复绿色。</li></ul></div>
+  <div class="goal">退出标准：探活用例全绿；真实停启容器验证链路完整。</div>
+
+  <h3 id="p7">P7 · 设置中心与工具箱 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">7.1</td><td>设置框架</td><td>settings 键值接口 + 设置页路由框架</td><td>M15</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">7.2</td><td>基础设置页</td><td>常规（站点名/Logo/语言/时区）、外观、关于</td><td>M15-1/3/11</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">7.3</td><td>工具箱速达</td><td>工具箱页 + WoL/Ping 端口测试/二维码/编解码/时间戳/密码生成器</td><td>M10-1/3/5/7/8/10</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>设置键值校验与默认值；WoL 魔术包构造；Base64/时间戳转换函数。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>改站点名与主题色全局生效；生成二维码手机可扫；密码生成器符合所选规则。</li></ul></div>
+  <div class="goal">退出标准：设置即改即生效；六个工具手测通过。</div>
+
+  <h3 id="p8">P8 · Docker 交付与 M1 集成验收 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">8.1</td><td>compose 完整化</td><td>数据卷/TZ/SECRET_KEY/监控挂载注释说明</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">8.2</td><td>健康自检基础版</td><td>数据卷可写、探活与采样任务运行状态检查</td><td>M15-10 部分</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">8.3</td><td>M1 全量回归</td><td>按《功能详述》M1 功能点清单逐条勾验</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>业务功能测试关卡（= M1 验收）：</b><ul><li>登录 → 建应用配多入口 → 双网段自动切入口 → 磁贴搜索直达 → 监控页实时曲线 → 探活告警，全链路走通。</li></ul></div>
+  <div class="goal">退出标准：回归 100% 通过；镜像在 NAS 实机连续运行 ≥ 48h 无异常重启。</div>
+</section>
+
+<!-- ============ M2 明细 ============ -->
+<section id="m2">
+  <h2><span class="no">04-B</span>M2 阶段明细 <span class="badge m2">M2 · 增强</span></h2>
+
+  <h3 id="p9">P9 · 通知中心 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">9.1</td><td>推送渠道</td><td>渠道抽象 + Bark/Telegram/SMTP/通用 Webhook + 测试发送</td><td>M09-4~9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">9.2</td><td>站内通知</td><td>通知列表/角标/已读/删除 + 实时推送</td><td>M09-1~3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">9.3</td><td>通知规则</td><td>事件×渠道路由矩阵、免打扰时段、聚合去重</td><td>M09-10~12</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>各渠道 payload 构造；规则匹配；免打扰判定；去重窗口。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>配 Bark → 停容器 → 手机收到推送；免打扰时段仅站内可见；重复事件被合并。</li></ul></div>
+  <div class="goal">退出标准：三种渠道真机收包成功。</div>
+
+  <h3 id="p10">P10 · 监控增强与阈值告警 <span class="badge core">★</span> <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">10.1</td><td>深度采集</td><td>磁盘 IO/IOPS、温度（无传感器自动隐藏）、进程 Top 榜</td><td>M17-10~12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">10.2</td><td>Docker 维度</td><td>按容器的 CPU/内存/网络统计</td><td>M17-13</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">10.3</td><td>阈值告警引擎</td><td>指标超阈值持续 N 分钟告警 + 自定义规则页（可启停/级别）</td><td>M17-14/15</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">10.4</td><td>可用性分析</td><td>探活事件时间线 + 24h/7d/30d 可用率</td><td>M07-3/4</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">10.5</td><td>域名证书监控</td><td>HTTPS 证书到期天数，30/7/1 天分级提醒</td><td>M07-6</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>告警触发/恢复状态机（持续时长判定）；可用率计算；证书有效期解析。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>把 CPU 阈值调到 5% → 几分钟内收到告警；配置真实域名查看证书到期天数正确。</li></ul></div>
+  <div class="goal">退出标准：告警从触发到送达全链路 &lt; 1 个采样周期。</div>
+
+  <h3 id="p11">P11 · 端口监控 <span class="badge core">★</span> <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">11.1</td><td>监听清单</td><td>NAS 监听端口采集（协议/地址/端口/进程）+ 定时自动发现</td><td>M18-1</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">11.2</td><td>端口探活项</td><td>host:port 监控项 CRUD + 定时探测 + 通断状态机</td><td>M18-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">11.3</td><td>变更告警</td><td>通→断/断→通 推送通知，可挂 Flow</td><td>M18-3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">11.4</td><td>端口-应用关联</td><td>端口项与门户应用/入口双向跳转</td><td>M18-4</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">11.5</td><td>检索与看板</td><td>端口占用检索、批量导入、总览看板（异常置顶）</td><td>M18-5~7</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>监听清单解析（含进程名映射）；端口状态翻转；占用检索；批量导入去重。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>起临时 HTTP 服务 → 看板显示"通" → kill 进程 → 收到断开告警；输入已知端口能查到占用进程。</li></ul></div>
+  <div class="goal">退出标准：端口从异常到告警送达 &lt; 1 个探测周期。</div>
+
+  <h3 id="p12">P12 · Docker 容器管理基础 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">12.1</td><td>接入与列表</td><td>docker.sock 开关式接入、容器列表（状态/镜像/占用）</td><td>M08-1</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">12.2</td><td>生命周期操作</td><td>启动/停止/重启 + 确认弹窗 + 审计日志</td><td>M08-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">12.3</td><td>日志与详情</td><td>尾部日志 + 实时滚动 + 详情（端口/卷/环境变量脱敏）</td><td>M08-3/4</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>Docker SDK 封装 mock；敏感环境变量脱敏；操作审计写入。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>容器列表与 <code>docker ps</code> 一致；重启 Jellyfin 生效；无 sock 挂载时模块自动隐藏。</li></ul></div>
+  <div class="goal">退出标准：未挂载 sock 时系统零报错。</div>
+
+  <h3 id="p13">P13 · AI 助手 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">13.1</td><td>Provider 接入</td><td>多套 Provider 配置、连接测试、模型列表拉取</td><td>M05-1~3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">13.2</td><td>流式对话</td><td>SSE 流式 + 多会话管理 + Markdown 渲染 + 上下文轮数</td><td>M05-4~9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">13.3</td><td>意图导航</td><td>应用清单注入 + <code>{action:"navigate"}</code> 协议 + 非法输出兜底</td><td>M05-10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">13.4</td><td>上下文与指令</td><td>NAS 状态摘要注入（可开关）+ 快捷指令库</td><td>M05-11/12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">13.5</td><td>AI 生成应用草稿</td><td>粘贴服务描述 → 结构化应用配置草稿 → 人工确认入库</td><td>M05-13</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>Prompt 组装；navigate 协议解析（含格式错误兜底）；会话截断策略。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>接真实 API（或本地 Ollama）→ 问"帮我打开下载器"正确跳转；AI 生成草稿保存后出现在应用列表。</li></ul></div>
+  <div class="goal">退出标准：流式输出稳定无断流；Key 不出现在任何前端响应中。</div>
+
+  <h3 id="p14">P14 · Flow 自动化表单版 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">14.1</td><td>Flow 骨架</td><td>Flow CRUD + 四种触发器（cron/webhook/手动/事件）注册</td><td>M06-1/4~7</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">14.2</td><td>基础动作</td><td>HTTP 请求、通知推送（变量插值）</td><td>M06-9/10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">14.3</td><td>条件与上下文</td><td>表达式条件（安全沙箱）+ 变量传递</td><td>M06-8</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">14.4</td><td>运行保障</td><td>dry-run 试运行、执行历史、失败重试、失败告警</td><td>M06-15~18</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">14.5</td><td>前端编排页</td><td>表单式编排 + 启停开关 + 运行按钮 + 历史查看</td><td>M06-2</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>表达式沙箱（禁危险内建/导入）；重试策略；webhook token 鉴权与吊销；cron 解析。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>建"每天 8:00 查 qBittorrent 完成数→Bark"Flow 手动触发成功；curl 调 webhook 触发全链路；故意配错 URL 验证重试与失败告警。</li></ul></div>
+  <div class="goal">退出标准：三条真实场景 Flow 稳定运行 3 天。</div>
+
+  <h3 id="p15">P15 · 应用与仪表盘增强 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">15.1</td><td>应用增强</td><td>标签/可见性/备注/回收站/书签导入/模板库/批量操作</td><td>M03-3/7/10~16</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">15.2</td><td>仪表盘增强</td><td>多标签页 + 天气/最近通知/Flow 状态/容器状态小组件</td><td>M02-5/11~15</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">15.3</td><td>快捷搜索</td><td>自定义关键词触发外部搜索</td><td>M02-7</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">15.4</td><td>入口体验增强</td><td>点击前预检回退、入口延迟曲线、二维码、环境调试页</td><td>M04-11/14/17/18</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>回收站恢复；模板实例化；预检超时回退顺序。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>模板一键创建 qBittorrent 应用；预检不通时弹备选；手机扫二维码直达。</li></ul></div>
+  <div class="goal">退出标准：增强项手测通过且不影响 M1 回归。</div>
+
+  <h3 id="p16">P16 · 效率模块（日程/文件/下载媒体） <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">16.1</td><td>日程与提醒</td><td>月视图日历/待办/提醒推送/重复规则/节日生日</td><td>M13-1~5</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">16.2</td><td>文件管理基础</td><td>白名单目录浏览/上传下载/文件操作/媒体预览/图标归档</td><td>M11-1~4/6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">16.3</td><td>下载与媒体</td><td>qBittorrent 任务列表与添加、完成通知、Jellyfin 海报墙</td><td>M12-1/2/4/5</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>重复规则下次触发时间计算；路径白名单防目录穿越；qB API 适配层 mock。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>建 5 分钟后提醒到点手机推送；上传图标在文件面板可见；qB 真实任务列表显示、添加磁力生效。</li></ul></div>
+  <div class="goal">退出标准：三模块与真实服务联动验证通过。</div>
+
+  <h3 id="p17">P17 · 安全增强与系统完善 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">17.1</td><td>账号安全</td><td>TOTP 两步验证、会话/设备管理、访客模式、用户管理、审计页</td><td>M01-7/8/10/11/14</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">17.2</td><td>开放能力</td><td>API Token 管理、开放 API 鉴权、自定义 CSS、恢复出厂</td><td>M14-1/2/4/6/7</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">17.3</td><td>系统完善</td><td>注册开关/安全策略/自动备份/版本更新检查/健康自检完整版</td><td>M15-2/5~10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">17.4</td><td>PWA</td><td>manifest + service worker + 图标启动屏</td><td>M16-2/4</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>TOTP 校验（含时钟偏移容差）与恢复码；Token 权限范围（只读/读写）；备份导入 round-trip。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>手机验证器绑定后登录需二次验证；PWA 安装到手机主屏像原生应用打开；自动备份生成可恢复文件。</li></ul></div>
+  <div class="goal">退出标准：安全项用例全绿；越权访问测试（普通 user 调管理接口）全部 403。</div>
+
+  <h3 id="p18">P18 · M2 集成验收 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">18.1</td><td>M2 全量回归</td><td>按《功能详述》M2 功能点清单逐条勾验</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">18.2</td><td>性能与安全检查</td><td>首页加载 &lt;1s、接口压测冒烟、越权与注入扫描</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>业务功能测试关卡（= M2 验收五场景）：</b><ul><li>应用离线告警、服务器指标阈值告警、端口断通告警、AI 意图导航、定时通知——全部真实可用。</li></ul></div>
+  <div class="goal">退出标准：五场景全部通过；回归清单 100%。</div>
+
+  <h3 id="p23">P23 · MySQL 数据同步（SQLite → MySQL） <span class="st open">未开始</span></h3>
+  <p><strong>数据策略</strong>：SQLite 为运行主库（零依赖、低延迟，业务读写全部走它），NAS 上已有的 MySQL 作为<strong>灾备与集中存储</strong>——定时把业务数据镜像推送过去；MySQL 不可达不影响本地任何功能，恢复后自动补推。新增 <code>sync_state</code> 表记录每表同步状态。</p>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">23.1</td><td>ORM 双库兼容</td><td>连接串抽象确认、SQLite/MySQL 两库建表与类型映射验证</td><td>M15-12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">23.2</td><td>同步配置</td><td>设置页"MySQL 同步"：host/端口/账号/目标库/推送间隔/开关 + 连接测试；新增 sync_state 表</td><td>M15-12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">23.3</td><td>镜像推送引擎</td><td>定时全量 upsert（按主键 diff，含删除对齐）、敏感表排除（会话/Token 不同步）、"立即推送"按钮</td><td>M15-12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">23.4</td><td>状态与重试</td><td>每表最近推送时间/行数/结果展示；失败退避重试；MySQL 不可达不影响本地功能</td><td>M15-12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">23.5</td><td>灾难恢复</td><td>"从 MySQL 恢复到 SQLite"流程（含覆盖确认与自动先备份本地）</td><td>M15-12</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>upsert 幂等（重复推送结果一致）；删除对齐；连接失败退避重试；同步范围过滤（敏感表排除）；两库类型映射（时间/布尔/JSON 字段）。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>配置 NAS 真实 MySQL → 推送后在 MySQL 端查表数据一致；停掉 MySQL 容器 → 本地功能照常、恢复后自动补推；清空本地库从 MySQL 恢复成功。</li></ul></div>
+  <div class="goal">退出标准：真实 NAS MySQL 环境定时推送连续 72h 无失败告警。</div>
+</section>
+
+<!-- ============ M3 明细 ============ -->
+<section id="m3">
+  <h2><span class="no">04-C</span>M3 阶段明细 <span class="badge m3">M3 · 进阶</span></h2>
+
+  <h3 id="p19">P19 · Flow 画布编排 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">19.1</td><td>画布编辑器</td><td>Vue Flow 拖拽节点/连线/分支并行</td><td>M06-3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">19.2</td><td>进阶节点</td><td>SSH 命令、Docker 操作、AI 调用、延时/变量节点</td><td>M06-11~14</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">19.3</td><td>模板与分享</td><td>内置模板 + JSON 导入导出</td><td>M06-19</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>测试关卡：</b><ul><li>画布序列化与表单模式互转；分支并行执行顺序正确；SSH/AI 节点真实执行。</li></ul></div>
+  <div class="goal">退出标准：一条含分支的自动化（离线→重启→仍失败→升级通知）画布编排并稳定运行。</div>
+
+  <h3 id="p20">P20 · SSH 托管隧道与端口进阶 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">20.1</td><td>隧道管理</td><td>asyncssh 隧道进程管理、密钥/密码认证、空闲回收</td><td>M04-16</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">20.2</td><td>反代路径</td><td><code>/tunnel/{id}</code> 反向代理、点击直达</td><td>M04-16</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">20.3</td><td>端口进阶</td><td>延迟曲线/监听变更历史/裸露端口提示/公网可达性对比/分组标签</td><td>M18-8~12</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>测试关卡：</b><ul><li>隧道断线重连；并发隧道端口分配；裸露端口检测准确性。</li></ul></div>
+  <div class="goal">退出标准：公司网络免命令直达内网服务（M3 验收场景）。</div>
+
+  <h3 id="p21">P21 · 监控与企业化进阶 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">21.1</td><td>数据与报表</td><td>监控数据 CSV 导出、性能报表、监控大屏</td><td>M17-16/20/21</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">21.2</td><td>Web SSH 终端</td><td>xterm.js 直连 NAS Shell、开关与审计</td><td>M17-17</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">21.3</td><td>多机纳管</td><td>轻量 Agent 上报 + SNMP 采集</td><td>M17-18/19</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">21.4</td><td>Docker 增强</td><td>批量操作、事件通知、镜像管理、更新检测</td><td>M08-5~8</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>测试关卡：</b><ul><li>Agent 断连重报；终端会话隔离与审计记录；更新检测对比逻辑。</li></ul></div>
+  <div class="goal">退出标准：第二台服务器经 Agent 纳管后指标正常上报。</div>
+
+  <h3 id="p22">P22 · 其余远期项与 M3 验收 <span class="st open">未开始</span></h3>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">22.1</td><td>企业登录</td><td>OIDC / LDAP / Passkey</td><td>M01-12/13</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">22.2</td><td>远期功能点</td><td>最近使用、RSS 组件、AI Flow 生成/用量统计/图片理解/知识库、DNS 查询、快传、文本编辑、空间分析、日历订阅、Webhook 出站、插件预留、移动专属布局</td><td>见 feature-spec</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">22.3</td><td>M3 验收</td><td>M3 功能点全量回归 + 长稳测试</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>测试关卡：</b><ul><li>各远期项按功能点逐条测试；全系统长稳运行 7 天。</li></ul></div>
+  <div class="goal">退出标准：三个里程碑全部关闭，形成 v1.0 发布版。</div>
+</section>
+
+<!-- ============ 执行约定 ============ -->
+<section id="rules">
+  <h2><span class="no">05</span>执行约定</h2>
+  <ol>
+    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；</li>
+    <li><strong>状态即真相</strong>：本文件的步骤状态就是开发进度，完成一步改一步，不写"记忆里的进度"；</li>
+    <li><strong>阶段门禁</strong>：每阶段"单元测试关卡 + 业务功能测试关卡"全部通过，阶段才能标 ✅；未通过则停在 🔄 并记录阻塞原因；</li>
+    <li><strong>日志联动</strong>：每关闭一个阶段，在 <code>logs/</code> 写验收日志（测试结果、发现的问题、覆盖率数据）；</li>
+    <li><strong>需求变更</strong>：评审中新增强功能点 → 先更新 <code>feature-spec</code>（升版本），再同步到本计划对应阶段。</li>
+  </ol>
+  <div class="callout">💡 评审通过本计划后，下一步即从 <strong>P0 项目脚手架</strong> 开始开发，每完成一个阶段我都会更新本文件状态并向你汇报测试结果。</div>
+</section>
+
+<footer>Portal · 开发计划 v1.1 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>

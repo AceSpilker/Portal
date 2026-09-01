@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · NAS 门户系统设计方案</title>
+<style>
+  :root{
+    --primary:#4f6ef7;
+    --primary-dark:#1e3a8a;
+    --ink:#1f2937;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --code-bg:#0d1526;
+    --code-ink:#dbe4f3;
+    --warn-bg:#fff7ed;
+    --warn-line:#fdba74;
+    --ok:#10b981;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px;
+  }
+  /* ===== 侧边目录 ===== */
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:248px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:28px 0 28px 26px;z-index:10;
+  }
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px;margin-bottom:4px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin-bottom:24px}
+  .toc a{
+    display:block;color:#94a3b8;text-decoration:none;font-size:13px;
+    padding:6px 14px 6px 0;border-left:2px solid transparent;padding-left:12px;margin-left:-14px;
+    transition:all .15s;
+  }
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .lv2{padding-left:26px;font-size:12px}
+  .toc .toc-gap{margin-top:12px}
+  /* ===== 主内容 ===== */
+  .main{margin-left:248px;padding:0 40px 80px}
+  .content{max-width:960px;margin:0 auto}
+  .hero{
+    margin:0 -40px 40px;padding:64px 40px 56px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%);
+  }
+  .hero .inner{max-width:960px;margin:0 auto}
+  .hero h1{font-size:34px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:16px;color:#c7d6ff;max-width:720px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{
+    font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff;
+  }
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:34px 38px;margin-bottom:28px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{
+    font-size:22px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  h2 .no{
+    font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px;
+  }
+  h3{font-size:16.5px;margin:26px 0 10px;color:#0f172a}
+  h3::before{content:"▍";color:var(--primary);margin-right:6px}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:5px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;vertical-align:2px}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.p1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.p2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.p3{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+  .callout{
+    background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;
+    padding:12px 16px;margin:14px 0;font-size:14px;color:#7c2d12;
+  }
+  /* ===== 表格 ===== */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th{background:#f1f5f9;text-align:left;font-weight:600;color:#334155}
+  th,td{border:1px solid var(--line);padding:8px 12px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fafbfe}
+  code{
+    font-family:"JetBrains Mono",Consolas,Menlo,monospace;font-size:.9em;
+    background:#eef2f7;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;color:#4338ca;
+  }
+  pre{
+    background:var(--code-bg);color:var(--code-ink);border-radius:10px;
+    padding:18px 20px;overflow-x:auto;margin:14px 0;font-size:13px;line-height:1.7;
+  }
+  pre code{background:none;border:none;color:inherit;padding:0}
+  pre .c{color:#64748b}   /* 注释 */
+  pre .k{color:#7dd3fc}   /* 关键字/键名 */
+  pre .s{color:#a5e8b8}   /* 字符串 */
+  /* ===== 架构图 ===== */
+  .arch{margin:18px 0;padding:26px 22px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;text-align:center}
+  .arch .band-title{font-size:12.5px;font-weight:700;color:#475569;letter-spacing:2px;margin-bottom:12px}
+  .arch .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .arch .node{
+    background:#fff;border:1.5px solid #c7d2fe;border-radius:10px;padding:10px 16px;
+    font-size:13.5px;color:#1e3a8a;box-shadow:0 1px 2px rgba(30,58,138,.08);min-width:150px;
+  }
+  .arch .node small{display:block;color:#64748b;font-size:11.5px;margin-top:2px}
+  .arch .node.db{border-color:#fcd34d;background:#fffbeb;color:#92400e}
+  .arch .node.ext{border-color:#a7f3d0;background:#f0fdf4;color:#065f46}
+  .arch .node.shell{border:none;background:none;box-shadow:none;outline:2px dashed #94a3b8;outline-offset:-10px;padding:16px 12px 10px;color:#475569}
+  .arch .arrow{color:#94a3b8;font-size:12.5px;margin:8px 0}
+  .arch .arrow b{color:#4f6ef7}
+  /* ===== 解析流程步骤 ===== */
+  .steps{counter-reset:step;margin:14px 0;list-style:none;margin-left:0}
+  .steps li{
+    counter-increment:step;position:relative;padding:10px 14px 10px 52px;margin:8px 0;
+    background:#f8fafc;border:1px solid var(--line);border-radius:10px;font-size:14px;
+  }
+  .steps li::before{
+    content:counter(step);position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    width:26px;height:26px;border-radius:50%;background:var(--primary);color:#fff;
+    font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;
+  }
+  /* ===== 路线图 ===== */
+  .timeline{position:relative;margin:18px 0;padding-left:26px;border-left:3px solid #c7d2fe}
+  .phase{position:relative;margin:0 0 22px;padding:18px 20px;background:#fafbfe;border:1px solid var(--line);border-radius:12px}
+  .phase::before{
+    content:"";position:absolute;left:-35px;top:24px;width:13px;height:13px;border-radius:50%;
+    background:var(--primary);border:3px solid #eef2ff;
+  }
+  .phase h4{font-size:15.5px;margin-bottom:6px}
+  .phase .dur{font-size:12px;color:var(--primary);font-weight:600;margin-left:8px}
+  .phase p{margin:4px 0;font-size:13.5px}
+  .phase .goal{font-size:13px;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:6px 10px;margin-top:8px}
+  /* ===== 目录内两列 ===== */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+  .mini{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13.5px}
+  .mini b{display:block;color:#0f172a;margin-bottom:4px;font-size:14px}
+  footer{max-width:960px;margin:0 auto;color:#94a3b8;font-size:12.5px;text-align:center;padding-bottom:20px}
+  @media (max-width:1080px){
+    .sidebar{display:none}
+    .main{margin-left:0;padding:0 18px 60px}
+    .hero{margin:0 -18px 28px;padding:44px 18px}
+    section{padding:24px 20px}
+    .grid2{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ 侧边目录 ============ -->
+<aside class="sidebar">
+  <div class="brand">Portal<em>.</em></div>
+  <div class="sub">NAS 门户系统 · 设计方案 v0.1</div>
+  <nav class="toc">
+    <a href="#s1">01 项目概述</a>
+    <a href="#s2">02 总体架构</a>
+    <a href="#s3">03 功能模块设计</a>
+    <a class="lv2" href="#s3-1">3.1 用户与认证</a>
+    <a class="lv2" href="#s3-2">3.2 首页仪表盘</a>
+    <a class="lv2" href="#s3-3">3.3 应用与分类管理</a>
+    <a class="lv2" href="#s3-4">3.4 多访问方式 ★</a>
+    <a class="lv2" href="#s3-5">3.5 AI 助手</a>
+    <a class="lv2" href="#s3-6">3.6 Flow 自动化</a>
+    <a class="lv2" href="#s3-7">3.7 系统监控</a>
+    <a class="lv2" href="#s3-8">3.8 通知中心</a>
+    <a class="lv2" href="#s3-9">3.9 设置与通用能力</a>
+    <a class="toc-gap" href="#s4">04 数据模型设计</a>
+    <a href="#s5">05 API 设计</a>
+    <a href="#s6">06 前端设计</a>
+    <a href="#s7">07 目录结构</a>
+    <a href="#s8">08 Docker 部署</a>
+    <a href="#s9">09 安全设计</a>
+    <a href="#s10">10 开发路线图</a>
+    <a href="#s11">11 前置问题决策表</a>
+  </nav>
+</aside>
+
+<div class="main">
+<div class="content">
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="inner">
+    <h1>Portal<span class="dot"> · </span>NAS 门户系统设计方案</h1>
+    <p class="tagline">自托管门户 Dashboard —— 统一登录、Icon 磁贴直达服务、多网络环境智能解析、内置 AI 助手与 Flow 自动化，单 Docker 容器部署。</p>
+    <div class="meta">
+      <span class="chip">版本 v0.2</span>
+      <span class="chip">日期 2026-09-01</span>
+      <span class="chip">状态 待评审</span>
+      <span class="chip">前端 Vue 3 + TS</span>
+      <span class="chip">后端 Python · FastAPI</span>
+      <span class="chip">部署 Docker 单容器</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 01 项目概述 ============ -->
+<section id="s1">
+  <h2><span class="no">01</span>项目概述</h2>
+  <h3>背景与目标</h3>
+  <p>NAS 上跑的服务越来越多（影音、下载、网盘、Docker 应用、管理后台……），带来几个痛点：</p>
+  <ul>
+    <li>每个服务地址、端口各不相同，记忆成本高；</li>
+    <li><strong>同一服务在不同网络环境下访问方式不同</strong>：家里用内网 IP 直连最快，在外走域名/公网，公司网络可能只能通过 SSH 跳板机隧道访问；</li>
+    <li>缺少统一的登录入口与权限控制，服务直接暴露在局域网/公网不安全；</li>
+    <li>缺少统一的状态监控与自动化能力。</li>
+  </ul>
+  <p><strong>目标</strong>：做一个单 Docker 容器部署的门户系统，作为所有服务的"第一入口"：</p>
+  <ol>
+    <li>登录后进入首页，看到可点击的<strong>应用 Icon 磁贴</strong>；</li>
+    <li>每个应用可配置<strong>多种访问方式</strong>（域名 / 内网 IP / SSH 隧道 / VPN…），系统<strong>自动识别当前网络环境并推荐最佳入口</strong>；</li>
+    <li>提供 AI 助手、Flow 自动化、监控、通知等增强能力。</li>
+  </ol>
+
+  <h3>核心亮点（差异化）</h3>
+  <div class="grid2">
+    <div class="mini"><b>🌐 多访问方式智能解析 <span class="badge core">核心</span></b>每个应用挂多个入口，按"网络环境档案"自动推荐最佳入口，点击即达。</div>
+    <div class="mini"><b>🤖 AI 助手</b>OpenAI 兼容 API / 本地 Ollama，支持意图导航（"帮我打开电影服务器"）。</div>
+    <div class="mini"><b>⚙️ Flow 自动化</b>触发器 + 条件 + 动作的轻量编排（定时 / Webhook / 事件 → 通知 / HTTP / SSH / Docker）。</div>
+    <div class="mini"><b>📊 状态监控</b>应用在线探活 + NAS 资源监控，首页图标带在线状态点。</div>
+  </div>
+
+  <h3>对标产品</h3>
+  <p>Heimdall、Homarr、Dashy、Sun-Panel、homepage —— 均为优秀开源自托管面板，但<strong>多网络环境智能解析、AI 意图导航、Flow 自动化</strong>是本项目的差异化重点。</p>
+</section>
+
+<!-- ============ 02 总体架构 ============ -->
+<section id="s2">
+  <h2><span class="no">02</span>总体架构</h2>
+
+  <div class="arch">
+    <div class="band-title">客 户 端</div>
+    <div class="row"><div class="node">浏览器 / 手机 PWA</div></div>
+    <div class="arrow">▼ <b>HTTPS</b></div>
+    <div class="row"><div class="node">反向代理（NAS 自带 / Caddy）<small>或直连端口</small></div></div>
+    <div class="arrow">▼ <b>/</b> 静态资源 ｜ <b>/api · /ws</b> 接口</div>
+    <div class="row">
+      <div class="node shell">
+        <div class="band-title">Portal 容器（单镜像）</div>
+        <div class="row">
+          <div class="node">前端静态资源<small>Vue 3 + TypeScript</small></div>
+          <div class="node">FastAPI 后端<small>/api · /ws · SSE</small></div>
+          <div class="node">APScheduler<small>探活 / 采样 / Flow</small></div>
+          <div class="node db">SQLite + 文件卷<small>/app/data</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow">▼ 集成</div>
+    <div class="row">
+      <div class="node ext">OpenAI 兼容 API / Ollama</div>
+      <div class="node ext">SSH 跳板机</div>
+      <div class="node ext">Bark / TG / 邮件 / Webhook</div>
+      <div class="node ext">内网各服务<small>健康探测 · 隧道代理</small></div>
+      <div class="node ext">docker.sock<small>可选</small></div>
+    </div>
+  </div>
+
+  <p><strong>部署形态</strong>：前后端打包进<strong>同一个镜像</strong>。FastAPI 既提供 <code>/api</code> 接口，也通过 <code>StaticFiles</code> 托管前端构建产物，无需额外的 Nginx 容器，NAS 上部署最简单；外层可按需套 NAS 自带反代做 HTTPS 与域名。</p>
+
+  <h3>技术选型</h3>
+  <table>
+    <thead><tr><th style="width:18%">层</th><th style="width:34%">选型</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>前端框架</td><td><strong>Vue 3 + TypeScript + Vite</strong></td><td><code>&lt;script setup&gt;</code> 组合式 API</td></tr>
+      <tr><td>状态 / 路由</td><td>Pinia + Vue Router</td><td>—</td></tr>
+      <tr><td>UI 组件库</td><td><strong>Element Plus</strong>（备选 Naive UI）</td><td>生态成熟、中文文档全、表格/表单组件丰富</td></tr>
+      <tr><td>图表</td><td>ECharts</td><td>监控页 CPU / 内存 / 网络曲线</td></tr>
+      <tr><td>拖拽</td><td>vuedraggable-plus</td><td>首页磁贴与分组排序</td></tr>
+      <tr><td>流程画布（后期）</td><td>Vue Flow</td><td>Flow 可视化编排</td></tr>
+      <tr><td>后端框架</td><td><strong>Python 3.12 + FastAPI + Uvicorn</strong></td><td>异步、自动 OpenAPI 文档</td></tr>
+      <tr><td>ORM / 数据库</td><td>SQLAlchemy 2.0 + <strong>SQLite</strong> 主库，镜像推送 NAS <strong>MySQL</strong></td><td>运行读写全走 SQLite；MySQL 作灾备（dev-plan P23）</td></tr>
+      <tr><td>认证</td><td>JWT（access + refresh）+ bcrypt</td><td>后续可加 TOTP 两步验证</td></tr>
+      <tr><td>定时任务</td><td>APScheduler</td><td>探活、监控采样、Flow cron 触发</td></tr>
+      <tr><td>HTTP 客户端</td><td>httpx（异步）</td><td>健康探测、Webhook、AI API 调用</td></tr>
+      <tr><td>SSH</td><td>asyncssh / paramiko</td><td>跳板机隧道</td></tr>
+      <tr><td>Docker（可选）</td><td>docker-py</td><td>容器列表 / 启停（需挂载 sock）</td></tr>
+      <tr><td>系统监控</td><td>psutil + 宿主机 <code>/proc</code> 挂载</td><td>CPU / 内存 / 磁盘 / 网络</td></tr>
+      <tr><td>打包</td><td>Docker 多阶段构建</td><td>Node 构建 → Python 运行时</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 03 功能模块 ============ -->
+<section id="s3">
+  <h2><span class="no">03</span>功能模块设计</h2>
+  <p>以下按模块展开。<span class="badge core">核心</span> 为本项目差异化重点，<span class="badge p1">M1</span><span class="badge p2">M2</span><span class="badge p3">M3</span> 表示建议落地阶段（见 §10 路线图）。</p>
+</section>
+
+<section id="s3-1">
+  <h2><span class="no">3.1</span>用户与认证 <span class="badge p1">M1</span></h2>
+  <ul>
+    <li><strong>登录页</strong>：用户名/密码 → 后端签发 JWT（access 30min + refresh 7d），前端 axios 拦截器自动续期。</li>
+    <li><strong>首次初始化</strong>：系统无用户时进入引导页，创建管理员账号。</li>
+    <li><strong>角色</strong>：<code>admin</code>（全部权限）/ <code>user</code>（只读首页 + 个人偏好）；支持开启<strong>访客模式</strong>（免登录只读，仅展示允许公开的应用）。</li>
+    <li><strong>安全策略</strong>：密码 bcrypt 哈希；登录失败限速（5 次/分钟锁定 IP）；可选 <strong>TOTP 两步验证</strong>（M2）。</li>
+    <li><strong>企业方向预留（M3）</strong>：OIDC / LDAP 单点登录，方便公司内使用。</li>
+  </ul>
+</section>
+
+<section id="s3-2">
+  <h2><span class="no">3.2</span>首页仪表盘 <span class="badge p1">M1</span></h2>
+  <p>登录后的默认页，主打"高定制、好看、好用"：</p>
+  <ul>
+    <li><strong>应用磁贴</strong>：Icon + 名称 + 描述 + 在线状态点；支持<strong>拖拽排序</strong>、卡片大小（1x / 2x）。</li>
+    <li><strong>分组 / 分类</strong>：横向分组区块（如"媒体""下载""工具""管理"），分组可折叠。</li>
+    <li><strong>全局搜索</strong>：顶栏搜索框按名称/描述/标签过滤，回车直达；支持自定义快捷搜索（如 <code>gh xxx</code> → GitHub 搜索）。</li>
+    <li><strong>小组件 Widget（可开关/排序）</strong>：时钟问候、天气（免费 API + IP 定位）、NAS 资源速览（CPU/内存/磁盘环形图）、最近通知、Flow 最近执行。</li>
+    <li><strong>外观</strong>：亮/暗主题、主题色、自定义壁纸；磁贴 Icon 支持图片 URL / 本地上传 / Emoji / 自动抓取目标站 favicon。</li>
+    <li><strong>多入口跳转交互</strong>：单入口直接跳；多入口按当前环境自动选择（见 3.4），可配置"点击弹出选择浮层"。</li>
+  </ul>
+</section>
+
+<section id="s3-3">
+  <h2><span class="no">3.3</span>应用与分类管理 <span class="badge p1">M1</span></h2>
+  <table>
+    <thead><tr><th style="width:22%">字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>名称 / 描述 / 分组 / 排序</td><td>基础信息</td></tr>
+      <tr><td>图标</td><td>URL / 上传 / Emoji / 自动 favicon</td></tr>
+      <tr><td><strong>访问入口（1..N）</strong></td><td>见 3.4，每个应用的核心配置</td></tr>
+      <tr><td>探活地址</td><td>可选，用于状态点与离线告警（HTTP 或 TCP 形式）</td></tr>
+      <tr><td>打开方式</td><td>新标签页 / 当前页 / 内嵌 iframe 窗口</td></tr>
+      <tr><td>可见性</td><td>所有人可见 / 仅管理员 / 仅指定用户</td></tr>
+      <tr><td>标签</td><td>自由标签，配合搜索</td></tr>
+    </tbody>
+  </table>
+  <p>批量操作：导入/导出（JSON，兼容常见书签格式）、批量移动分组。</p>
+</section>
+
+<section id="s3-4">
+  <h2><span class="no">3.4</span>多访问方式管理 <span class="badge core">核心</span> <span class="badge p1">M1</span></h2>
+  <p>解决"<strong>同一个服务，不同网络环境用不同地址访问</strong>"的问题。</p>
+
+  <h3>概念模型</h3>
+<pre><code>应用 App（例：Jellyfin）
+ └── 访问入口 AppUrl × N
+      ├── <span class="k">type: domain</span>  →  <span class="s">https://jellyfin.mydomain.com</span>   <span class="c"># 公网/域名，走反代</span>
+      ├── <span class="k">type: lan</span>     →  <span class="s">http://192.168.1.10:8096</span>        <span class="c"># 家庭内网直连</span>
+      ├── <span class="k">type: ssh</span>     →  <span class="s">/tunnel/{id}</span> 经跳板机的隧道代理    <span class="c"># 公司网络</span>
+      ├── <span class="k">type: vpn</span>     →  <span class="s">http://10.8.0.1:8096</span>            <span class="c"># VPN 网段</span>
+      └── <span class="k">type: custom</span>  →  任意自定义地址
+ 每个入口可设置：名称标签、排序、备注</code></pre>
+
+  <h3>网络环境档案（Network Profile）</h3>
+  <p>设置页中定义若干"环境档案"，系统自动识别当前请求处于哪个环境：</p>
+  <table>
+    <thead><tr><th>环境示例</th><th>识别方式（CIDR 匹配客户端 IP）</th><th>入口优先顺序</th></tr></thead>
+    <tbody>
+      <tr><td>家庭内网</td><td><code>192.168.1.0/24</code></td><td>lan → domain → vpn</td></tr>
+      <tr><td>公司网络</td><td><code>10.12.0.0/16</code></td><td>ssh → domain</td></tr>
+      <tr><td>VPN 接入</td><td><code>10.8.0.0/24</code></td><td>vpn → domain</td></tr>
+      <tr><td>外网 / 其他</td><td>兜底默认档案</td><td>domain</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>识别策略：<strong>自动（CIDR）+ 手动覆盖</strong>。后端按请求来源 IP 匹配档案；前端顶栏显示当前环境徽标，用户可手动切换（记住选择）。</li>
+    <li>未配置任何档案时退化为普通面板（直接用第一个入口）。</li>
+  </ul>
+
+  <h3>智能解析流程</h3>
+  <ol class="steps">
+    <li>用户点击应用磁贴，前端调用 <code>GET /api/apps/{id}/resolve</code>（携带当前环境 = 自动 / 手动）。</li>
+    <li>后端识别网络环境（来源 IP 匹配 CIDR），按该环境的入口优先级排序。</li>
+    <li>返回推荐入口 + 备选列表，前端直接打开推荐入口（新标签页）。</li>
+    <li>可选"点击前预检"：后端快速 TCP/HTTP 探测推荐入口（500ms 超时），不通则直接给出备选，Toast 提示一键切换。</li>
+  </ol>
+  <p>解析结果缓存于前端，配合 WebSocket 在环境 / 探活状态变化时刷新。</p>
+
+  <h3>SSH 隧道访问（公司场景）</h3>
+  <ul>
+    <li><strong>M1 · 本地隧道（简单可靠）</strong>：为 <code>ssh</code> 类型入口生成现成命令
+      <code>ssh -L 18096:192.168.1.10:8096 user@jump.company.com</code>，点击时弹窗复制命令，并打开 <code>http://localhost:18096</code>。</li>
+    <li><strong>M2/M3 · 服务端托管隧道</strong>：后端用 asyncssh 维护隧道进程，门户提供 <code>/tunnel/{tunnel_id}/...</code> 反代路径，点击直接可用；空闲超时自动断开。跳板机密钥存数据卷，支持密码 / 私钥两种认证。</li>
+  </ul>
+
+  <h3>设置页面（访问方式管理中心）</h3>
+  <p>独立页面 <strong>"设置 → 访问方式"</strong>，三块内容：</p>
+  <ol>
+    <li><strong>网络环境档案管理</strong>：增删改环境、配置 CIDR、拖拽调整各环境的入口优先顺序、"从当前 IP 快速创建档案"。</li>
+    <li><strong>应用入口批量配置</strong>：表格视图列出所有应用 × 入口矩阵，快速补全地址。</li>
+    <li><strong>连通性测试</strong>：一键对全部入口做探测，展示延迟矩阵（哪个环境下哪些入口通/不通），辅助配置。</li>
+  </ol>
+</section>
+
+<section id="s3-5">
+  <h2><span class="no">3.5</span>AI 助手 🤖 <span class="badge p2">M2</span></h2>
+  <ul>
+    <li><strong>接入方式</strong>：OpenAI 兼容 API（可配 <code>base_url</code> + <code>api_key</code> + <code>model</code>），天然支持 DeepSeek、智谱、Kimi、通义等；也可指向 NAS 本地 <strong>Ollama</strong>（<code>http://nas:11434</code>）。Key 只存服务端，前端不经手。</li>
+    <li><strong>交互形态</strong>：全局侧边抽屉（任何页面可用）+ 独立全屏对话页；SSE 流式输出；多会话管理。</li>
+  </ul>
+  <h3>核心能力</h3>
+  <ol>
+    <li><strong>意图导航</strong>：System Prompt 注入当前用户可见的应用清单，AI 返回结构化动作 <code>{action: "navigate", app_id: 12}</code>，前端直接跳转 —— "帮我打开下载器"、"打开路由器管理"；</li>
+    <li><strong>上下文感知（可开关）</strong>：注入 NAS 负载、运行中容器、当前网络环境等摘要，回答"NAS 现在卡不卡"这类问题；</li>
+    <li>通用问答 / 翻译 / 总结；快捷指令（预设 Prompt 一键发送）；</li>
+    <li><strong>辅助配置（M2 后期）</strong>：粘贴一段服务信息，AI 自动生成应用条目（名称/图标建议/分类）；"每天 8 点检查下载并通知我" → 自动生成 Flow 配置草稿，人工确认后保存。</li>
+  </ol>
+  <p><strong>会话持久化</strong>：<code>ai_conversations / ai_messages</code> 表，支持续聊、删除、导出。</p>
+</section>
+
+<section id="s3-6">
+  <h2><span class="no">3.6</span>Flow 自动化 ⚙️ <span class="badge p2">M2 表单</span> <span class="badge p3">M3 画布</span></h2>
+  <p>轻量版 n8n / IFTTT：<strong>触发器 → 条件 → 动作</strong>。M2 用表单式编排，M3 升级 Vue Flow 画布（拖拽节点、连线、调试）。</p>
+  <table>
+    <thead><tr><th style="width:14%">类别</th><th style="width:44%">内置项</th><th>配置示例</th></tr></thead>
+    <tbody>
+      <tr><td>触发器</td><td>定时 cron / Webhook / 手动 / 事件（应用离线、CPU 超阈值）</td><td><code>0 8 * * *</code>；<code>POST /api/hooks/flow/{token}</code></td></tr>
+      <tr><td>条件</td><td>表达式判断（引用上游输出）</td><td><code>prev.status_code == 200</code></td></tr>
+      <tr><td>动作</td><td>HTTP 请求 / 通知推送 / SSH 执行命令 / Docker 容器操作 / 调用 AI / 延时 / 设置变量</td><td>restart jellyfin；发 Bark</td></tr>
+    </tbody>
+  </table>
+  <h3>典型场景</h3>
+  <ul>
+    <li>每天 08:00 检查 qBittorrent 完成数 → 变化则 Bark 推送"昨夜新增下载 X 个"；</li>
+    <li>探活发现 Jellyfin 离线 → 自动 SSH / Docker 重启 → 仍失败则升级通知；</li>
+    <li>Webhook（如手机快捷指令）触发 → AI 总结今日待办 → 推送到 Telegram。</li>
+  </ul>
+  <p><strong>执行引擎</strong>：APScheduler 注册 cron 触发器；Webhook / 事件走内部总线；每次执行记录 <code>flow_runs</code>（状态、耗时、每步日志），失败自动通知。动作为异步顺序执行（M3 画布支持分支并行）。</p>
+</section>
+
+<section id="s3-7">
+  <h2><span class="no">3.7</span>系统监控 📊 <span class="badge p2">M2</span></h2>
+  <p><em>v0.2 注：监控能力已按《功能详述》拆分为三层 —— <strong>M07 应用探活与可用性 / M17 服务器性能监控★（最高优先级）/ M18 端口监控★</strong>，本节为概览，明细以 feature-spec 为准。</em></p>
+  <ul>
+    <li><strong>应用探活</strong>：定时探测（间隔可配，默认 60s；HTTP 状态码或 TCP 端口连通），结果落库并经 WebSocket 推送前端，磁贴右上角绿 / 红 / 灰点。</li>
+    <li><strong>NAS 资源</strong>：容器内挂载宿主机只读 <code>/proc</code>、<code>/sys</code>（psutil 指向宿主数据源）读取 CPU / 内存 / 磁盘 / 网络速率；Docker 场景兜底可用 <code>docker stats</code>。每分钟采样写库，默认保留 7 天自动清理；监控页 ECharts 折线（实时 + 24h / 7d），首页速览小组件。</li>
+    <li><strong>Docker 容器管理（可选模块 M2/M3）</strong>：容器列表、状态、CPU / 内存占用，启 / 停 / 重启；需挂载 <code>docker.sock</code>，默认关闭并说明安全权衡。</li>
+    <li><strong>NAS 专属适配（M3）</strong>：群晖 DSM API / 威联通 API 对接（取决于 NAS 型号，见 §11）。</li>
+  </ul>
+</section>
+
+<section id="s3-8">
+  <h2><span class="no">3.8</span>通知中心 🔔 <span class="badge p2">M2</span></h2>
+  <ul>
+    <li><strong>渠道</strong>：Bark（iOS）、Telegram Bot、钉钉 / 企业微信 / 飞书机器人、SMTP 邮件、通用 Webhook；渠道可配多个，带发送测试按钮。</li>
+    <li><strong>站内通知</strong>：<code>notifications</code> 表 + 顶栏铃铛角标 + WebSocket 实时推送；级别 info / warn / error。</li>
+    <li><strong>来源</strong>：探活状态变化、Flow 执行结果、系统事件（登录异常、备份完成）、AI 任务完成。</li>
+  </ul>
+</section>
+
+<section id="s3-9">
+  <h2><span class="no">3.9</span>系统设置与通用能力</h2>
+  <ul>
+    <li><strong>常规</strong>：站点名称 / Logo、默认语言（中/英 i18n）、注册开关、访客模式。</li>
+    <li><strong>外观</strong>：主题色、默认亮暗、壁纸管理。</li>
+    <li><strong>访问方式</strong>：网络环境档案（见 3.4.5）。</li>
+    <li><strong>AI</strong>：Provider 配置、默认模型、上下文注入开关。</li>
+    <li><strong>通知</strong>：渠道管理、免打扰时段。</li>
+    <li><strong>安全</strong>：修改密码、会话管理（踢出设备）、TOTP 开关、审计日志查看。</li>
+    <li><strong>数据</strong>：一键导出 / 导入（JSON 全量备份：应用、入口、环境、Flow、设置），图标随卷保留；危险区：恢复出厂。</li>
+  </ul>
+</section>
+
+<!-- ============ 04 数据模型 ============ -->
+<section id="s4">
+  <h2><span class="no">04</span>数据模型设计</h2>
+  <p><strong>存储策略（v0.2）</strong>：以 <strong>SQLite 为运行主库</strong>（<code>/app/data/portal.db</code>，零依赖、低延迟），通过定时任务把业务数据<strong>镜像推送到 NAS 上的 MySQL</strong> 作为灾备与集中存储；MySQL 不可达不影响本地运行。<strong>字段级表结构（31 张表）的权威定义见《接口详述 api-spec》§3</strong>，此处列核心表概览：</p>
+  <table>
+    <thead><tr><th style="width:24%">表</th><th style="width:52%">关键字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>users</code></td><td>id, username, password_hash, role, is_active, totp_secret, prefs(JSON), created_at</td><td>用户</td></tr>
+      <tr><td><code>categories</code></td><td>id, name, icon, sort</td><td>应用分组</td></tr>
+      <tr><td><code>apps</code></td><td>id, name, description, icon, icon_type, category_id, sort, enabled, health_url, open_mode, visibility, created_at</td><td>应用</td></tr>
+      <tr><td><code>app_urls</code> <span class="badge core">核心</span></td><td>id, app_id, <strong>access_type</strong>(domain/lan/ssh/vpn/custom), url, label, sort</td><td>应用访问入口（一对多）</td></tr>
+      <tr><td><code>network_profiles</code> <span class="badge core">核心</span></td><td>id, name, match_type(cidr/manual), match_value, prefer_types(JSON), is_default</td><td>网络环境档案</td></tr>
+      <tr><td><code>settings</code></td><td>key(PK), value(JSON)</td><td>站点键值配置</td></tr>
+      <tr><td><code>flows</code></td><td>id, name, description, trigger_type, trigger_config(JSON), actions(JSON), enabled, last_run_at</td><td>自动化流</td></tr>
+      <tr><td><code>flow_runs</code></td><td>id, flow_id, status, trigger, started_at, finished_at, logs(TEXT)</td><td>执行历史</td></tr>
+      <tr><td><code>monitor_samples</code></td><td>id, ts, cpu, load, mem, disks, nets, io, temps, procs(JSON)</td><td>服务器资源采样</td></tr>
+      <tr><td><code>app_status</code></td><td>app_id, state, latency_ms, checked_at, message</td><td>探活最新状态</td></tr>
+      <tr><td><code>notifications</code></td><td>id, title, body, level, is_read, created_at</td><td>站内通知</td></tr>
+      <tr><td><code>notify_channels</code></td><td>id, type, name, config(JSON), enabled</td><td>通知渠道</td></tr>
+      <tr><td><code>ai_conversations</code> / <code>ai_messages</code></td><td>会话与消息（role, content, tokens, created_at）</td><td>AI 会话</td></tr>
+      <tr><td><code>tunnels</code> <span class="badge core">核心</span></td><td>id, app_url_id, local_port, status, pid, last_active_at</td><td>SSH 隧道（M2）</td></tr>
+      <tr><td><code>audit_logs</code></td><td>id, user_id, action, detail, ip, created_at</td><td>审计</td></tr>
+      <tr><td><code>user_sessions</code></td><td>id, user_id, refresh_hash, device, ip, revoked</td><td>会话管理（M2）</td></tr>
+      <tr><td><code>probe_events</code></td><td>id, app_id, event, latency_ms, created_at</td><td>探活事件时间线</td></tr>
+      <tr><td><code>alert_rules</code></td><td>id, metric, target, op, threshold, duration_min, level</td><td>指标阈值告警（M2）</td></tr>
+      <tr><td><code>port_monitors</code> / <code>port_events</code></td><td>host/port/state/latency；通断事件</td><td>端口监控（M2）★</td></tr>
+      <tr><td><code>port_listen_history</code></td><td>ts, added, removed</td><td>监听变更快照（M3）</td></tr>
+      <tr><td><code>credentials</code></td><td>id, name, type, host, port, username, secret(加密)</td><td>SSH 凭据库（M2）</td></tr>
+      <tr><td><code>notify_rules</code></td><td>id, event, channel_ids, quiet_start/end</td><td>通知路由规则（M2）</td></tr>
+      <tr><td><code>calendar_events</code> / <code>todos</code></td><td>日程 / 待办字段</td><td>日程与提醒（M2）</td></tr>
+      <tr><td><code>wol_targets</code> / <code>short_links</code></td><td>MAC 设备；code→target</td><td>工具箱</td></tr>
+      <tr><td><code>api_tokens</code></td><td>id, name, token_hash, scope, expires_at</td><td>开放 API（M2）</td></tr>
+      <tr><td><code>sync_state</code></td><td>id, table_name, last_push_at, rows_pushed, status</td><td>MySQL 同步状态（M2）</td></tr>
+      <tr><td><code>dashboard_layouts</code></td><td>id, user_id, tab, layout(JSON)</td><td>首页多标签页布局（M1）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 05 API ============ -->
+<section id="s5">
+  <h2><span class="no">05</span>API 设计</h2>
+  <p>REST 风格，前缀 <code>/api</code>，JWT 鉴权（登录 / 钩子除外）；FastAPI 自动生成 <code>/docs</code> OpenAPI 文档。<strong>统一响应格式、错误码表、实时推送协议与全量端点契约见《接口详述 api-spec》§1/§2/§4/§5</strong>。核心端点概览：</p>
+  <table>
+    <thead><tr><th style="width:12%">分组</th><th style="width:48%">方法与路径</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>认证</td><td><code>POST /api/auth/login</code> · <code>POST /api/auth/refresh</code> · <code>GET /api/auth/me</code></td><td>登录 / 续期 / 当前用户</td></tr>
+      <tr><td>分类</td><td><code>GET/POST /api/categories</code> · <code>PUT/DELETE /api/categories/{id}</code></td><td>分组 CRUD</td></tr>
+      <tr><td>应用</td><td><code>GET/POST /api/apps</code> · <code>PUT/DELETE /api/apps/{id}</code> · <code>PUT /api/apps/sort</code></td><td>应用 CRUD / 批量排序</td></tr>
+      <tr><td>入口 ★</td><td><code>GET/POST /api/apps/{id}/urls</code> · <code>PUT/DELETE /api/app-urls/{id}</code></td><td>访问入口 CRUD</td></tr>
+      <tr><td>解析 ★</td><td><code>GET /api/apps/{id}/resolve</code></td><td>按当前环境返回推荐入口 + 备选</td></tr>
+      <tr><td>环境 ★</td><td><code>GET/POST /api/network-profiles</code> · <code>PUT/DELETE .../{id}</code> · <code>POST .../detect</code></td><td>环境档案 CRUD / 探测当前环境</td></tr>
+      <tr><td>探活</td><td><code>POST /api/apps/{id}/check</code></td><td>立即探测一次</td></tr>
+      <tr><td>隧道 ★</td><td><code>POST /api/tunnels/{url_id}/open</code> · <code>DELETE /api/tunnels/{id}</code></td><td>开 / 关 SSH 隧道（M2）</td></tr>
+      <tr><td>监控</td><td><code>GET /api/monitor/system</code> · <code>GET /api/monitor/history?range=24h</code></td><td>实时概览 / 历史曲线</td></tr>
+      <tr><td>告警</td><td><code>GET/POST /api/alerts/rules · PUT/DELETE .../{id}</code></td><td>阈值告警规则（M2）</td></tr>
+      <tr><td>端口 ★</td><td><code>GET /api/ports/listen · CRUD /api/ports/monitors · GET /api/ports/lookup</code></td><td>端口监听/探活/占用检索（M2）</td></tr>
+      <tr><td>同步</td><td><code>GET/PUT /api/settings/sync · POST /api/sync/push · POST /api/sync/restore</code></td><td>MySQL 镜像同步（P23）</td></tr>
+      <tr><td>工具</td><td><code>POST /api/tools/wol · /ping · GET /api/tools/qr …</code></td><td>工具箱</td></tr>
+      <tr><td>Docker</td><td><code>GET /api/docker/containers</code> · <code>POST /api/docker/containers/{name}/{op}</code></td><td>可选模块（op: start/stop/restart）</td></tr>
+      <tr><td>Flow</td><td><code>GET/POST /api/flows</code> · <code>PUT/DELETE /api/flows/{id}</code> · <code>POST /api/flows/{id}/run</code> · <code>GET /api/flows/{id}/runs</code></td><td>Flow CRUD / 手动执行 / 历史</td></tr>
+      <tr><td>Webhook</td><td><code>POST /api/hooks/flow/{token}</code></td><td>Flow Webhook 触发入口</td></tr>
+      <tr><td>AI</td><td><code>POST /api/ai/chat</code>（SSE）· <code>GET/POST/DELETE /api/ai/conversations...</code></td><td>流式对话 / 会话管理</td></tr>
+      <tr><td>通知</td><td><code>GET /api/notifications</code> · <code>PUT /api/notifications/read-all</code></td><td>站内通知</td></tr>
+      <tr><td>渠道</td><td><code>GET/POST /api/notify-channels</code> · <code>POST .../{id}/test</code></td><td>渠道 CRUD / 测试发送</td></tr>
+      <tr><td>设置</td><td><code>GET/PUT /api/settings</code></td><td>键值配置</td></tr>
+      <tr><td>备份</td><td><code>GET /api/backup/export</code> · <code>POST /api/backup/import</code></td><td>导出 / 导入</td></tr>
+      <tr><td>WebSocket</td><td><code>/ws/monitor</code> · <code>/ws/notify</code></td><td>实时监控与通知推送</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 06 前端 ============ -->
+<section id="s6">
+  <h2><span class="no">06</span>前端设计</h2>
+  <h3>路由与页面</h3>
+  <table>
+    <thead><tr><th style="width:26%">路由</th><th style="width:26%">页面</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>/login</code></td><td>登录 / 首次初始化引导</td><td>—</td></tr>
+      <tr><td><code>/</code></td><td><strong>首页仪表盘</strong></td><td>磁贴 + 分组 + 小组件 + 搜索</td></tr>
+      <tr><td><code>/apps</code></td><td>应用管理</td><td>列表 + 编辑抽屉 + 入口矩阵</td></tr>
+      <tr><td><code>/monitor</code></td><td>监控</td><td>系统资源图表 + 应用状态 + 容器（可选）</td></tr>
+      <tr><td><code>/flows</code> · <code>/flows/:id/edit</code></td><td>Flow 列表 / 编排</td><td>表单 → 画布</td></tr>
+      <tr><td><code>/ai</code></td><td>AI 对话（全屏）</td><td>侧边抽屉为全局组件</td></tr>
+      <tr><td><code>/settings/access</code> ★</td><td>访问方式设置</td><td>环境档案 + 入口矩阵 + 连通性测试</td></tr>
+      <tr><td><code>/settings/general</code> 等</td><td>其余设置页</td><td>常规 / 外观 / AI / 通知 / 安全 / 备份</td></tr>
+    </tbody>
+  </table>
+  <h3>整体布局</h3>
+  <p>登录后统一框架：<strong>左侧可收起导航栏</strong>（首页 / 应用 / 监控 / Flow / AI / 设置）+ <strong>顶栏</strong>（全局搜索、<strong>当前网络环境切换器 ★</strong>、通知铃铛、AI 入口、用户菜单）。移动端自适应：导航折叠为底部栏，磁贴单列。</p>
+</section>
+
+<!-- ============ 07 目录结构 ============ -->
+<section id="s7">
+  <h2><span class="no">07</span>项目目录结构</h2>
+<pre><code>Portal/
+├── frontend/                    <span class="c"># Vue3 + TS + Vite</span>
+│   ├── src/
+│   │   ├── api/                 <span class="c"># axios 实例 + 各模块接口封装</span>
+│   │   ├── components/          <span class="c"># AppTile / SearchBar / EnvSwitcher / AiDrawer ...</span>
+│   │   ├── views/               <span class="c"># login / dashboard / apps / monitor / flows / ai / settings</span>
+│   │   ├── stores/              <span class="c"># pinia：auth / apps / env / notify</span>
+│   │   ├── router/
+│   │   ├── types/               <span class="c"># TS 类型定义（与后端 Pydantic 对应）</span>
+│   │   └── utils/
+│   └── vite.config.ts           <span class="c"># dev 时 /api 代理到 FastAPI</span>
+├── backend/
+│   ├── app/
+│   │   ├── main.py              <span class="c"># FastAPI 入口 + StaticFiles 挂载前端产物</span>
+│   │   ├── core/                <span class="c"># 配置、安全(JWT/bcrypt)、依赖注入</span>
+│   │   ├── models/              <span class="c"># SQLAlchemy 模型</span>
+│   │   ├── schemas/             <span class="c"># Pydantic 模型</span>
+│   │   ├── api/                 <span class="c"># 路由：auth / apps / profiles / monitor / flows / ai / notify ...</span>
+│   │   ├── services/            <span class="c"># resolver(环境解析) / prober(探活) / tunnel(SSH) /</span>
+│   │   │                        <span class="c">#   flow_engine / ai_gateway / notifier</span>
+│   │   └── utils/
+│   └── requirements.txt
+├── Dockerfile                   <span class="c"># 多阶段：node 构建 → python 运行</span>
+├── docker-compose.yml
+└── docs/                        <span class="c"># 设计文档</span></code></pre>
+</section>
+
+<!-- ============ 08 Docker ============ -->
+<section id="s8">
+  <h2><span class="no">08</span>Docker 部署方案</h2>
+  <p><strong>多阶段构建</strong>：<code>node:20-alpine</code> 构建前端 → <code>python:3.12-slim</code> 运行时（uvicorn 单进程足够个人使用）。</p>
+<pre><code><span class="k">services</span>:
+  <span class="k">portal</span>:
+    build: <span class="s">.</span>
+    <span class="c"># image: yourname/portal:latest</span>
+    container_name: <span class="s">portal</span>
+    ports:
+      - <span class="s">"8080:8000"</span>
+    environment:
+      - TZ=<span class="s">Asia/Shanghai</span>
+      - SECRET_KEY=<span class="s">please-change-me</span>
+    volumes:
+      - ./data:<span class="s">/app/data</span>            <span class="c"># SQLite、上传图标、SSH 私钥等全部持久化</span>
+      <span class="c"># 可选：启用 Docker 容器管理模块时挂载（有安全权衡，默认不开）</span>
+      <span class="c"># - /var/run/docker.sock:/var/run/docker.sock</span>
+      <span class="c"># 可选：读取宿主机资源做监控</span>
+      <span class="c"># - /proc:/host/proc:ro</span>
+      <span class="c"># - /sys:/host/sys:ro</span>
+      <span class="c"># 可选：MySQL 镜像推送（SYNC__ENABLED / SYNC__MYSQL__*，见 api-spec §6.1）</span>
+    restart: <span class="s">unless-stopped</span></code></pre>
+  <ul>
+    <li>数据全部收敛在 <code>/app/data</code> 卷 → 升级镜像不丢数据；</li>
+    <li>NAS 反代（群晖控制面板 / Caddy）做 HTTPS 与域名 → <code>portal.mydomain.com</code>；</li>
+    <li>镜像可发布到 Docker Hub / 阿里云 ACR，NAS 上拉取即用。</li>
+  </ul>
+</section>
+
+<!-- ============ 09 安全 ============ -->
+<section id="s9">
+  <h2><span class="no">09</span>安全设计</h2>
+  <table>
+    <thead><tr><th style="width:18%">项</th><th>措施</th></tr></thead>
+    <tbody>
+      <tr><td>密码</td><td>bcrypt 哈希；强度校验；首次登录强制改密</td></tr>
+      <tr><td>会话</td><td>JWT 短期 access + refresh；登录失败限速；会话列表可踢出</td></tr>
+      <tr><td>敏感信息</td><td>AI Key、SSH 私钥、通知 Token 存服务端；接口返回时脱敏</td></tr>
+      <tr><td>Webhook</td><td>随机 token 鉴权，可随时吊销</td></tr>
+      <tr><td>docker.sock</td><td>默认不挂载；挂载时文档标注"相当于宿主机 root 权限"的风险</td></tr>
+      <tr><td>传输</td><td>建议经 NAS 反代上 HTTPS；容器内可后续支持自签证书</td></tr>
+      <tr><td>审计</td><td>登录、配置变更、Flow 执行、容器操作记入 <code>audit_logs</code></td></tr>
+      <tr><td>CORS</td><td>默认同源部署，不放开跨域</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 10 路线图 ============ -->
+<section id="s10">
+  <h2><span class="no">10</span>开发路线图</h2>
+  <p><em>v0.2 注：本表为里程碑概览；细粒度的 24 阶段 / 108 步骤分解、每阶段测试关卡与完成状态，以《开发计划 dev-plan》v1.1 为准。</em></p>
+  <div class="timeline">
+    <div class="phase">
+      <h4>M1 · MVP <span class="dur">第 1~3 周</span></h4>
+      <p>项目骨架（前后端 + Docker 打包）、登录 / 初始化引导、分类与应用 CRUD、<strong>多入口 + 网络环境档案 + 智能解析</strong>、首页磁贴（拖拽 / 搜索 / 状态位）、基础设置。</p>
+      <div class="goal">验收：NAS 上单容器跑通 —— 登录 → 配置应用多入口 → 不同网段访问自动切入口。</div>
+    </div>
+    <div class="phase">
+      <h4>M2 · 增强 <span class="dur">第 4~6 周</span></h4>
+      <p>探活 + 状态点、监控页（资源采样 + ECharts）、AI 助手（对话 + 意图导航）、通知中心（Bark / TG + 站内）、Flow 表单版（cron / 事件 → 通知 / HTTP）、备份导出导入、TOTP。</p>
+      <div class="goal">验收：探活告警 + AI 导航 + 定时通知三个场景真实可用。</div>
+    </div>
+    <div class="phase">
+      <h4>M3 · 进阶 <span class="dur">第 7 周起</span></h4>
+      <p>Flow 画布（Vue Flow）、SSH 服务端托管隧道、Docker 容器管理、访客模式、i18n、PWA、OIDC / LDAP（如公司使用）。</p>
+      <div class="goal">验收：Flow 画布编排一条含分支的自动化；公司网络免命令直达内网服务。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 11 待确认 ============ -->
+<section id="s11">
+  <h2><span class="no">11</span>前置问题决策表 <span class="badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0">v0.2 闭环</span></h2>
+  <p>原列出的待确认问题均已给出默认决策，<strong>不阻塞 P0 开发</strong>；仅两项信息需在部署期提供。</p>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:20%">问题</th><th>默认决策</th><th style="width:18%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>NAS 型号与系统</td><td>按通用 Docker 方案设计；监控采集走宿主 <code>/proc</code>、<code>/sys</code> 挂载 + docker stats 兜底；温度 / DSM API 视型号增强，不支持则自动隐藏</td><td>🟡 部署期确认型号</td></tr>
+      <tr><td class="num">2</td><td>使用人数</td><td>admin / user 两级角色 + 访客模式（feature-spec 权限矩阵）</td><td>✅ 已决策</td></tr>
+      <tr><td class="num">3</td><td>AI 接入来源</td><td>多 Provider 设计：OpenAI 兼容 API（DeepSeek/智谱等）与本地 Ollama 均可配置切换</td><td>✅ 已决策</td></tr>
+      <tr><td class="num">4</td><td>公司 SSH 场景</td><td>M1 本地命令模式兜底；跳板机信息固定后升级 M2 服务端托管隧道</td><td>🟡 待提供跳板机信息</td></tr>
+      <tr><td class="num">5</td><td>UI 组件库</td><td>Element Plus（dev-plan P0 已采用）</td><td>✅ 已决策</td></tr>
+      <tr><td class="num">6</td><td>Flow 首版形态</td><td>M2 表单编排、M3 Vue Flow 画布</td><td>✅ 已决策</td></tr>
+      <tr><td class="num">7</td><td>数据库</td><td>SQLite 运行主库 + 定时镜像推送 NAS MySQL（feature-spec v1.2 / dev-plan P23 / api-spec §3.11）</td><td>✅ 已决策（连接信息部署期提供）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">💡 前置问题已闭环，可直接进入 M1 开发：先搭前后端骨架与 Docker 流水线，再按"应用 CRUD → 多入口解析 → 首页磁贴"顺序迭代。</div>
+</section>
+
+<footer>Portal · NAS 门户系统设计方案 v0.2 · 2026-09-01 · 本文件为纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  // 目录 scrollspy
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => {
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    }
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>
