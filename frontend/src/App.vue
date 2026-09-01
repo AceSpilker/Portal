@@ -5,6 +5,10 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 <template>
   <ElConfigProvider :locale="zhCn">
-    <router-view />
+    <router-view v-slot="{ Component }">
+      <transition name="page" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
   </ElConfigProvider>
 </template>

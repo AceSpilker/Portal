@@ -4,4 +4,6 @@ sqlalchemy>=2.0.30
 aiosqlite>=0.20
 pydantic>=2.7
 pydantic-settings>=2.3
+bcrypt>=4.1
+PyJWT>=2.8
 python-multipart>=0.0.9

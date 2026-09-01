@@ -38,4 +38,7 @@ def ok(data: Any = None, message: str = "ok") -> dict[str, Any]:
 
 def fail(code: int, message: str, http_status: int = 200) -> JSONResponse:
     """失败响应体。"""
-    return JSONResponse(status_code=http_status, content={"code": code, "message": message, "data": None})
+    return JSONResponse(
+        status_code=http_status,
+        content={"code": code, "message": message, "data": None},
+    )
