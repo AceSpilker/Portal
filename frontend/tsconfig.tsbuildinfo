@@ -1,1 +1,0 @@
-{"root":["./src/env.d.ts","./src/main.ts","./src/__tests__/format.spec.ts","./src/api/health.ts","./src/api/request.ts","./src/router/index.ts","./src/stores/auth.ts","./src/utils/format.ts","./src/app.vue","./src/views/dashboardview.vue","./src/views/loginview.vue"],"version":"5.9.3"}
