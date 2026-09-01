@@ -8,7 +8,7 @@
 
 **状态图例**：⬜ 未开始 ｜ 🔄 进行中 ｜ ✅ 已完成（须通过该阶段两道测试关卡）｜ ⛔ 阻塞
 
-**规模总览**：**24 个开发阶段 · 108 个步骤**，分布在三个里程碑（M1 MVP / M2 增强 / M3 进阶）。当前进度：**0 / 108**。
+**规模总览**：**24 个开发阶段 · 108 个步骤**，分布在三个里程碑（M1 MVP / M2 增强 / M3 进阶）。当前进度：**6 / 108**（P0 进行中）。
 
 ---
 
@@ -128,13 +128,13 @@
 
 | # | 步骤 | 内容 | 关联 | 状态 |
 |---|---|---|---|---|
-| 0.1 | 仓库与目录结构 | Git 仓库、frontend/backend/docs/logs 骨架、.gitignore | — | ⬜ |
-| 0.2 | 后端骨架 | FastAPI 入口、统一响应/异常处理、`GET /api/health`、pydantic-settings 配置 | — | ⬜ |
-| 0.3 | 数据库层 | SQLAlchemy 连接管理、启动建表、settings 键值表（ORM 抽象保持可切换/对接 MySQL） | M15 | ⬜ |
-| 0.4 | 前端骨架 | Vite+Vue3+TS、Element Plus、Router/Pinia、axios 封装、主布局空壳 | — | ⬜ |
-| 0.5 | 开发联调 | Vite proxy `/api` → Uvicorn 8000，前后端联调跑通 | — | ⬜ |
-| 0.6 | 测试基建 | pytest+coverage、Vitest 各跑通示例用例，ruff/ESLint 配置 | — | ⬜ |
-| 0.7 | Docker 雏形 | 多阶段 Dockerfile + compose 构建成功 | — | ⬜ |
+| 0.1 | 仓库与目录结构 | Git 仓库、frontend/backend/docs/logs 骨架、.gitignore | — | ✅ |
+| 0.2 | 后端骨架 | FastAPI 入口、统一响应/异常处理、`GET /api/health`、pydantic-settings 配置 | — | ✅ |
+| 0.3 | 数据库层 | SQLAlchemy 连接管理、启动建表、settings 键值表（ORM 抽象保持可切换/对接 MySQL） | M15 | ✅ |
+| 0.4 | 前端骨架 | Vite+Vue3+TS、Element Plus、Router/Pinia、axios 封装、主布局空壳 | — | ✅ |
+| 0.5 | 开发联调 | Vite proxy `/api` → Uvicorn 8000，前后端联调跑通 | — | ✅ |
+| 0.6 | 测试基建 | pytest+coverage、Vitest 各跑通示例用例，ruff/ESLint 配置 | — | 🔄 |
+| 0.7 | Docker 雏形 | 多阶段 Dockerfile + compose 构建成功 | — | ✅ |
 
 **单元测试关卡**：health 接口 200；settings 读写；前端占位组件渲染。
 **业务功能测试关卡**：`docker compose up` 后浏览器打开页面、`curl /api/health` 通。

@@ -116,7 +116,7 @@
       <span class="chip">关联 feature-spec v1.2</span>
       <span class="chip">24 阶段</span>
       <span class="chip">108 步骤</span>
-      <span class="chip">进度 0 / 108</span>
+      <span class="chip">进度 6 / 108</span>
       <span class="chip">v1.1 新增：MySQL 数据同步（SQLite 主库 → NAS MySQL 灾备）</span>
     </div>
   </div>
@@ -233,7 +233,7 @@
   <table>
     <thead><tr><th style="width:8%">阶段</th><th style="width:32%">名称</th><th style="width:12%">里程碑</th><th style="width:10%">步骤</th><th>状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">P0</td><td><a href="#p0">项目脚手架与基础设施</a></td><td><span class="badge m1">M1</span></td><td>7</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P0</td><td><a href="#p0">项目脚手架与基础设施</a></td><td><span class="badge m1">M1</span></td><td>7</td><td><span class="st doing">🔄 进行中（6/7）</span></td></tr>
       <tr><td class="num">P1</td><td><a href="#p1">认证与账户</a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P2</td><td><a href="#p2">应用、分组与入口管理</a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P3</td><td><a href="#p3">网络环境与智能解析 <span class="badge core">★</span></a></td><td><span class="badge m1">M1</span></td><td>8</td><td><span class="st open">⬜ 未开始</span></td></tr>
@@ -265,17 +265,17 @@
 <section id="m1">
   <h2><span class="no">04-A</span>M1 阶段明细 <span class="badge m1">M1 · MVP</span></h2>
 
-  <h3 id="p0">P0 · 项目脚手架与基础设施 <span class="st open">未开始</span></h3>
+  <h3 id="p0">P0 · 项目脚手架与基础设施 <span class="st doing">进行中</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">0.1</td><td>仓库与目录结构</td><td>Git 仓库、frontend/backend/docs/logs 骨架、.gitignore</td><td>—</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">0.2</td><td>后端骨架</td><td>FastAPI 入口、统一响应/异常处理、<code>GET /api/health</code>、pydantic-settings 配置</td><td>—</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">0.3</td><td>数据库层</td><td>SQLAlchemy 连接管理、启动建表、settings 键值表（ORM 抽象保持可切换/对接 MySQL）</td><td>M15</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">0.4</td><td>前端骨架</td><td>Vite+Vue3+TS、Element Plus、Router/Pinia、axios 封装、主布局空壳</td><td>—</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">0.5</td><td>开发联调</td><td>Vite proxy <code>/api</code> → Uvicorn 8000，前后端联调跑通</td><td>—</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">0.6</td><td>测试基建</td><td>pytest+coverage、Vitest 各跑通示例用例，ruff/ESLint 配置</td><td>—</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">0.7</td><td>Docker 雏形</td><td>多阶段 Dockerfile + compose 构建成功</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">0.1</td><td>仓库与目录结构</td><td>Git 仓库、frontend/backend/docs/logs 骨架、.gitignore</td><td>—</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">0.2</td><td>后端骨架</td><td>FastAPI 入口、统一响应/异常处理、<code>GET /api/health</code>、pydantic-settings 配置</td><td>—</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">0.3</td><td>数据库层</td><td>SQLAlchemy 连接管理、启动建表、settings 键值表（ORM 抽象保持可切换/对接 MySQL）</td><td>M15</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">0.4</td><td>前端骨架</td><td>Vite+Vue3+TS、Element Plus、Router/Pinia、axios 封装、主布局空壳</td><td>—</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">0.5</td><td>开发联调</td><td>Vite proxy <code>/api</code> → Uvicorn 8000，前后端联调跑通</td><td>—</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">0.6</td><td>测试基建</td><td>pytest+coverage、Vitest 各跑通示例用例，ruff/ESLint 配置</td><td>—</td><td><span class="st doing">🔄</span></td></tr>
+      <tr><td class="num">0.7</td><td>Docker 雏形</td><td>多阶段 Dockerfile + compose 构建成功</td><td>—</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>health 接口 200；settings 读写；前端占位组件渲染。</li></ul></div>

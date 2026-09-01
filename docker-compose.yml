@@ -1,0 +1,29 @@
+services:
+  portal:
+    build: .
+    # image: yourname/portal:latest
+    container_name: portal
+    ports:
+      - "8080:8000"
+    environment:
+      - TZ=Asia/Shanghai
+      - SECRET_KEY=please-change-me
+      # 可选：MySQL 镜像推送（SQLite 为主库，见 dev-plan P23 / api-spec §6.1）
+      # - SYNC__ENABLED=true
+      # - SYNC__INTERVAL_MIN=30
+      # - SYNC__MYSQL__HOST=192.168.1.10
+      # - SYNC__MYSQL__PORT=3306
+      # - SYNC__MYSQL__USER=portal
+      # - SYNC__MYSQL__PASSWORD=***
+      # - SYNC__MYSQL__DATABASE=portal
+      # 可选：Docker 容器管理模块（有安全权衡，默认不开）
+      # - DOCKER_SOCK_ENABLED=true
+      # 可选：读取宿主机资源做监控（NAS 支持 mount 时开启）
+      # - HOST_PROC=/host/proc
+      # - HOST_SYS=/host/sys
+    volumes:
+      - ./data:/app/data
+      # - /var/run/docker.sock:/var/run/docker.sock
+      # - /proc:/host/proc:ro
+      # - /sys:/host/sys:ro
+    restart: unless-stopped
