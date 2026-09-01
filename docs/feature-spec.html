@@ -132,14 +132,14 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>功能详述（Feature Spec）</h1>
-    <p class="tagline">系统全部功能的权威清单：18 个功能模块、221 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
+    <p class="tagline">系统全部功能的权威清单：18 个功能模块、222 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
     <div class="meta">
-      <span class="chip">版本 v1.2</span>
+      <span class="chip">版本 v1.3</span>
       <span class="chip">日期 2026-09-01</span>
-      <span class="chip">关联 design-proposal v0.2</span>
+      <span class="chip">关联 design-proposal v0.3</span>
       <span class="chip">18 模块</span>
-      <span class="chip">221 功能点</span>
-      <span class="chip">v1.2 新增：MySQL 数据同步</span>
+      <span class="chip">222 功能点</span>
+      <span class="chip">v1.3 新增：移动端 UI 方案落地</span>
     </div>
   </div>
 </header>
@@ -157,7 +157,7 @@
   </div>
   <div class="stats">
     <div class="stat"><b>18</b><span>功能模块</span></div>
-    <div class="stat"><b>221</b><span>功能点</span></div>
+    <div class="stat"><b>222</b><span>功能点</span></div>
     <div class="stat"><b>4</b><span>可选独立模块</span></div>
     <div class="stat"><b>3</b><span>个落地阶段</span></div>
   </div>
@@ -184,7 +184,7 @@
       <tr><td>M13</td><td><a href="#m13">日程与提醒</a></td><td>日历待办与提醒推送</td><td>6</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td>M14</td><td><a href="#m14">开放 API 与扩展</a></td><td>Token、主题、插件预留</td><td>7</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
       <tr><td>M15</td><td><a href="#m15">系统设置</a></td><td>全局配置中心</td><td>12</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td>M16</td><td><a href="#m16">移动端与 PWA</a></td><td>响应式与安装体验</td><td>6</td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
+      <tr><td>M16</td><td><a href="#m16">移动端与 PWA</a></td><td>响应式与安装体验</td><td>7</td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
       <tr><td><strong>M17</strong></td><td><a href="#m17"><strong>服务器性能监控 <span class="badge core">★ 核心</span></strong></a></td><td><strong>CPU/内存/磁盘/网络/进程等整机监控</strong></td><td><strong>21</strong></td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
       <tr><td><strong>M18</strong></td><td><a href="#m18"><strong>端口监控 <span class="badge core">★ 核心</span></strong></a></td><td><strong>端口监听、探活、变更告警与安全检查</strong></td><td><strong>12</strong></td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
     </tbody>
@@ -610,7 +610,7 @@
 
 <!-- ============ M16 ============ -->
 <section id="m16">
-  <h2><span class="no">M16</span>移动端与 PWA <span class="badge p1">6 项</span></h2>
+  <h2><span class="no">M16</span>移动端与 PWA <span class="badge p1">7 项</span></h2>
   <p>定位：手机上的体验不能是"能看"，要"好用"。</p>
   <table>
     <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
@@ -621,6 +621,7 @@
       <tr><td class="num">4</td><td>主屏图标与启动屏</td><td>自定义图标与启动画面</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">5</td><td>移动端专属布局</td><td>手机上独立的小组件排列方案（与 PC 互不影响）</td><td><span class="badge p3">M3</span></td></tr>
       <tr><td class="num">6</td><td>暗色跟随系统</td><td>系统切暗色自动跟随</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">7</td><td>安全区与手势适配</td><td>底部 Tab/页面留白适配刘海屏与手势条（<code>env(safe-area-inset-*)</code>）；移动端点击缩放反馈</td><td><span class="badge p1">M1</span></td></tr>
     </tbody>
   </table>
 </section>
@@ -724,6 +725,7 @@
     <li><strong>端口监控模块 M18</strong> ★：端口监听清单、端口探活与变更告警、端口-应用关联、占用检索、裸露端口安全提示、公网可达性对比（v1.1 新增）</li>
     <li><strong>M07 调整</strong>：聚焦"应用探活与可用性"，NAS 资源类能力并入 M17，避免职责重叠（v1.1 调整）</li>
     <li><strong>MySQL 数据同步</strong>：SQLite 主库 + 定时镜像推送 NAS MySQL（灾备/集中存储），支持立即推送、同步状态、失败重试与从 MySQL 恢复（v1.2 新增，M15-12）</li>
+    <li><strong>移动端 UI 方案</strong>：响应式 + 底部 Tab + 安全区适配定稿并落地（v1.3 新增，M16-7；选型对比见 design-proposal §6.3）</li>
   </ol>
 </section>
 
@@ -738,7 +740,7 @@
   <div class="callout">💡 说明：本项目的所有文档产出均提供 <strong>MD + HTML 双版本</strong>；工作过程记录见项目根目录 <code>logs/</code> 文件夹。</div>
 </section>
 
-<footer>Portal · 功能详述 v1.2 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · 功能详述 v1.3 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

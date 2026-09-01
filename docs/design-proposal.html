@@ -189,7 +189,7 @@
     <h1>Portal<span class="dot"> · </span>NAS 门户系统设计方案</h1>
     <p class="tagline">自托管门户 Dashboard —— 统一登录、Icon 磁贴直达服务、多网络环境智能解析、内置 AI 助手与 Flow 自动化，单 Docker 容器部署。</p>
     <div class="meta">
-      <span class="chip">版本 v0.2</span>
+      <span class="chip">版本 v0.3</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">状态 待评审</span>
       <span class="chip">前端 Vue 3 + TS</span>
@@ -546,6 +546,26 @@
   </table>
   <h3>整体布局</h3>
   <p>登录后统一框架：<strong>左侧可收起导航栏</strong>（首页 / 应用 / 监控 / Flow / AI / 设置）+ <strong>顶栏</strong>（全局搜索、<strong>当前网络环境切换器 ★</strong>、通知铃铛、AI 入口、用户菜单）。移动端自适应：导航折叠为底部栏，磁贴单列。</p>
+
+  <h3>移动端 UI 方案（v0.3 定稿）</h3>
+  <table>
+    <thead><tr><th style="width:20%">方案</th><th style="width:24%">说明</th><th style="width:20%">优点</th><th style="width:22%">缺点</th><th>结论</th></tr></thead>
+    <tbody>
+      <tr><td><strong>A. 响应式 + 移动端布局适配</strong></td><td>一套代码库：断点样式 + 移动端专属布局（底部 Tab）+ 组件条件渲染</td><td>单代码库维护成本低；门户以卡片为主，天然适合自适应；配合 PWA 可"类 App"</td><td>复杂桌面组件（表格/画布）需逐页适配</td><td><strong>✅ 采用</strong></td></tr>
+      <tr><td>B. 独立移动端 H5（Vant 等）</td><td>m. 站点独立代码库</td><td>移动交互最贴近原生</td><td>双代码库、接口与逻辑双份维护，个人项目成本翻倍</td><td>✗ 暂不采用</td></tr>
+      <tr><td>C. 跨端 App（uni-app / Flutter）</td><td>安装到手机的原生 App</td><td>推送/相机等原生能力</td><td>技术栈完全独立、成本最高</td><td>✗ 远期按需评估</td></tr>
+      <tr><td>D. 桌面页面直接缩放</td><td>不做适配</td><td>零成本</td><td>移动端基本不可用</td><td>✗ 否决</td></tr>
+    </tbody>
+  </table>
+  <p><strong>实现规范</strong>（已落地于登录页与仪表盘外壳）：</p>
+  <ul>
+    <li><strong>断点</strong>：<code>&lt;768px</code> 移动（底部 Tab + 双列/单列）、<code>768~1079</code> 平板（收窄侧栏）、<code>≥1080</code> 桌面（完整侧栏）；判定统一走 <code>useIsMobile</code> 组合式函数（@vueuse useMediaQuery，全局共享）；</li>
+    <li><strong>组件映射</strong>：侧边导航 → 底部 Tab（≤5 项，图标 + 文案）；数据表格 → 卡片列表；编辑抽屉 → 全屏抽屉；磁贴网格 auto-fill 自适应列数（移动端双列/小屏单列）；</li>
+    <li><strong>触控</strong>：可点击目标 ≥44px；移动端表单使用 large 尺寸；hover 效果仅在 <code>(hover: hover)</code> 设备有意义，关键反馈用 <code>:active</code> 缩放替代；</li>
+    <li><strong>安全区</strong>：底部 Tab 与页面留白使用 <code>env(safe-area-inset-*)</code>，适配刘海屏与手势条；</li>
+    <li><strong>PWA</strong>：M2 引入 vite-plugin-pwa，可安装到主屏获得类 App 体验（M16-2）；</li>
+    <li><strong>触发重评估条件</strong>：若移动端成为主要使用入口，或需要推送/扫码等原生能力，再评估 C 方案（uni-app / 原生壳）。</li>
+  </ul>
 </section>
 
 <!-- ============ 07 目录结构 ============ -->
@@ -668,7 +688,7 @@
   <div class="callout">💡 前置问题已闭环，可直接进入 M1 开发：先搭前后端骨架与 Docker 流水线，再按"应用 CRUD → 多入口解析 → 首页磁贴"顺序迭代。</div>
 </section>
 
-<footer>Portal · NAS 门户系统设计方案 v0.2 · 2026-09-01 · 本文件为纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · NAS 门户系统设计方案 v0.3 · 2026-09-01 · 本文件为纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

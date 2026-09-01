@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
+import { useIsMobile } from '../composables/useIsMobile'
 import {
   Grid as IconApps,
   Monitor as IconMonitor,
   MagicStick as IconAi,
   Share as IconFlow,
   SwitchButton as IconLogout,
+  HomeFilled as IconHome,
 } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
+const { isMobile } = useIsMobile()
 const year = new Date().getFullYear()
 
 function logout() {
@@ -23,12 +26,20 @@ const upcoming = [
   { icon: IconAi, title: 'AI 助手', desc: '对话与意图导航', stage: 'M2' },
   { icon: IconFlow, title: 'Flow 自动化', desc: '触发器 → 条件 → 动作', stage: 'M2' },
 ]
+
+const tabs = [
+  { icon: IconHome, label: '首页', active: true },
+  { icon: IconApps, label: '应用', disabled: true },
+  { icon: IconMonitor, label: '监控', disabled: true },
+  { icon: IconFlow, label: 'Flow', disabled: true },
+  { icon: IconAi, label: 'AI', disabled: true },
+]
 </script>
 
 <template>
   <el-container class="shell">
-    <!-- 侧边导航 -->
-    <aside class="side glass">
+    <!-- 桌面侧边导航（移动端隐藏，改用底部 Tab） -->
+    <aside v-if="!isMobile" class="side glass">
       <div class="logo"><span class="brand-text">Portal</span></div>
       <nav class="nav">
         <div class="nav-item active">
@@ -48,10 +59,13 @@ const upcoming = [
     </aside>
 
     <!-- 主区 -->
-    <el-main class="main">
+    <el-main class="main" :class="{ mobile: isMobile }">
       <header class="topbar">
         <h2>首页</h2>
-        <span class="env">🏠 家庭内网</span>
+        <div class="topbar-right">
+          <span class="env">🏠 家庭内网</span>
+          <el-button v-if="isMobile" circle size="small" :icon="IconLogout" @click="logout" />
+        </div>
       </header>
 
       <!-- 欢迎横幅 -->
@@ -75,6 +89,19 @@ const upcoming = [
 
       <footer class="foot">© {{ year }} Portal · 自托管 NAS 门户</footer>
     </el-main>
+
+    <!-- 移动端底部 Tab 导航（M16-3，含安全区适配 M16-7） -->
+    <nav v-if="isMobile" class="tabbar">
+      <div
+        v-for="tab in tabs"
+        :key="tab.label"
+        class="tab"
+        :class="{ active: tab.active, disabled: tab.disabled }"
+      >
+        <el-icon :size="20"><component :is="tab.icon" /></el-icon>
+        <span>{{ tab.label }}</span>
+      </div>
+    </nav>
   </el-container>
 </template>
 
@@ -157,6 +184,8 @@ const upcoming = [
 }
 .main {
   padding: 6px 4px;
+  flex: 1;
+  min-width: 0;
 }
 .topbar {
   display: flex;
@@ -167,6 +196,11 @@ const upcoming = [
 .topbar h2 {
   margin: 0;
   font-size: 20px;
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .env {
   font-size: 12.5px;
@@ -236,5 +270,74 @@ const upcoming = [
   color: rgba(255, 255, 255, 0.25);
   font-size: 12px;
   padding: 26px 0 6px;
+}
+
+/* ===== 移动端适配（M16 / <768px）===== */
+@media (max-width: 767px) {
+  .shell {
+    padding: 12px 12px calc(76px + env(safe-area-inset-bottom));
+  }
+  .topbar h2 {
+    font-size: 18px;
+  }
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 20px;
+  }
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cell {
+    padding: 14px;
+  }
+  .foot {
+    padding-bottom: 10px;
+  }
+}
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 底部 Tab 导航（移动端） ===== */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  background: rgba(13, 19, 34, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--p-card-border);
+  z-index: 30;
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--p-muted);
+  min-width: 58px;
+  min-height: 44px;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.15s;
+}
+.tab:active {
+  transform: scale(0.92);
+}
+.tab.active {
+  color: #818cf8;
+}
+.tab.disabled {
+  opacity: 0.38;
 }
 </style>

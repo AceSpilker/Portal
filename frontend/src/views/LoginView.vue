@@ -221,4 +221,18 @@ async function handleInit() {
   font-size: 12px;
   letter-spacing: 1px;
 }
+
+/* ===== 移动端适配（M16）===== */
+@media (max-width: 767px) {
+  .page {
+    padding: 20px 14px calc(24px + env(safe-area-inset-bottom));
+    gap: 16px;
+  }
+  .card {
+    padding: 26px 22px 18px;
+  }
+  .brand-text {
+    font-size: 28px;
+  }
+}
 </style>
