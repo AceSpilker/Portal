@@ -1,4 +1,4 @@
-"""自定义图标 Schema（图标库管理）。"""
+"""图标库 Schema（v2：内置 + 自定义统一实体管理）。"""
 
 from typing import Any
 
@@ -20,6 +20,20 @@ def _validate_data(v: Any) -> Any:
     return v
 
 
+class IconSeedRequest(BaseModel):
+    """前端播种内置图标名（首次使用或组件库升级后补充新图标）。"""
+
+    names: list[str] = Field(min_length=1)
+
+    @field_validator("names")
+    @classmethod
+    def _check_names(cls, v: list[str]) -> list[str]:
+        cleaned = [n.strip() for n in v if isinstance(n, str) and n.strip()]
+        if not cleaned:
+            raise ValueError(t("v.icon_name_empty"))
+        return cleaned
+
+
 class CustomIconCreate(BaseModel):
     name: str = Field(min_length=1, max_length=32)
     filename: str = ""
@@ -29,10 +43,10 @@ class CustomIconCreate(BaseModel):
     _v_data = field_validator("data")(_validate_data)
 
 
-class CustomIconUpdate(BaseModel):
+class IconUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=32)
     filename: str = ""
-    data: str | None = None  # 提供则更换图片
+    data: str | None = None  # 提供则更换/覆盖图片
 
     @field_validator("name")
     @classmethod
@@ -45,9 +59,11 @@ class CustomIconUpdate(BaseModel):
         return _validate_data(v) if v is not None else v
 
 
-class CustomIconOut(BaseModel):
+class IconOut(BaseModel):
     model_config = {"from_attributes": True}
 
     id: int
     name: str
-    path: str
+    source: str  # builtin / custom
+    element_name: str | None
+    path: str | None

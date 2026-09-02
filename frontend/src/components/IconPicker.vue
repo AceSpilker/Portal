@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ELEMENT_ICONS, ELEMENT_ICON_MAP, filterElementIcons } from '../utils/elementIcons'
+import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
 
@@ -36,36 +36,49 @@ const search = ref('')
 const ph = computed(() => props.placeholder || t('iconPicker.ph'))
 
 const searching = computed(() => !!search.value.trim())
-const filteredElement = computed(() => filterElementIcons(search.value))
+const kw = computed(() => search.value.trim().toLowerCase())
 
-interface FavCell {
-  key: string
+interface PickCell {
+  key: string // element = 图标名；custom = 路径
   kind: IconPickKind
   name: string
   path?: string
   component?: unknown
 }
 
-/** 常用精选：既可能是内置图标名，也可能是自定义图标路径（/icons/ 开头） */
-const favorites = computed<FavCell[]>(() =>
+/** 内置图标（来自图标库实体，可搜索） */
+const builtinCells = computed<PickCell[]>(() =>
+  iconLibrary.icons
+    .filter((i) => i.source === 'builtin')
+    .filter((i) => !searching.value || i.name.toLowerCase().includes(kw.value))
+    .map((i) => ({
+      key: i.element_name ?? i.name,
+      kind: 'element' as const,
+      name: i.name,
+      component: ELEMENT_ICON_MAP[i.element_name ?? i.name],
+    })),
+)
+
+/** 自定义图标 */
+const customCells = computed<PickCell[]>(() =>
+  iconLibrary.icons
+    .filter((i) => i.source === 'custom')
+    .filter((i) => !searching.value || i.name.toLowerCase().includes(kw.value))
+    .map((i) => ({ key: i.path ?? '', kind: 'custom' as const, name: i.name, path: i.path ?? '' })),
+)
+
+/** 常用精选：内置名 / 自定义路径，均从图标库实体解析 */
+const favorites = computed<PickCell[]>(() =>
   settingsStore.iconFavorites
-    .map((key): FavCell | null => {
+    .map((key): PickCell | null => {
       if (key.startsWith('/icons/')) {
-        const c = iconLibrary.customIcons.find((x) => x.path === key)
-        return c ? { key, kind: 'custom', name: c.name, path: c.path } : null
+        const found = customCells.value.find((c) => c.key === key)
+        return found ?? null
       }
-      const comp = ELEMENT_ICON_MAP[key]
-      return comp ? { key, kind: 'element', name: key, component: comp } : null
+      const found = builtinCells.value.find((c) => c.key === key)
+      return found ?? null
     })
-    .filter((f): f is FavCell => f !== null),
-)
-const customList = computed(() =>
-  iconLibrary.customIcons
-    .filter((c) => !searching.value || c.name.toLowerCase().includes(search.value.trim().toLowerCase()))
-    .map((c) => ({ name: c.name, path: c.path })),
-)
-const elementList = computed(() =>
-  searching.value ? filteredElement.value : ELEMENT_ICONS,
+    .filter((f): f is PickCell => f !== null),
 )
 
 function select(kind: IconPickKind, value: string) {
@@ -82,7 +95,7 @@ function select(kind: IconPickKind, value: string) {
       <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
         <button
           v-for="ic in favorites"
-          :key="`fav-${ic.key}`"
+          :key="`fav-${ic.kind}-${ic.key}`"
           type="button"
           class="picker-cell"
           :class="{ active: modelValue === ic.key }"
@@ -94,38 +107,38 @@ function select(kind: IconPickKind, value: string) {
         </button>
       </div>
     </template>
-    <template v-if="customList.length">
+    <template v-if="customCells.length">
       <div class="picker-label">{{ t('iconPicker.custom') }}</div>
       <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
         <button
-          v-for="c in customList"
-          :key="`cus-${c.path}`"
+          v-for="c in customCells"
+          :key="`cus-${c.key}`"
           type="button"
           class="picker-cell"
-          :class="{ active: modelValue === c.path }"
+          :class="{ active: modelValue === c.key }"
           :title="c.name"
-          @click="select('custom', c.path)"
+          @click="select('custom', c.key)"
         >
           <img :src="c.path" :alt="c.name" class="picker-cell__img" />
         </button>
       </div>
     </template>
     <div class="picker-label">
-      {{ searching ? t('iconPicker.searchResult', { n: filteredElement.length }) : t('iconPicker.all') }}
+      {{ searching ? t('iconPicker.searchResult', { n: builtinCells.length }) : t('iconPicker.all') }}
     </div>
     <div class="picker-grid" :style="{ maxHeight: `${maxHeight}px` }">
       <button
-        v-for="ic in elementList"
-        :key="ic.name"
+        v-for="ic in builtinCells"
+        :key="ic.key"
         type="button"
         class="picker-cell"
-        :class="{ active: modelValue === ic.name }"
+        :class="{ active: modelValue === ic.key }"
         :title="ic.name"
-        @click="select('element', ic.name)"
+        @click="select('element', ic.key)"
       >
         <component :is="ic.component" class="picker-cell__svg" />
       </button>
-      <div v-if="searching && !filteredElement.length" class="picker-empty">{{ t('iconPicker.noMatch') }}</div>
+      <div v-if="searching && !builtinCells.length" class="picker-empty">{{ t('iconPicker.noMatch') }}</div>
     </div>
   </div>
 </template>

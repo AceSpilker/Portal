@@ -79,15 +79,23 @@ class AppUrl(Base, TimestampMixin):
     app: Mapped[App] = relationship(back_populates="urls")
 
 
-class CustomIcon(Base, TimestampMixin):
-    """自定义图标（图标库管理）：上传图片经压方存储，可被应用/分组引用。
+class Icon(Base, TimestampMixin):
+    """图标库实体（v2）：内置与自定义图标统一入库管理，全部支持改名/换图/删除。
 
-    引用方式：apps/categories 的 icon 存 path、icon_type='upload'；
-    删除前需检查引用，避免悬空。
+    - source='builtin'：来自 Element Plus 图标集（element_name 渲染矢量组件）；
+      删除为软删除（hidden=True），前端重新播种时不会复活
+    - source='custom'：用户上传图片（path 指向 /icons/ 静态文件）；删除为物理删除
+    - builtin 也可上传自定义图片覆盖显示（path 置位后优先渲染图片）
+    - 引用保护：被 apps/categories 引用（icon_type='element'/'upload'）时禁止删除
     """
 
-    __tablename__ = "custom_icons"
+    __tablename__ = "icons"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(32), unique=True)
-    path: Mapped[str] = mapped_column(String(256), unique=True)  # /icons/<file> 静态路径
+    # source: builtin / custom
+    source: Mapped[str] = mapped_column(String(16), default="custom")
+    element_name: Mapped[str | None] = mapped_column(String(64), unique=True, default=None)
+    # path: 覆盖图（builtin）/ 自定义图（custom）的静态路径
+    path: Mapped[str | None] = mapped_column(String(256), unique=True, default=None)
+    hidden: Mapped[bool] = mapped_column(default=False)  # 内置图标软删除标记

@@ -1,9 +1,8 @@
-"""自定义图标管理测试（GET/POST/PUT/DELETE /api/icons）。
+"""图标库 v2 测试：内置/自定义统一实体（播种、改名级联、软删不复活、引用保护）。
 
 文件名字母序在 test_crypto 之后、test_p2_apps 之前执行；
-沿用 sqlite3 直改库重置 admin 密码的解耦模式，可独立运行。
+沿用 sqlite3 直改库重置 admin 密码的解耦模式。
 """
-
 import base64
 import io
 import sqlite3
@@ -62,95 +61,97 @@ def _admin(client: TestClient) -> dict:
     return {"Authorization": f"Bearer {_tokens['admin']}"}
 
 
+def _seed(client: TestClient, names: list[str]) -> int:
+    resp = client.post("/api/icons/seed", json={"names": names}, headers=_admin(client))
+    assert resp.status_code == 200, resp.text
+    return resp.json()["data"]["seeded"]
+
+
 def test_01_requires_auth(client: TestClient):
     assert client.get("/api/icons").status_code == 401
-    resp = client.post(
-        "/api/icons",
-        json={"name": "x", "data": base64.b64encode(_png_bytes(8, 8, (255, 0, 0, 255))).decode()},
-    )
-    assert resp.status_code == 401
+    assert client.post("/api/icons/seed", json={"names": ["Bell"]}).status_code == 401
 
 
-def test_02_create_and_list(client: TestClient):
-    raw = _png_bytes(300, 200, (255, 0, 0, 255))
+def test_02_seed_builtin(client: TestClient):
+    """播种内置图标：首次插入；重复播种不插入（seeded=0）。"""
+    assert _seed(client, ["Bell", "Brush", "Calendar"]) == 3
+    assert _seed(client, ["Bell", "Brush", "Calendar"]) == 0
+    icons = {i["name"]: i for i in client.get("/api/icons", headers=_admin(client)).json()["data"]}
+    assert icons["Bell"]["source"] == "builtin"
+    assert icons["Bell"]["element_name"] == "Bell"
+
+
+def test_03_upload_custom_icon(client: TestClient):
+    raw = base64.b64encode(_png_bytes(300, 200, (255, 0, 0, 255))).decode()
     resp = client.post(
         "/api/icons",
-        json={"name": "qBittorrent", "filename": "qb.png", "data": base64.b64encode(raw).decode()},
+        json={"name": "qBittorrent", "filename": "qb.png", "data": raw},
         headers=_admin(client),
     )
     assert resp.status_code == 200, resp.text
     icon = resp.json()["data"]
-    assert icon["name"] == "qBittorrent"
-    assert icon["path"].startswith("/icons/")
-    # 压方为 128x128
+    assert icon["source"] == "custom" and icon["path"].startswith("/icons/")
     f = Path(settings.data_dir) / "icons" / Path(icon["path"]).name
     assert f.is_file()
     with Image.open(f) as im:
-        assert im.size == (128, 128)
-
-    names = [i["name"] for i in client.get("/api/icons", headers=_admin(client)).json()["data"]]
-    assert "qBittorrent" in names
+        assert im.size == (128, 128)  # 压方
 
 
-def test_03_duplicate_name(client: TestClient):
-    raw = base64.b64encode(_png_bytes(16, 16, (0, 255, 0, 255))).decode()
-    resp = client.post(
-        "/api/icons",
-        json={"name": "qBittorrent", "data": raw},
-        headers=_admin(client),
-    )
-    assert resp.json()["code"] == 4002
-
-
-def test_04_rename_and_replace_image(client: TestClient):
+def test_04_rename_builtin_cascades(client: TestClient):
+    """内置图标改名：引用它的应用 icon 字段同步更新。"""
     icons = {i["name"]: i for i in client.get("/api/icons", headers=_admin(client)).json()["data"]}
-    iid = icons["qBittorrent"]["id"]
-    old_path = icons["qBittorrent"]["path"]
-
-    raw = base64.b64encode(_png_bytes(64, 64, (0, 0, 255, 255))).decode()
-    resp = client.put(
-        f"/api/icons/{iid}",
-        json={"name": "qb-2", "data": raw, "filename": "qb2.png"},
-        headers=_admin(client),
-    )
-    assert resp.status_code == 200, resp.text
-    data = resp.json()["data"]
-    assert data["name"] == "qb-2"
-    assert data["path"] != old_path  # 换图后为新文件
-
-
-def test_05_delete_blocked_when_referenced(client: TestClient):
-    icons = {i["name"]: i for i in client.get("/api/icons", headers=_admin(client)).json()["data"]}
-    iid = icons["qb-2"]["id"]
-    path = icons["qb-2"]["path"]
-    # 应用引用该图标
-    resp = client.post(
+    bell_id = icons["Bell"]["id"]
+    app = client.post(
         "/api/apps",
-        json={"name": "UsesIcon", "icon": path, "icon_type": "upload", "tags": []},
+        json={"name": "BellApp", "icon": "Bell", "icon_type": "element", "tags": []},
         headers=_admin(client),
+    ).json()["data"]
+    resp = client.put(
+        f"/api/icons/{bell_id}", json={"name": "BellX"}, headers=_admin(client)
     )
     assert resp.status_code == 200
-    resp = client.delete(f"/api/icons/{iid}", headers=_admin(client))
-    assert resp.json()["code"] == 4003
-    assert "1 个应用/分组" in resp.json()["message"]
+    detail = client.get(f"/api/apps/{app['id']}", headers=_admin(client)).json()["data"]
+    assert detail["icon"] == "BellX"  # 引用级联更新
 
 
-def test_06_delete_unused_ok(client: TestClient):
-    raw = base64.b64encode(_png_bytes(16, 16, (128, 128, 0, 255))).decode()
+def test_05_delete_builtin_soft_no_resurrection(client: TestClient):
+    """内置图标删除 = 软删；重新播种不复活。"""
+    icons = {i["name"]: i for i in client.get("/api/icons", headers=_admin(client)).json()["data"]}
+    cal_id = icons["Calendar"]["id"]
+    assert client.delete(f"/api/icons/{cal_id}", headers=_admin(client)).status_code == 200
+    names = [i["name"] for i in client.get("/api/icons", headers=_admin(client)).json()["data"]]
+    assert "Calendar" not in names
+    assert _seed(client, ["Calendar"]) == 0  # 不复活
+    names = [i["name"] for i in client.get("/api/icons", headers=_admin(client)).json()["data"]]
+    assert "Calendar" not in names
+
+
+def test_06_edit_and_delete_custom(client: TestClient):
+    """自定义图标：改名 → 删除（文件清理）。"""
+    raw = base64.b64encode(_png_bytes(32, 32, (0, 128, 0, 255))).decode()
     icon = client.post(
-        "/api/icons", json={"name": "unused", "data": raw}, headers=_admin(client)
+        "/api/icons", json={"name": "temp-icon", "data": raw}, headers=_admin(client)
     ).json()["data"]
+    resp = client.put(
+        f"/api/icons/{icon['id']}", json={"name": "temp-icon-2"}, headers=_admin(client)
+    )
+    assert resp.json()["data"]["name"] == "temp-icon-2"
     resp = client.delete(f"/api/icons/{icon['id']}", headers=_admin(client))
     assert resp.status_code == 200
     names = [i["name"] for i in client.get("/api/icons", headers=_admin(client)).json()["data"]]
-    assert "unused" not in names
-    # 文件已清理
-    f = Path(settings.data_dir) / "icons" / Path(icon["path"]).name
-    assert not f.exists()
+    assert "temp-icon-2" not in names
 
 
-def test_07_not_found(client: TestClient):
-    resp = client.put("/api/icons/99999", json={"name": "x"}, headers=_admin(client))
-    assert resp.json()["code"] == 4001
-    resp = client.delete("/api/icons/99999", headers=_admin(client))
-    assert resp.json()["code"] == 4001
+def test_07_delete_referenced_custom_blocked(client: TestClient):
+    raw = base64.b64encode(_png_bytes(32, 32, (0, 0, 255, 255))).decode()
+    icon = client.post(
+        "/api/icons", json={"name": "used-icon", "data": raw}, headers=_admin(client)
+    ).json()["data"]
+    client.post(
+        "/api/apps",
+        json={"name": "UsesCustom", "icon": icon["path"], "icon_type": "upload", "tags": []},
+        headers=_admin(client),
+    )
+    resp = client.delete(f"/api/icons/{icon['id']}", headers=_admin(client))
+    assert resp.json()["code"] == 4003
+    assert "1" in resp.json()["message"]

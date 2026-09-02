@@ -32,12 +32,24 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # 轻量迁移：create_all 不会给已有表补列，逐条尝试（列已存在则忽略）
+        # 轻量迁移：create_all 不会给已有表补列，逐条尝试（列/表已存在则忽略）
         for stmt in ("ALTER TABLE categories ADD COLUMN icon_type VARCHAR(16)",):
             try:
                 await conn.exec_driver_sql(stmt)
             except Exception:
                 pass
+        # 图标库 v2：历史 custom_icons 表数据迁入 icons（source='custom'）
+        try:
+            rows = (await conn.exec_driver_sql("SELECT name, path FROM custom_icons")).fetchall()
+            for name, path in rows:
+                await conn.exec_driver_sql(
+                    "INSERT OR IGNORE INTO icons"
+                    " (name, source, path, hidden, created_at, updated_at)"
+                    " VALUES (?, 'custom', ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                    (name, path),
+                )
+        except Exception:
+            pass  # 旧表不存在（全新库）
     async with SessionLocal() as session:
         for key, value in DEFAULT_SETTINGS.items():
             await session.merge(Setting(key=key, value=value))

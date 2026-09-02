@@ -9,10 +9,10 @@ import {
   Picture as IconLib,
   Setting as IconGeneral,
 } from '@element-plus/icons-vue'
-import { filterElementIcons } from '../utils/elementIcons'
+import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
-import type { CustomIcon } from '../api/icons'
+import type { IconItem } from '../api/icons'
 import { isMobile } from '../composables/useIsMobile'
 
 const { t } = useI18n()
@@ -33,29 +33,36 @@ const newTag = ref('')
 // ---- 图标库 ----
 const iconSearch = ref('')
 const favDraft = ref<string[]>([])
-const filteredIcons = computed(() => filterElementIcons(iconSearch.value))
-
 interface IconCell {
   kind: 'element' | 'custom'
   key: string // element = 图标名；custom = /icons/ 路径
   name: string
   path?: string
   component?: unknown
-  icon?: CustomIcon
+  icon: IconItem
 }
 
 /** 统一图标库网格：自定义图标置顶（可编辑/删除），其后为内置图标（可切换常用精选） */
 const iconCells = computed<IconCell[]>(() => {
   const kw = iconSearch.value.trim().toLowerCase()
-  const customs = iconLibrary.customIcons
-    .filter((c) => !kw || c.name.toLowerCase().includes(kw))
-    .map((c) => ({ kind: 'custom' as const, key: c.path, name: c.name, path: c.path, icon: c }))
-  const elements = filteredIcons.value.map((ic) => ({
-    kind: 'element' as const,
-    key: ic.name,
-    name: ic.name,
-    component: ic.component,
-  }))
+  const customs = iconLibrary.icons
+    .filter((i) => i.source === 'custom' && (!kw || i.name.toLowerCase().includes(kw)))
+    .map((icon) => ({
+      kind: 'custom' as const,
+      key: icon.path ?? '',
+      name: icon.name,
+      path: icon.path ?? undefined,
+      icon,
+    }))
+  const elements = iconLibrary.icons
+    .filter((i) => i.source === 'builtin' && (!kw || i.name.toLowerCase().includes(kw)))
+    .map((icon) => ({
+      kind: 'element' as const,
+      key: icon.element_name ?? icon.name,
+      name: icon.name,
+      component: ELEMENT_ICON_MAP[icon.element_name ?? icon.name],
+      icon,
+    }))
   return [...customs, ...elements]
 })
 
@@ -109,12 +116,12 @@ function openIconCreate() {
   iconDialog.value = true
 }
 
-function openIconEdit(icon: CustomIcon) {
-  iconForm.value = { id: icon.id, name: icon.name, data: '', filename: '', preview: icon.path }
+function openIconEdit(icon: IconItem) {
+  iconForm.value = { id: icon.id, name: icon.name, data: '', filename: '', preview: icon.path ?? '' }
   iconDialog.value = true
 }
 
-async function removeIcon(icon: CustomIcon) {
+async function removeIcon(icon: IconItem) {
   try {
     await ElMessageBox.confirm(
       t('settings.confirmDeleteIcon', { name: icon.name }),
@@ -328,7 +335,7 @@ function saveIcons() {
                 <component v-else :is="cell.component" class="im-svg" />
                 <span class="im-name">{{ cell.name }}</span>
               </button>
-              <div v-if="cell.kind === 'custom'" class="im-ops">
+              <div class="im-ops">
                 <button
                   type="button"
                   class="im-op"
