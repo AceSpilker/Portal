@@ -285,7 +285,7 @@
   <strong>short_links</strong>（M2）：id；code UNIQUE；target；hits。</p>
 
   <h3 id="dm-sys">3.11 系统与同步</h3>
-  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.*</code> / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code> / <code>backup.*</code> / <code>sync.*</code>。<br>
+  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.* / apps.*</code> / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code> / <code>backup.*</code> / <code>sync.*</code>。<br>
   <strong>sync_state</strong>（M2）：id；table_name UNIQUE；last_push_at；rows_pushed；status（idle/running/failed）；message。</p>
 </section>
 

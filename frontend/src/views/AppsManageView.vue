@@ -18,10 +18,14 @@ import type {
   Visibility,
 } from '../api/portal'
 import { useAuthStore } from '../stores/auth'
+import { useSettingsStore } from '../stores/settings'
+import { filterElementIcons } from '../utils/elementIcons'
+import AppIcon from '../components/AppIcon.vue'
 import { isMobile } from '../composables/useIsMobile'
 
 const auth = useAuthStore()
-const isAdmin = computed(() => auth.user?.role === 'admin')
+const settingsStore = useSettingsStore()
+const isAdmin = computed(() => auth.isAdmin)
 
 // ============ 列表与过滤 ============
 const categories = ref<Category[]>([])
@@ -49,7 +53,14 @@ async function loadAll() {
   }
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  settingsStore.load()
+  loadAll()
+})
+
+/** 图标库搜索关键字 */
+const elementSearch = ref('')
+const elementIcons = computed(() => filterElementIcons(elementSearch.value))
 
 const filtered = computed(() => {
   let list = apps.value
@@ -88,7 +99,6 @@ const OPEN_LABEL: Record<OpenMode, string> = {
   current: '当前页',
   iframe: '内嵌',
 }
-const EMOJIS = ['🎬', '📺', '📥', '🏠', '🔧', '🌐', '🎵', '📷', '⚙️', '🛠️', '📚', '💡', '🔔', '📁', '🗂️', '🖥️', '📱', '🐳', '⭐', '🔥']
 
 // ============ 应用编辑抽屉 ============
 const drawer = ref(false)
@@ -115,7 +125,7 @@ const draft = ref({
   health_type: '' as HealthType,
   health_target: '',
   health_interval: 60,
-  tags: '',
+  tags: [] as string[],
   remark: '',
   doc_url: '',
 })
@@ -137,13 +147,14 @@ function openCreate() {
     health_type: '',
     health_target: '',
     health_interval: 60,
-    tags: '',
+    tags: [],
     remark: '',
     doc_url: '',
   }
   urlRows.value = []
   removedUrlIds.value = []
   faviconSource.value = ''
+  elementSearch.value = ''
   drawer.value = true
 }
 
@@ -161,7 +172,7 @@ function openEdit(app: PortalApp) {
     health_type: app.health_type,
     health_target: app.health_target ?? '',
     health_interval: app.health_interval,
-    tags: app.tags.join(', '),
+    tags: [...app.tags],
     remark: app.remark,
     doc_url: app.doc_url ?? '',
   }
@@ -174,6 +185,7 @@ function openEdit(app: PortalApp) {
   }))
   removedUrlIds.value = []
   faviconSource.value = ''
+  elementSearch.value = ''
   drawer.value = true
 }
 
@@ -218,10 +230,7 @@ async function saveApp() {
       health_type: draft.value.health_type,
       health_target: draft.value.health_target.trim() || null,
       health_interval: draft.value.health_interval,
-      tags: draft.value.tags
-        .split(/[,，]/)
-        .map((s) => s.trim())
-        .filter(Boolean),
+      tags: [...draft.value.tags],
       remark: draft.value.remark,
       doc_url: draft.value.doc_url.trim() || null,
     }
@@ -476,8 +485,7 @@ async function doExport() {
         <el-table-column label="图标" width="72" align="center">
           <template #default="{ row }">
             <div class="app-icon">
-              <img v-if="row.icon_type !== 'emoji' && row.icon" :src="row.icon" alt="" />
-              <span v-else>{{ row.icon || '🧩' }}</span>
+              <AppIcon :icon="row.icon" :icon-type="row.icon_type" :size="26" />
             </div>
           </template>
         </el-table-column>
@@ -561,11 +569,10 @@ async function doExport() {
               <el-radio-group v-model="draft.icon_type">
                 <el-radio-button value="url">URL</el-radio-button>
                 <el-radio-button value="upload">上传</el-radio-button>
-                <el-radio-button value="emoji">Emoji</el-radio-button>
+                <el-radio-button value="element">图标库</el-radio-button>
               </el-radio-group>
               <div class="icon-preview">
-                <img v-if="draft.icon_type !== 'emoji' && draft.icon" :src="draft.icon" alt="" />
-                <span v-else>{{ draft.icon || '🧩' }}</span>
+                <AppIcon :icon="draft.icon" :icon-type="draft.icon_type" :size="32" />
               </div>
               <template v-if="draft.icon_type === 'url'">
                 <el-input v-model="draft.icon" placeholder="图标图片地址 https://…" />
@@ -579,16 +586,22 @@ async function doExport() {
                 <input ref="iconFileInput" type="file" accept="image/*" hidden @change="onIconFile" />
               </template>
               <template v-else>
-                <el-input v-model="draft.icon" placeholder="直接输入 emoji，如 🎬" maxlength="8" />
-                <div class="emoji-grid">
+                <el-input
+                  v-model="elementSearch"
+                  placeholder="搜索图标，如 monitor / cloud / server"
+                  clearable
+                />
+                <div class="icon-grid">
                   <button
-                    v-for="e in EMOJIS"
-                    :key="e"
+                    v-for="ic in elementIcons"
+                    :key="ic.name"
                     type="button"
-                    class="emoji"
-                    @click="draft.icon = e"
+                    class="icon-cell"
+                    :class="{ active: draft.icon === ic.name }"
+                    :title="ic.name"
+                    @click="draft.icon = ic.name"
                   >
-                    {{ e }}
+                    <component :is="ic.component" class="icon-cell__svg" />
                   </button>
                 </div>
               </template>
@@ -655,8 +668,16 @@ async function doExport() {
             </el-form-item>
           </div>
 
-          <el-form-item label="标签（逗号分隔）">
-            <el-input v-model="draft.tags" placeholder="如：媒体, 影音" />
+          <el-form-item label="标签（在 系统配置 → 应用配置 中维护候选）">
+            <el-select
+              v-model="draft.tags"
+              multiple
+              :multiple-limit="6"
+              placeholder="从系统配置的标签候选中选择"
+              style="width: 100%"
+            >
+              <el-option v-for="t in settingsStore.tagOptions" :key="t" :label="t" :value="t" />
+            </el-select>
           </el-form-item>
           <el-form-item label="备注">
             <el-input v-model="draft.remark" type="textarea" :rows="2" placeholder="默认账号等提示信息" />
@@ -754,6 +775,9 @@ async function doExport() {
   height: 100%;
   object-fit: contain;
 }
+.app-icon .app-icon__el {
+  color: var(--p-primary);
+}
 .desc {
   margin: 2px 0 0;
   font-size: 12px;
@@ -804,24 +828,40 @@ async function doExport() {
   display: flex;
   gap: 8px;
 }
-.emoji-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.emoji {
-  width: 34px;
-  height: 34px;
-  font-size: 18px;
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 2px;
   border: 1px solid var(--p-card-border);
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
+  border-radius: 10px;
 }
-.emoji:hover {
-  transform: scale(1.12);
+.icon-cell {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--p-text);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.icon-cell:hover {
+  background: rgba(91, 95, 241, 0.08);
+  color: var(--p-primary);
+}
+.icon-cell.active {
+  background: rgba(91, 95, 241, 0.14);
+  color: var(--p-primary);
   border-color: var(--p-primary);
+}
+.icon-cell__svg {
+  width: 20px;
+  height: 20px;
 }
 .url-editor {
   width: 100%;

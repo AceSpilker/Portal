@@ -8,12 +8,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
 
-# 默认设置（键名分组约定：general.* / appearance.* / ai.* / ...）
+# 默认设置（键名分组约定：general.* / appearance.* / apps.* / ai.* / sync.* / ...）
 DEFAULT_SETTINGS: dict[str, str] = {
     "general.site_name": json.dumps("Portal", ensure_ascii=False),
     "general.language": json.dumps("zh-CN"),
     "appearance.theme_color": json.dumps("#4f6ef7"),
     "appearance.dark_mode": json.dumps("auto"),
+    # 应用表单的标签候选（M03-3，系统配置→应用配置中维护）
+    "apps.tag_options": json.dumps(
+        ["媒体", "影音", "下载", "工具", "开发", "监控", "网络", "网盘", "家庭", "工作"],
+        ensure_ascii=False,
+    ),
     "sync.enabled": json.dumps(False),
     "sync.interval_min": json.dumps(30),
 }

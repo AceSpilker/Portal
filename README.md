@@ -11,7 +11,7 @@
 | [docs/api-spec](docs/api-spec.html) | 接口与数据模型详述：31 张表、90+ 端点、错误码、WS/SSE 协议 | v1.0 |
 | [docs/dev-plan](docs/dev-plan.html) | 开发计划：25 阶段 / 113 步骤，带完成状态与测试关卡 | v1.2 |
 
-> Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **24/113**，P0/P1/P2/P24 完成，下一步 P3 网络环境与智能解析）。
+> Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **25/113**，P0/P1/P2/P24 完成，P7.1 设置框架提前落地）。
 
 ## 目录结构
 

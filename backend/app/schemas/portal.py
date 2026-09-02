@@ -89,7 +89,7 @@ class AppCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     description: str = Field(default="", max_length=512)
     icon: str | None = None
-    icon_type: str = Field(default="url", pattern="^(url|upload|emoji)$")
+    icon_type: str = Field(default="url", pattern="^(url|upload|emoji|element)$")
     category_id: int | None = None
     sort: int = 0
     enabled: bool = True
@@ -115,7 +115,7 @@ class AppUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     description: str | None = Field(default=None, max_length=512)
     icon: str | None = None
-    icon_type: str | None = Field(default=None, pattern="^(url|upload|emoji)$")
+    icon_type: str | None = Field(default=None, pattern="^(url|upload|emoji|element)$")
     category_id: int | None = None
     sort: int | None = None
     enabled: bool | None = None
@@ -182,7 +182,7 @@ class ExportApp(BaseModel):
     name: str
     description: str = ""
     icon: str | None = None
-    icon_type: str = Field(default="url", pattern="^(url|upload|emoji)$")
+    icon_type: str = Field(default="url", pattern="^(url|upload|emoji|element)$")
     category_id: int | None = None
     sort: int = 0
     enabled: bool = True

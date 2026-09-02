@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useSettingsStore } from '../stores/settings'
 import { isMobile, isTablet } from '../composables/useIsMobile'
 import {
   Grid as IconApps,
   Monitor as IconMonitor,
   MagicStick as IconAi,
+  Setting as IconSetting,
   Share as IconFlow,
   SwitchButton as IconLogout,
   HomeFilled as IconHome,
@@ -23,16 +25,22 @@ interface NavItem {
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const settingsStore = useSettingsStore()
 
-const navItems: NavItem[] = [
+onMounted(() => settingsStore.load())
+
+/** 管理员额外显示系统配置入口 */
+const navItems = computed<NavItem[]>(() => [
   { icon: IconHome, label: '首页', to: '/' },
   { icon: IconApps, label: '应用', to: '/apps' },
   { icon: IconMonitor, label: '监控', tag: 'P5', disabled: true },
   { icon: IconFlow, label: 'Flow', tag: 'M2', disabled: true },
   { icon: IconAi, label: 'AI', tag: 'M2', disabled: true },
-]
+  ...(auth.isAdmin ? [{ icon: IconSetting, label: '设置', to: '/settings' }] : []),
+])
 
 const pageTitle = computed(() => (route.meta.title as string | undefined) ?? 'Portal')
+const brand = computed(() => settingsStore.siteName)
 
 function isActive(item: NavItem): boolean {
   if (!item.to) return false
@@ -55,7 +63,7 @@ function logout() {
     <!-- 桌面/平板侧边导航（平板为图标栏；移动端隐藏，改用底部 Tab） -->
     <aside class="side glass" :class="{ rail: isTablet }">
       <div class="logo">
-        <span v-if="!isTablet" class="brand-text">Portal</span>
+        <span v-if="!isTablet" class="brand-text">{{ brand }}</span>
         <span v-else class="brand-dot" />
       </div>
       <nav class="nav">

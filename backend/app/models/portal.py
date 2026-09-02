@@ -30,8 +30,10 @@ class App(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128))
     description: Mapped[str] = mapped_column(String(512), default="")
-    icon: Mapped[str | None] = mapped_column(Text, default=None)  # URL 路径 / 外链 / emoji 字符
-    icon_type: Mapped[str] = mapped_column(String(16), default="url")  # url / upload / emoji
+    # icon: URL 路径 / 外链 / emoji 字符 / Element Plus 图标名（icon_type=element）
+    icon: Mapped[str | None] = mapped_column(Text, default=None)
+    # icon_type: url / upload / emoji / element
+    icon_type: Mapped[str] = mapped_column(String(16), default="url")
     category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id"), default=None, index=True
     )
