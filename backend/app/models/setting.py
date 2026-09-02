@@ -22,8 +22,18 @@ DEFAULT_SETTINGS: dict[str, str] = {
     # 图标库「常用」精选（M03-5，系统配置→图标库中维护，元素为 Element 图标名）
     "apps.icon_favorites": json.dumps(
         [
-            "Monitor", "Folder", "FolderOpened", "Cpu", "Download", "Upload",
-            "Cloudy", "VideoPlay", "Camera", "HomeFilled", "Link", "Setting",
+            "Monitor",
+            "Folder",
+            "FolderOpened",
+            "Cpu",
+            "Download",
+            "Upload",
+            "Cloudy",
+            "VideoPlay",
+            "Camera",
+            "HomeFilled",
+            "Link",
+            "Setting",
         ],
         ensure_ascii=False,
     ),

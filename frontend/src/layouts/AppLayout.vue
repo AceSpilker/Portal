@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
+import { setLocale } from '../locales'
 import { isMobile, isTablet } from '../composables/useIsMobile'
 import {
   Grid as IconApps,
@@ -24,6 +26,7 @@ interface NavItem {
 
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 
@@ -31,16 +34,27 @@ onMounted(() => settingsStore.load())
 
 /** 管理员额外显示系统配置入口 */
 const navItems = computed<NavItem[]>(() => [
-  { icon: IconHome, label: '首页', to: '/' },
-  { icon: IconApps, label: '应用', to: '/apps' },
-  { icon: IconMonitor, label: '监控', tag: 'P5', disabled: true },
-  { icon: IconFlow, label: 'Flow', tag: 'M2', disabled: true },
-  { icon: IconAi, label: 'AI', tag: 'M2', disabled: true },
-  ...(auth.isAdmin ? [{ icon: IconSetting, label: '设置', to: '/settings' }] : []),
+  { icon: IconHome, label: t('nav.home'), to: '/' },
+  { icon: IconApps, label: t('nav.apps'), to: '/apps' },
+  { icon: IconMonitor, label: t('nav.monitor'), tag: 'P5', disabled: true },
+  { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
+  { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
+  ...(auth.isAdmin ? [{ icon: IconSetting, label: t('nav.settings'), to: '/settings' }] : []),
 ])
 
-const pageTitle = computed(() => (route.meta.title as string | undefined) ?? 'Portal')
+const pageTitle = computed(() => {
+  const key = route.meta.titleKey as string | undefined
+  return key ? t(key) : 'Portal'
+})
 const brand = computed(() => settingsStore.siteName)
+
+const currentLocale = computed(() => (locale.value === 'en' ? 'English' : '中文'))
+function switchLocale(lang: 'zh-CN' | 'en') {
+  setLocale(lang)
+}
+
+/** 页面路由切换全局入场动画的 key */
+const animKey = computed(() => route.fullPath)
 
 function isActive(item: NavItem): boolean {
   if (!item.to) return false
@@ -85,7 +99,7 @@ function logout() {
       </nav>
       <div class="side-foot">
         <span v-if="!isTablet" class="user">{{ auth.user?.username }}</span>
-        <el-tooltip content="退出登录" placement="top" :disabled="isTablet">
+        <el-tooltip :content="t('nav.logout')" placement="top" :disabled="isTablet">
           <el-button circle size="small" :icon="IconLogout" @click="logout" />
         </el-tooltip>
       </div>
@@ -96,7 +110,18 @@ function logout() {
       <header class="topbar">
         <h2>{{ pageTitle }}</h2>
         <div class="topbar-right">
-          <span class="env">🏠 家庭内网</span>
+          <el-dropdown trigger="click" @command="switchLocale">
+            <button type="button" class="lang-btn" :title="currentLocale">
+              🌐 {{ currentLocale }}
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="zh-CN">中文</el-dropdown-item>
+                <el-dropdown-item command="en">English</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <span class="env">{{ t('common.envHome') }}</span>
           <el-button
             class="btn-logout-mobile"
             circle
@@ -108,7 +133,12 @@ function logout() {
       </header>
 
       <div class="page">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <!-- 全局页面入场动画：keyed 元素替换触发纯 CSS 动画（不使用 transition 组件，避免编排死锁） -->
+          <div :key="animKey" class="page-anim">
+            <component :is="Component" />
+          </div>
+        </router-view>
       </div>
     </main>
 
@@ -266,6 +296,42 @@ function logout() {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+/* 全局页面入场动画（keyed 元素替换即重放，纯 CSS 无编排风险） */
+.page-anim {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--p-card-border);
+  background: #fff;
+  color: var(--p-muted);
+  font-size: 12.5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
+}
+.lang-btn:hover {
+  color: var(--p-primary);
+  border-color: var(--p-primary);
 }
 .page > * {
   flex-shrink: 0;

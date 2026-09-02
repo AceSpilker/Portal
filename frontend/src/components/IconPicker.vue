@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ELEMENT_ICONS, ELEMENT_ICON_MAP, filterElementIcons } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
@@ -10,19 +11,16 @@ export interface IconPick {
   value: string
 }
 
-/**
- * 通用图标选择器：
- * - v-model 选中值（内置图标 = PascalCase 名；自定义图标 = /icons/ 路径）
- * - @select 额外携带 kind，调用方据此写入对应的 icon_type
- * - 分区展示：常用（apps.icon_favorites 精选）/ 自定义（图标库管理）/ 全部内置
- */
+const { t } = useI18n()
+
+/** 通用图标选择器：v-model 绑定图标名/自定义路径；@select 携带 kind 供调用方写入 icon_type */
 const props = withDefaults(
   defineProps<{
     modelValue: string
     placeholder?: string
     maxHeight?: number
   }>(),
-  { placeholder: '搜索图标名，如 monitor / folder', maxHeight: 220 },
+  { placeholder: '', maxHeight: 220 },
 )
 
 const emit = defineEmits<{
@@ -35,6 +33,7 @@ const iconLibrary = useIconLibraryStore()
 onMounted(() => iconLibrary.load())
 
 const search = ref('')
+const ph = computed(() => props.placeholder || t('iconPicker.ph'))
 
 const searching = computed(() => !!search.value.trim())
 const filteredElement = computed(() => filterElementIcons(search.value))
@@ -77,9 +76,9 @@ function select(kind: IconPickKind, value: string) {
 
 <template>
   <div class="icon-picker">
-    <el-input v-model="search" :placeholder="placeholder" clearable class="picker-search" />
+    <el-input v-model="search" :placeholder="ph" clearable class="picker-search" />
     <template v-if="!searching && favorites.length">
-      <div class="picker-label">常用</div>
+      <div class="picker-label">{{ t('iconPicker.favorites') }}</div>
       <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
         <button
           v-for="ic in favorites"
@@ -96,7 +95,7 @@ function select(kind: IconPickKind, value: string) {
       </div>
     </template>
     <template v-if="customList.length">
-      <div class="picker-label">自定义</div>
+      <div class="picker-label">{{ t('iconPicker.custom') }}</div>
       <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
         <button
           v-for="c in customList"
@@ -112,7 +111,7 @@ function select(kind: IconPickKind, value: string) {
       </div>
     </template>
     <div class="picker-label">
-      {{ searching ? `内置图标 · 搜索结果（${filteredElement.length}）` : '内置图标' }}
+      {{ searching ? t('iconPicker.searchResult', { n: filteredElement.length }) : t('iconPicker.all') }}
     </div>
     <div class="picker-grid" :style="{ maxHeight: `${maxHeight}px` }">
       <button
@@ -126,7 +125,7 @@ function select(kind: IconPickKind, value: string) {
       >
         <component :is="ic.component" class="picker-cell__svg" />
       </button>
-      <div v-if="searching && !filteredElement.length" class="picker-empty">没有匹配的图标</div>
+      <div v-if="searching && !filteredElement.length" class="picker-empty">{{ t('iconPicker.noMatch') }}</div>
     </div>
   </div>
 </template>

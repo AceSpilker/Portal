@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   Collection as IconApps,
   Delete as IconDelete,
@@ -14,6 +15,7 @@ import { useIconLibraryStore } from '../stores/iconLibrary'
 import type { CustomIcon } from '../api/icons'
 import { isMobile } from '../composables/useIsMobile'
 
+const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
@@ -73,22 +75,22 @@ onMounted(async () => {
 })
 
 function addTag() {
-  const t = newTag.value.trim()
-  if (!t) return
-  if (tagOptions.value.includes(t)) {
-    ElMessage.warning('该标签已存在')
+  const tag = newTag.value.trim()
+  if (!tag) return
+  if (tagOptions.value.includes(tag)) {
+    ElMessage.warning(t('settings.tagExists'))
     return
   }
   if (tagOptions.value.length >= 50) {
-    ElMessage.warning('标签选项最多 50 个')
+    ElMessage.warning(t('settings.tagMax'))
     return
   }
-  tagOptions.value = [...tagOptions.value, t]
+  tagOptions.value = [...tagOptions.value, tag]
   newTag.value = ''
 }
 
-function removeTag(t: string) {
-  tagOptions.value = tagOptions.value.filter((x) => x !== t)
+function removeTag(tag: string) {
+  tagOptions.value = tagOptions.value.filter((x) => x !== tag)
 }
 
 function toggleFav(key: string) {
@@ -97,7 +99,7 @@ function toggleFav(key: string) {
     : [...favDraft.value, key]
   if (favDraft.value.length > 100) {
     favDraft.value = favDraft.value.slice(0, 100)
-    ElMessage.warning('常用图标最多 100 个')
+    ElMessage.warning(t('settings.iconsFavMax'))
   }
 }
 
@@ -115,16 +117,16 @@ function openIconEdit(icon: CustomIcon) {
 async function removeIcon(icon: CustomIcon) {
   try {
     await ElMessageBox.confirm(
-      `确定删除自定义图标「${icon.name}」？正在使用的图标无法删除。`,
-      '删除图标',
-      { type: 'warning', confirmButtonText: '删除' },
+      t('settings.confirmDeleteIcon', { name: icon.name }),
+      t('settings.confirmDeleteIconTitle'),
+      { type: 'warning', confirmButtonText: t('settings.deleteBtn') },
     )
   } catch {
     return
   }
   try {
     await iconLibrary.remove(icon.id)
-    ElMessage.success('图标已删除')
+    ElMessage.success(t('settings.iconDeleted'))
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
@@ -136,7 +138,7 @@ function onIconFile(ev: Event) {
   input.value = ''
   if (!file) return
   if (file.size > 2 * 1024 * 1024) {
-    ElMessage.warning('图标文件不能超过 2MB')
+    ElMessage.warning(t('apps.warnIconSize'))
     return
   }
   const reader = new FileReader()
@@ -151,11 +153,11 @@ function onIconFile(ev: Event) {
 
 async function saveIcon() {
   if (!iconForm.value.name.trim()) {
-    ElMessage.warning('请填写图标名称')
+    ElMessage.warning(t('settings.warnIconName'))
     return
   }
   if (!iconForm.value.id && !iconForm.value.data) {
-    ElMessage.warning('请选择图标图片')
+    ElMessage.warning(t('settings.warnPickImage'))
     return
   }
   iconSaving.value = true
@@ -165,14 +167,14 @@ async function saveIcon() {
         name: iconForm.value.name.trim(),
         ...(iconForm.value.data ? { data: iconForm.value.data, filename: iconForm.value.filename } : {}),
       })
-      ElMessage.success('图标已更新')
+      ElMessage.success(t('settings.iconUpdated'))
     } else {
       await iconLibrary.create({
         name: iconForm.value.name.trim(),
         data: iconForm.value.data,
         filename: iconForm.value.filename,
       })
-      ElMessage.success('图标已添加')
+      ElMessage.success(t('settings.iconSaved'))
     }
     iconDialog.value = false
   } catch (e) {
@@ -196,18 +198,18 @@ async function save(values: Record<string, unknown>, tip: string) {
 
 function saveGeneral() {
   if (!siteName.value.trim()) {
-    ElMessage.warning('站点名称不能为空')
+    ElMessage.warning(t('settings.warnSiteName'))
     return
   }
-  save({ 'general.site_name': siteName.value.trim() }, '常规设置已保存')
+  save({ 'general.site_name': siteName.value.trim() }, t('settings.generalSaved'))
 }
 
 function saveTags() {
-  save({ 'apps.tag_options': [...tagOptions.value] }, '标签选项已保存')
+  save({ 'apps.tag_options': [...tagOptions.value] }, t('settings.tagsSaved'))
 }
 
 function saveIcons() {
-  save({ 'apps.icon_favorites': [...favDraft.value] }, '常用图标已保存')
+  save({ 'apps.icon_favorites': [...favDraft.value] }, t('settings.iconsSaved'))
 }
 </script>
 
@@ -215,45 +217,45 @@ function saveIcons() {
   <div class="settings-page">
     <!-- 二级菜单 -->
     <aside class="menu glass">
-      <div class="menu-title">系统配置</div>
+      <div class="menu-title">{{ t('settings.title') }}</div>
       <el-menu :default-active="active" class="menu-list" @select="(k: string) => (active = k as MenuKey)">
         <el-menu-item index="general">
           <el-icon><component :is="IconGeneral" /></el-icon>
-          <span>常规设置</span>
+          <span>{{ t('settings.menuGeneral') }}</span>
         </el-menu-item>
         <el-menu-item index="apps">
           <el-icon><component :is="IconApps" /></el-icon>
-          <span>应用配置</span>
+          <span>{{ t('settings.menuApps') }}</span>
         </el-menu-item>
         <el-menu-item index="icons">
           <el-icon><component :is="IconLib" /></el-icon>
-          <span>图标库</span>
+          <span>{{ t('settings.menuIcons') }}</span>
         </el-menu-item>
       </el-menu>
-      <p class="menu-hint">更多配置项（外观、通知、安全、同步等）将随后续阶段开放。</p>
+      <p class="menu-hint">{{ t('settings.menuHint') }}</p>
     </aside>
 
     <!-- 配置面板 -->
     <section class="panel glass">
       <template v-if="active === 'general'">
         <header class="panel-head">
-          <h3>常规设置</h3>
-          <p>站点基础信息，保存后立即生效。</p>
+          <h3>{{ t('settings.generalTitle') }}</h3>
+          <p>{{ t('settings.generalDesc') }}</p>
         </header>
         <el-form label-position="top" class="panel-body" size="large">
-          <el-form-item label="站点名称" style="max-width: 360px">
+          <el-form-item :label="t('settings.siteName')" style="max-width: 360px">
             <el-input v-model="siteName" maxlength="64" placeholder="Portal" />
           </el-form-item>
           <el-button type="primary" class="btn-gradient" :loading="saving" @click="saveGeneral">
-            保存
+            {{ t('common.save') }}
           </el-button>
         </el-form>
       </template>
 
       <template v-else-if="active === 'apps'">
         <header class="panel-head">
-          <h3>应用配置</h3>
-          <p>新增 / 编辑应用时的标签候选在此维护，应用表单中只能从候选中选择。</p>
+          <h3>{{ t('settings.appsTitle') }}</h3>
+          <p>{{ t('settings.appsDesc') }}</p>
         </header>
         <div class="panel-body">
           <div class="tag-editor">
@@ -269,13 +271,13 @@ function saveIcons() {
             </el-tag>
             <el-input
               v-model="newTag"
-              placeholder="输入新标签后回车"
+              :placeholder="t('settings.tagInputPh')"
               class="tag-input"
               maxlength="32"
               @keyup.enter="addTag"
             >
               <template #append>
-                <el-button @click="addTag">添加</el-button>
+                <el-button @click="addTag">{{ t('common.add') }}</el-button>
               </template>
             </el-input>
           </div>
@@ -286,30 +288,27 @@ function saveIcons() {
             style="margin-top: 16px"
             @click="saveTags"
           >
-            保存
+            {{ t('common.save') }}
           </el-button>
         </div>
       </template>
 
       <template v-else-if="active === 'icons'">
         <header class="panel-head">
-          <h3>图标库</h3>
-          <p>
-            点击图标加入/移出「常用精选」，选择器会优先展示常用图标；自定义图标置顶展示，
-            悬停可编辑或删除（正在被使用的图标无法删除）。上传的图片会自动裁方压缩。
-          </p>
+          <h3>{{ t('settings.iconsTitle') }}</h3>
+          <p>{{ t('settings.iconsDesc') }}</p>
         </header>
         <div class="panel-body icons-body">
           <div class="icons-toolbar">
             <el-input
               v-model="iconSearch"
-              placeholder="搜索图标名，如 monitor / folder"
+              :placeholder="t('settings.iconsSearchPh')"
               clearable
               class="icons-search"
             />
             <div class="spacer" />
             <el-button type="primary" class="btn-gradient" @click="openIconCreate">
-              + 新增图标
+              {{ t('settings.iconsAdd') }}
             </el-button>
           </div>
           <div class="icon-manage-grid">
@@ -322,7 +321,7 @@ function saveIcons() {
               <button
                 type="button"
                 class="im-main"
-                :title="cell.kind === 'custom' ? `${cell.name}（点击加入/移出常用精选）` : `${cell.name}（点击加入/移出常用精选）`"
+                :title="t('iconPicker.addToFav', { name: cell.name })"
                 @click="toggleFav(cell.key)"
               >
                 <img v-if="cell.kind === 'custom'" :src="cell.path" :alt="cell.name" class="im-img" />
@@ -333,7 +332,7 @@ function saveIcons() {
                 <button
                   type="button"
                   class="im-op"
-                  title="编辑"
+                  :title="t('common.edit')"
                   @click.stop="openIconEdit(cell.icon!)"
                 >
                   <el-icon :size="11"><IconEdit /></el-icon>
@@ -341,14 +340,14 @@ function saveIcons() {
                 <button
                   type="button"
                   class="im-op danger"
-                  title="删除"
+                  :title="t('common.delete')"
                   @click.stop="removeIcon(cell.icon!)"
                 >
                   <el-icon :size="11"><IconDelete /></el-icon>
                 </button>
               </div>
             </div>
-            <div v-if="!iconCells.length" class="im-empty">没有匹配的图标</div>
+            <div v-if="!iconCells.length" class="im-empty">{{ t('iconPicker.noMatch') }}</div>
           </div>
           <el-button
             type="primary"
@@ -357,14 +356,14 @@ function saveIcons() {
             style="align-self: flex-start"
             @click="saveIcons"
           >
-            保存常用精选（{{ favDraft.length }}）
+            {{ t('settings.iconsSave', { n: favDraft.length }) }}
           </el-button>
         </div>
 
         <!-- 新增/编辑自定义图标 -->
         <el-dialog
           v-model="iconDialog"
-          :title="iconForm.id ? '编辑自定义图标' : '新增自定义图标'"
+          :title="iconForm.id ? t('settings.iconDialogEditTitle') : t('settings.iconDialogTitle')"
           :width="isMobile ? '94%' : '420px'"
           append-to-body
         >
@@ -374,9 +373,9 @@ function saveIcons() {
               <span v-else>?</span>
             </div>
             <div class="icon-dialog-fields">
-              <el-input v-model="iconForm.name" placeholder="图标名称（如 qBittorrent）" maxlength="32" />
+              <el-input v-model="iconForm.name" :placeholder="t('settings.iconNamePh')" maxlength="32" />
               <el-button @click="iconFileInput?.click()">
-                {{ iconForm.id && !iconForm.data ? '更换图片' : '选择图片' }}
+                {{ iconForm.id && !iconForm.data ? t('settings.iconDialogEditBtn') : t('settings.pickImage') }}
               </el-button>
               <input
                 ref="iconFileInput"
@@ -385,13 +384,13 @@ function saveIcons() {
                 hidden
                 @change="onIconFile"
               />
-              <p class="muted-tip">支持 PNG / JPG / SVG / WebP，≤2MB，自动裁方压缩。</p>
+              <p class="muted-tip">{{ t('settings.iconFormatTip') }}</p>
             </div>
           </div>
           <template #footer>
-            <el-button @click="iconDialog = false">取消</el-button>
+            <el-button @click="iconDialog = false">{{ t('common.cancel') }}</el-button>
             <el-button type="primary" class="btn-gradient" :loading="iconSaving" @click="saveIcon">
-              保存
+              {{ t('common.save') }}
             </el-button>
           </template>
         </el-dialog>

@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.i18n import t
+
 # 可写键白名单 → 每键校验器（防止任意键写入）
 WRITABLE_KEYS: set[str] = {
     "general.site_name",
@@ -27,26 +29,26 @@ class SettingsUpdate(BaseModel):
     def _check_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
         bad = set(v) - WRITABLE_KEYS
         if bad:
-            raise ValueError(f"不支持的设置项：{', '.join(sorted(bad))}")
+            raise ValueError(t("err.settings_unknown_keys", keys=", ".join(sorted(bad))))
         for key, value in v.items():
             if key == "general.site_name" and (not isinstance(value, str) or not value.strip()):
-                raise ValueError("站点名称不能为空")
+                raise ValueError(t("err.site_name_empty"))
             if key == "apps.tag_options":
                 if not isinstance(value, list) or not all(
                     isinstance(t, str) and t.strip() for t in value
                 ):
-                    raise ValueError("标签选项需为非空字符串数组")
+                    raise ValueError(t("err.tag_options_invalid"))
                 if len(value) > 50:
-                    raise ValueError("标签选项最多 50 个")
+                    raise ValueError(t("err.tag_options_max"))
             if key == "apps.icon_favorites":
                 if not isinstance(value, list) or not all(
                     isinstance(t, str) and t.strip() for t in value
                 ):
-                    raise ValueError("常用图标需为非空字符串数组")
+                    raise ValueError(t("err.icon_fav_invalid"))
                 if len(value) > 100:
-                    raise ValueError("常用图标最多 100 个")
+                    raise ValueError(t("err.icon_fav_max"))
             if key == "sync.interval_min" and (
                 not isinstance(value, int) or not 1 <= value <= 1440
             ):
-                raise ValueError("同步间隔需为 1~1440 分钟")
+                raise ValueError(t("err.sync_interval"))
         return v

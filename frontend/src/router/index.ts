@@ -20,13 +20,13 @@ const router = createRouter({
       path: '/',
       component: AppLayout,
       children: [
-        { path: '', name: 'home', component: HomeView, meta: { title: '首页' } },
-        { path: 'apps', name: 'apps', component: AppsManageView, meta: { title: '应用管理' } },
+        { path: '', name: 'home', component: HomeView, meta: { titleKey: 'nav.home' } },
+        { path: 'apps', name: 'apps', component: AppsManageView, meta: { titleKey: 'apps.title' } },
         {
           path: 'settings',
           name: 'settings',
           component: SettingsView,
-          meta: { title: '系统配置', requiresAdmin: true },
+          meta: { titleKey: 'settings.title', requiresAdmin: true },
         },
       ],
     },

@@ -7,6 +7,7 @@
 
 内置 Element 图标不入库：只读、经 settings 的 apps.icon_favorites 管理「常用」。
 """
+
 import base64
 import binascii
 import os
@@ -17,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_admin
+from app.core.i18n import t
 from app.core.response import CODE_CONFLICT, CODE_DUPLICATED, CODE_NOT_FOUND, BizError, ok
 from app.db.session import get_session
 from app.models.portal import App, Category, CustomIcon
@@ -30,7 +32,7 @@ router = APIRouter()
 async def _get_or_404(session: AsyncSession, icon_id: int) -> CustomIcon:
     icon = await session.get(CustomIcon, icon_id)
     if icon is None:
-        raise BizError(CODE_NOT_FOUND, "图标不存在", 404)
+        raise BizError(CODE_NOT_FOUND, t("err.icon_not_found"), 404)
     return icon
 
 
@@ -38,11 +40,7 @@ async def _get_or_404(session: AsyncSession, icon_id: int) -> CustomIcon:
 async def list_icons(
     _: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
 ):
-    rows = (
-        (await session.execute(select(CustomIcon).order_by(CustomIcon.name)))
-        .scalars()
-        .all()
-    )
+    rows = (await session.execute(select(CustomIcon).order_by(CustomIcon.name))).scalars().all()
     return ok([CustomIconOut.model_validate(r).model_dump() for r in rows])
 
 
@@ -50,9 +48,9 @@ async def _decode(data: str) -> bytes:
     try:
         raw = base64.b64decode(data, validate=True)
     except (binascii.Error, ValueError) as exc:
-        raise BizError(2001, "图标数据不是有效的 base64", 422) from exc
+        raise BizError(2001, t("err.icon_base64"), 422) from exc
     if not raw:
-        raise BizError(2001, "图标数据为空", 422)
+        raise BizError(2001, t("err.icon_empty"), 422)
     return raw
 
 
@@ -64,7 +62,7 @@ async def create_icon(
 ):
     dup = await session.scalar(select(CustomIcon.id).where(CustomIcon.name == body.name.strip()))
     if dup is not None:
-        raise BizError(CODE_DUPLICATED, "图标名称已存在", 409)
+        raise BizError(CODE_DUPLICATED, t("err.icon_dup"), 409)
     raw = await _decode(body.data)
     path = await run_in_threadpool(save_icon, raw, body.filename)
     icon = CustomIcon(name=body.name.strip(), path=path)
@@ -90,7 +88,7 @@ async def update_icon(
             )
         )
         if dup is not None:
-            raise BizError(CODE_DUPLICATED, "图标名称已存在", 409)
+            raise BizError(CODE_DUPLICATED, t("err.icon_dup"), 409)
         icon.name = changes["name"]
     if changes.get("data"):
         raw = await _decode(changes["data"])
@@ -128,13 +126,11 @@ async def delete_icon(
     )
     used = (used_apps or 0) + (used_cats or 0)
     if used:
-        raise BizError(
-            CODE_CONFLICT, f"该图标正被 {used} 个应用/分组使用，请先更换图标后再删除", 409
-        )
+        raise BizError(CODE_CONFLICT, t("err.icon_in_use", n=used), 409)
     await session.delete(icon)
     await session.commit()
     try:
         os.remove(icons_dir() / os.path.basename(icon.path))
     except OSError:
         pass
-    return ok(None, "图标已删除")
+    return ok(None, t("ok.icon_deleted"))

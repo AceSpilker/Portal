@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, require_admin
+from app.core.i18n import t
 from app.core.response import CODE_NOT_FOUND, BizError, ok
 from app.db.session import get_session
 from app.models.portal import App, AppUrl, Category
@@ -41,13 +42,13 @@ async def _get_app(session: AsyncSession, app_id: int, *, with_urls: bool = True
         stmt = stmt.options(selectinload(App.urls))
     app = await session.scalar(stmt.where(App.id == app_id, App.deleted.is_(False)))
     if app is None:
-        raise BizError(CODE_NOT_FOUND, "应用不存在", 404)
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
     return app
 
 
 async def _ensure_category(session: AsyncSession, category_id: int | None) -> None:
     if category_id is not None and await session.get(Category, category_id) is None:
-        raise BizError(CODE_NOT_FOUND, "目标分组不存在", 404)
+        raise BizError(CODE_NOT_FOUND, t("err.category_not_found"), 404)
 
 
 # ============ 固定路径（先注册）============
@@ -143,7 +144,7 @@ async def import_apps(
             url_count += 1
     await session.commit()
     result = {"categories": len(body.categories), "apps": len(body.apps), "urls": url_count}
-    return ok(result, "导入成功")
+    return ok(result, t("ok.imported"))
 
 
 @router.put("/apps/sort")
@@ -162,7 +163,7 @@ async def sort_apps(
             await _ensure_category(session, item.category_id)
             app.category_id = item.category_id
     await session.commit()
-    return ok(None, "排序已保存")
+    return ok(None, t("ok.sorted_apps"))
 
 
 @router.post("/apps/upload-icon")
@@ -174,9 +175,9 @@ async def upload_icon(
     try:
         raw = base64.b64decode(body.data, validate=True)
     except (binascii.Error, ValueError) as exc:
-        raise BizError(2001, "图标数据不是有效的 base64", 422) from exc
+        raise BizError(2001, t("err.icon_base64"), 422) from exc
     if not raw:
-        raise BizError(2001, "图标数据为空", 422)
+        raise BizError(2001, t("err.icon_empty"), 422)
     url_path = await run_in_threadpool(save_icon, raw, body.filename)
     return ok({"url": url_path})
 
@@ -239,7 +240,7 @@ async def get_app(
 ):
     app = await _get_app(session, app_id)
     if user.role != "admin" and app.visibility != "all":
-        raise BizError(CODE_NOT_FOUND, "应用不存在", 404)
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
     return ok(AppOut.model_validate(app).model_dump())
 
 
@@ -271,7 +272,7 @@ async def delete_app(
     app.deleted = True
     app.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await session.commit()
-    return ok(None, "已移入回收站")
+    return ok(None, t("ok.app_recycled"))
 
 
 # ============ 访问入口（M04-1~6）============

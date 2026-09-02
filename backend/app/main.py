@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
 from app.db.session import init_db
@@ -28,6 +29,13 @@ app = FastAPI(title="Portal API", version="0.1.0", lifespan=lifespan)
 
 # 传输加密（P24）：/api 请求体/响应体/Authorization 头密文传输
 app.add_middleware(TransportEncryptionMiddleware)
+
+
+@app.middleware("http")
+async def locale_middleware(request: Request, call_next):
+    """按 Accept-Language 设置本请求的文案语言（api-spec §1）。"""
+    set_locale(request.headers.get("accept-language", ""))
+    return await call_next(request)
 
 
 @app.exception_handler(BizError)

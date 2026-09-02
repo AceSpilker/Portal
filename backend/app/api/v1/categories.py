@@ -5,6 +5,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_admin
+from app.core.i18n import t
 from app.core.response import CODE_DUPLICATED, CODE_NOT_FOUND, BizError, ok
 from app.db.session import get_session
 from app.models.portal import App, Category
@@ -54,7 +55,7 @@ async def create_category(
     session: AsyncSession = Depends(get_session),
 ):
     if await _name_taken(session, body.name):
-        raise BizError(CODE_DUPLICATED, "分组名已存在", 409)
+        raise BizError(CODE_DUPLICATED, t("err.category_dup"), 409)
     cat = Category(
         name=body.name,
         icon=body.icon,
@@ -78,7 +79,7 @@ async def sort_categories(
     for item in body.items:
         await session.execute(update(Category).where(Category.id == item.id).values(sort=item.sort))
     await session.commit()
-    return ok(None, "排序已保存")
+    return ok(None, t("ok.sorted"))
 
 
 @router.put("/categories/{category_id}")
@@ -90,11 +91,11 @@ async def update_category(
 ):
     cat = await session.get(Category, category_id)
     if cat is None:
-        raise BizError(CODE_NOT_FOUND, "分组不存在", 404)
+        raise BizError(CODE_NOT_FOUND, t("err.category_not_found"), 404)
     changes = body.model_dump(exclude_unset=True)
     if "name" in changes and changes["name"] != cat.name:
         if await _name_taken(session, changes["name"], exclude_id=category_id):
-            raise BizError(CODE_DUPLICATED, "分组名已存在", 409)
+            raise BizError(CODE_DUPLICATED, t("err.category_dup"), 409)
     for key, value in changes.items():
         setattr(cat, key, value)
     await session.commit()
@@ -111,10 +112,10 @@ async def delete_category(
     """删除分组：组内应用不删除，仅移出分组（category_id 置空）。"""
     cat = await session.get(Category, category_id)
     if cat is None:
-        raise BizError(CODE_NOT_FOUND, "分组不存在", 404)
+        raise BizError(CODE_NOT_FOUND, t("err.category_not_found"), 404)
     await session.execute(
         update(App).where(App.category_id == category_id).values(category_id=None)
     )
     await session.delete(cat)
     await session.commit()
-    return ok(None, "分组已删除")
+    return ok(None, t("ok.category_deleted"))

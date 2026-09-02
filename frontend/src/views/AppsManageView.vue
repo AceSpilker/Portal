@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import {
   Download as IconExport,
   Plus as IconPlus,
@@ -27,6 +28,7 @@ import { isMobile } from '../composables/useIsMobile'
 
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
+const { t } = useI18n()
 const isAdmin = computed(() => auth.isAdmin)
 
 // ============ 列表与过滤 ============
@@ -78,25 +80,25 @@ const filtered = computed(() => {
 })
 
 const catName = (id: number | null) =>
-  categories.value.find((c) => c.id === id)?.name ?? '未分组'
+  categories.value.find((c) => c.id === id)?.name ?? t('apps.uncategorized')
 
-const ACCESS_LABEL: Record<AccessType, string> = {
-  domain: '域名',
-  lan: '内网',
-  ssh: 'SSH',
-  vpn: 'VPN',
-  custom: '自定义',
-}
-const VISIBILITY_LABEL: Record<Visibility, string> = {
-  all: '所有人',
-  admin: '仅管理员',
-  users: '指定用户',
-}
-const OPEN_LABEL: Record<OpenMode, string> = {
-  newtab: '新标签',
-  current: '当前页',
-  iframe: '内嵌',
-}
+const ACCESS_LABEL = computed<Record<AccessType, string>>(() => ({
+  domain: t('apps.urlType.domain'),
+  lan: t('apps.urlType.lan'),
+  ssh: t('apps.urlType.ssh'),
+  vpn: t('apps.urlType.vpn'),
+  custom: t('apps.urlType.custom'),
+}))
+const VISIBILITY_LABEL = computed<Record<Visibility, string>>(() => ({
+  all: t('apps.visibility.all'),
+  admin: t('apps.visibility.admin'),
+  users: t('apps.visibility.users'),
+}))
+const OPEN_LABEL = computed<Record<OpenMode, string>>(() => ({
+  newtab: t('apps.openMode.newtab'),
+  current: t('apps.openMode.current'),
+  iframe: t('apps.openMode.iframe'),
+}))
 
 // ============ 应用编辑抽屉 ============
 const drawer = ref(false)
@@ -205,11 +207,11 @@ function moveUrlRow(index: number, dir: -1 | 1) {
 
 async function saveApp() {
   if (!draft.value.name.trim()) {
-    ElMessage.warning('请填写应用名称')
+    ElMessage.warning(t('apps.warnName'))
     return
   }
   if (urlRows.value.some((r) => !r.url.trim())) {
-    ElMessage.warning('存在未填写地址的访问入口')
+    ElMessage.warning(t('apps.warnUrl'))
     return
   }
   saving.value = true
@@ -247,7 +249,7 @@ async function saveApp() {
       if (row.id) await portalApi.updateUrl(row.id, body)
       else await portalApi.createUrl(appId, body)
     }
-    ElMessage.success(draft.value.id ? '应用已保存' : '应用已创建')
+    ElMessage.success(draft.value.id ? t('apps.saved') : t('apps.created'))
     drawer.value = false
     await loadApps()
   } catch (e) {
@@ -268,16 +270,16 @@ async function toggleEnabled(app: PortalApp) {
 
 async function removeApp(app: PortalApp) {
   try {
-    await ElMessageBox.confirm(`确定将「${app.name}」移入回收站？`, '删除应用', {
+    await ElMessageBox.confirm(t('apps.confirmRecycle', { name: app.name }), t('apps.confirmRecycleTitle'), {
       type: 'warning',
-      confirmButtonText: '移入回收站',
+      confirmButtonText: t('apps.recycleBtn'),
     })
   } catch {
     return
   }
   try {
     await portalApi.deleteApp(app.id)
-    ElMessage.success('已移入回收站')
+    ElMessage.success(t('apps.recycled'))
     await loadApps()
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -294,20 +296,20 @@ async function onIconFile(ev: Event) {
   input.value = ''
   if (!file) return
   if (file.size > 2 * 1024 * 1024) {
-    ElMessage.warning('图标文件不能超过 2MB')
+    ElMessage.warning(t('apps.warnIconSize'))
     return
   }
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error('读取文件失败'))
+    reader.onerror = () => reject(new Error(t('apps.readJsonFail')))
     reader.readAsDataURL(file)
   })
   try {
     const { url } = await portalApi.uploadIcon(file.name, dataUrl.split(',')[1] ?? '')
     draft.value.icon = url
     draft.value.icon_type = 'upload'
-    ElMessage.success('图标已上传')
+    ElMessage.success(t('apps.iconUploaded'))
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
@@ -316,14 +318,14 @@ async function onIconFile(ev: Event) {
 async function grabFavicon() {
   const site = faviconSource.value.trim()
   if (!site) {
-    ElMessage.warning('请先填写目标站地址（如 https://jf.example.com）')
+    ElMessage.warning(t('apps.faviconNeedSite'))
     return
   }
   try {
     const { url } = await portalApi.fetchFavicon(site)
     draft.value.icon = url
     draft.value.icon_type = 'upload'
-    ElMessage.success('已抓取目标站图标')
+    ElMessage.success(t('apps.faviconOk'))
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
@@ -370,7 +372,7 @@ function openCatEdit(cat: Category) {
 
 async function saveCategory() {
   if (!catForm.value.name.trim()) {
-    ElMessage.warning('请填写分组名')
+    ElMessage.warning(t('apps.warnCatName'))
     return
   }
   catSaving.value = true
@@ -383,7 +385,7 @@ async function saveCategory() {
     if (catForm.value.id) await portalApi.updateCategory(catForm.value.id, payload)
     else await portalApi.createCategory(payload)
     catDialog.value = false
-    ElMessage.success('分组已保存')
+    ElMessage.success(t('apps.catSaved'))
     await loadCategories()
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -395,8 +397,8 @@ async function saveCategory() {
 async function removeCategory(cat: Category) {
   try {
     await ElMessageBox.confirm(
-      `删除分组「${cat.name}」后，组内 ${cat.app_count} 个应用将移出分组（不删除）。确定？`,
-      '删除分组',
+      t('apps.confirmDeleteCat', { name: cat.name, n: cat.app_count }),
+      t('apps.confirmDeleteCatTitle'),
       { type: 'warning' },
     )
   } catch {
@@ -404,7 +406,7 @@ async function removeCategory(cat: Category) {
   }
   try {
     await portalApi.deleteCategory(cat.id)
-    ElMessage.success('分组已删除')
+    ElMessage.success(t('apps.catDeleted'))
     await Promise.all([loadCategories(), loadApps()])
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -433,22 +435,29 @@ async function onImportFile(ev: Event) {
   try {
     payload = JSON.parse(await file.text())
   } catch {
-    ElMessage.error('文件不是有效的 JSON')
+    ElMessage.error(t('apps.importBadJson'))
     return
   }
   const counts = payload as { apps?: unknown[]; categories?: unknown[] }
   try {
     await ElMessageBox.confirm(
-      `导入为覆盖式：现有 ${apps.value.length} 个应用、${categories.value.length} 个分组将被文件内容替换（应用 ${counts.apps?.length ?? 0}、分组 ${counts.categories?.length ?? 0}）。确定继续？`,
-      '覆盖导入确认',
-      { type: 'warning', confirmButtonText: '导入' },
+      t('apps.importConfirm', {
+        apps: apps.value.length,
+        cats: categories.value.length,
+        nApps: counts.apps?.length ?? 0,
+        nCats: counts.categories?.length ?? 0,
+      }),
+      t('apps.importTitle'),
+      { type: 'warning', confirmButtonText: t('apps.importBtn') },
     )
   } catch {
     return
   }
   try {
     const r = await portalApi.importApps(payload)
-    ElMessage.success(`已导入 ${r.apps} 个应用、${r.categories} 个分组、${r.urls} 个入口`)
+    ElMessage.success(
+      t('apps.importOk', { apps: r.apps, cats: r.categories, urls: r.urls }),
+    )
     await loadAll()
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -474,24 +483,24 @@ async function doExport() {
   <div class="apps-page">
     <!-- 工具栏 -->
     <section class="toolbar glass">
-      <el-input v-model="keyword" placeholder="搜索名称 / 描述 / 标签" clearable class="search" />
+      <el-input v-model="keyword" :placeholder="t('apps.searchPh')" clearable class="search" />
       <el-select
         v-model="categoryFilter"
-        placeholder="全部分组"
+        :placeholder="t('apps.allCategories')"
         clearable
         class="cat-filter"
         @clear="categoryFilter = null"
       >
-        <el-option label="未分组" :value="-1" />
+        <el-option :label="t('apps.uncategorized')" :value="-1" />
         <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
       </el-select>
       <div class="spacer" />
       <template v-if="isAdmin">
-        <el-button :icon="IconSetting" @click="openCatCreate()">分组管理</el-button>
-        <el-button :icon="IconImport" @click="importInput?.click()">导入</el-button>
-        <el-button :icon="IconExport" @click="doExport">导出</el-button>
+        <el-button :icon="IconSetting" @click="openCatCreate()">{{ t('apps.catManage') }}</el-button>
+        <el-button :icon="IconImport" @click="importInput?.click()">{{ t('apps.import') }}</el-button>
+        <el-button :icon="IconExport" @click="doExport">{{ t('apps.export') }}</el-button>
         <el-button type="primary" class="btn-gradient" :icon="IconPlus" @click="openCreate">
-          新建应用
+          {{ t('apps.createApp') }}
         </el-button>
       </template>
       <input
@@ -506,23 +515,23 @@ async function doExport() {
     <!-- 应用列表 -->
     <section class="table-card glass">
       <el-table :data="filtered" v-loading="loading" style="width: 100%">
-        <el-table-column label="图标" width="72" align="center">
+        <el-table-column :label="t('apps.thIcon')" width="72" align="center">
           <template #default="{ row }">
             <div class="app-icon">
               <AppIcon :icon="row.icon" :icon-type="row.icon_type" :size="26" />
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="应用" min-width="200">
+        <el-table-column :label="t('apps.thApp')" min-width="200">
           <template #default="{ row }">
             <b>{{ row.name }}</b>
             <p class="desc">{{ row.description || '—' }}</p>
           </template>
         </el-table-column>
-        <el-table-column label="分组" width="120">
+        <el-table-column :label="t('apps.thCategory')" width="120">
           <template #default="{ row }">{{ catName(row.category_id) }}</template>
         </el-table-column>
-        <el-table-column label="访问入口" min-width="200">
+        <el-table-column :label="t('apps.thUrls')" min-width="200">
           <template #default="{ row }">
             <div class="urls">
               <el-tag
@@ -534,29 +543,29 @@ async function doExport() {
               >
                 {{ ACCESS_LABEL[u.access_type as AccessType] }}·{{ u.label || u.url }}
               </el-tag>
-              <span v-if="!row.urls.length" class="muted">未配置</span>
+              <span v-if="!row.urls.length" class="muted">{{ t('apps.noEntry') }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="打开方式" width="90">
+        <el-table-column :label="t('apps.thOpenMode')" width="100">
           <template #default="{ row }">{{ OPEN_LABEL[row.open_mode as OpenMode] }}</template>
         </el-table-column>
-        <el-table-column label="可见性" width="96">
+        <el-table-column :label="t('apps.thVisibility')" width="110">
           <template #default="{ row }">{{ VISIBILITY_LABEL[row.visibility as Visibility] }}</template>
         </el-table-column>
-        <el-table-column v-if="isAdmin" label="启用" width="76">
+        <el-table-column v-if="isAdmin" :label="t('apps.thEnabled')" width="80">
           <template #default="{ row }">
             <el-switch v-model="row.enabled" @change="toggleEnabled(row)" />
           </template>
         </el-table-column>
-        <el-table-column v-if="isAdmin" label="操作" width="130" fixed="right">
+        <el-table-column v-if="isAdmin" :label="t('apps.thActions')" width="130" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="removeApp(row)">删除</el-button>
+            <el-button link type="primary" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-button link type="danger" @click="removeApp(row)">{{ t('common.delete') }}</el-button>
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="还没有应用，点击右上角「新建应用」开始" />
+          <el-empty :description="t('apps.emptyTip')" />
         </template>
       </el-table>
     </section>
@@ -564,22 +573,22 @@ async function doExport() {
     <!-- 应用编辑抽屉 -->
     <el-drawer
       v-model="drawer"
-      :title="draft.id ? '编辑应用' : '新建应用'"
+      :title="draft.id ? t('apps.editApp') : t('apps.createApp')"
       :size="isMobile ? '100%' : '620px'"
       destroy-on-close
     >
       <div class="drawer-body">
         <el-form label-position="top" size="large">
-          <el-form-item label="名称" required>
-            <el-input v-model="draft.name" placeholder="如：Jellyfin" maxlength="128" />
+          <el-form-item :label="t('apps.fieldName')" required>
+            <el-input v-model="draft.name" :placeholder="t('apps.fieldNamePh')" maxlength="128" />
           </el-form-item>
-          <el-form-item label="描述">
-            <el-input v-model="draft.description" placeholder="一句话描述（可选）" maxlength="512" />
+          <el-form-item :label="t('apps.fieldDesc')">
+            <el-input v-model="draft.description" :placeholder="t('apps.fieldDescPh')" maxlength="512" />
           </el-form-item>
-          <el-form-item label="分组">
+          <el-form-item :label="t('apps.fieldCategory')">
             <el-select
               v-model="draft.category_id"
-              placeholder="未分组"
+              :placeholder="t('apps.uncategorized')"
               clearable
               style="width: 100%"
               @clear="draft.category_id = null"
@@ -588,25 +597,25 @@ async function doExport() {
             </el-select>
           </el-form-item>
 
-          <el-form-item label="图标">
+          <el-form-item :label="t('apps.fieldIcon')">
             <div class="icon-editor">
               <el-radio-group v-model="draft.icon_type">
-                <el-radio-button value="url">URL</el-radio-button>
-                <el-radio-button value="upload">上传</el-radio-button>
-                <el-radio-button value="element">图标库</el-radio-button>
+                <el-radio-button value="url">{{ t('apps.iconUrl') }}</el-radio-button>
+                <el-radio-button value="upload">{{ t('apps.iconUpload') }}</el-radio-button>
+                <el-radio-button value="element">{{ t('apps.iconLibrary') }}</el-radio-button>
               </el-radio-group>
               <div class="icon-preview">
                 <AppIcon :icon="draft.icon" :icon-type="draft.icon_type" :size="32" />
               </div>
               <template v-if="draft.icon_type === 'url'">
-                <el-input v-model="draft.icon" placeholder="图标图片地址 https://…" />
+                <el-input v-model="draft.icon" :placeholder="t('apps.iconUrlPh')" />
                 <div class="favicon-row">
-                  <el-input v-model="faviconSource" placeholder="目标站地址，一键抓取其图标" />
-                  <el-button @click="grabFavicon">抓取图标</el-button>
+                  <el-input v-model="faviconSource" :placeholder="t('apps.faviconPh')" />
+                  <el-button @click="grabFavicon">{{ t('apps.faviconBtn') }}</el-button>
                 </div>
               </template>
               <template v-else-if="draft.icon_type === 'upload'">
-                <el-button @click="iconFileInput?.click()">选择图片（自动压方 ≤2MB）</el-button>
+                <el-button @click="iconFileInput?.click()">{{ t('apps.uploadBtn') }}</el-button>
                 <input ref="iconFileInput" type="file" accept="image/*" hidden @change="onIconFile" />
               </template>
               <template v-else>
@@ -619,18 +628,18 @@ async function doExport() {
             </div>
           </el-form-item>
 
-          <el-form-item label="访问入口（不同网络环境的地址）">
+          <el-form-item :label="t('apps.fieldUrls')">
             <div class="url-editor">
               <div v-for="(row, i) in urlRows" :key="row.key" class="url-row">
                 <el-select v-model="row.access_type" class="url-type">
-                  <el-option label="域名" value="domain" />
-                  <el-option label="内网" value="lan" />
-                  <el-option label="SSH 隧道" value="ssh" />
-                  <el-option label="VPN" value="vpn" />
-                  <el-option label="自定义" value="custom" />
+                  <el-option :label="t('apps.urlType.domain')" value="domain" />
+                  <el-option :label="t('apps.urlType.lan')" value="lan" />
+                  <el-option :label="t('apps.urlType.ssh')" value="ssh" />
+                  <el-option :label="t('apps.urlType.vpn')" value="vpn" />
+                  <el-option :label="t('apps.urlType.custom')" value="custom" />
                 </el-select>
-                <el-input v-model="row.url" placeholder="地址，如 http://192.168.1.10:8096" />
-                <el-input v-model="row.label" placeholder="标签" class="url-label" maxlength="64" />
+                <el-input v-model="row.url" :placeholder="t('apps.urlAddressPh')" />
+                <el-input v-model="row.label" :placeholder="t('apps.urlLabelPh')" class="url-label" maxlength="64" />
                 <div class="url-ops">
                   <el-button link :disabled="i === 0" @click="moveUrlRow(i, -1)">↑</el-button>
                   <el-button
@@ -643,97 +652,97 @@ async function doExport() {
                   <el-button link type="danger" @click="removeUrlRow(i)">✕</el-button>
                 </div>
               </div>
-              <el-button plain class="add-url" @click="addUrlRow">+ 添加入口</el-button>
+              <el-button plain class="add-url" @click="addUrlRow">{{ t('apps.addUrl') }}</el-button>
             </div>
           </el-form-item>
 
           <div class="form-grid">
-            <el-form-item label="打开方式">
+            <el-form-item :label="t('apps.fieldOpenMode')">
               <el-select v-model="draft.open_mode" style="width: 100%">
-                <el-option label="新标签页" value="newtab" />
-                <el-option label="当前页" value="current" />
-                <el-option label="iframe 内嵌" value="iframe" />
+                <el-option :label="t('apps.openMode.newtab')" value="newtab" />
+                <el-option :label="t('apps.openMode.current')" value="current" />
+                <el-option :label="t('apps.openMode.iframe')" value="iframe" />
               </el-select>
             </el-form-item>
-            <el-form-item label="可见性">
+            <el-form-item :label="t('apps.fieldVisibility')">
               <el-select v-model="draft.visibility" style="width: 100%">
-                <el-option label="所有人" value="all" />
-                <el-option label="仅管理员" value="admin" />
-                <el-option label="指定用户" value="users" />
+                <el-option :label="t('apps.visibility.all')" value="all" />
+                <el-option :label="t('apps.visibility.admin')" value="admin" />
+                <el-option :label="t('apps.visibility.users')" value="users" />
               </el-select>
             </el-form-item>
-            <el-form-item label="探活方式（P6 生效）">
+            <el-form-item :label="t('apps.fieldHealthType')">
               <el-select v-model="draft.health_type" style="width: 100%">
-                <el-option label="不探活" value="" />
-                <el-option label="HTTP 状态码" value="http" />
-                <el-option label="TCP 端口" value="tcp" />
-                <el-option label="关键字" value="keyword" />
+                <el-option :label="t('apps.healthType.none')" value="" />
+                <el-option :label="t('apps.healthType.http')" value="http" />
+                <el-option :label="t('apps.healthType.tcp')" value="tcp" />
+                <el-option :label="t('apps.healthType.keyword')" value="keyword" />
               </el-select>
             </el-form-item>
-            <el-form-item label="探活目标">
+            <el-form-item :label="t('apps.fieldHealthTarget')">
               <el-input
                 v-model="draft.health_target"
-                placeholder="URL 或 host:port"
+                :placeholder="t('apps.healthTargetPh')"
                 :disabled="!draft.health_type"
               />
             </el-form-item>
           </div>
 
-          <el-form-item label="标签（在 系统配置 → 应用配置 中维护候选）">
+          <el-form-item :label="t('apps.fieldTags')">
             <el-select
               v-model="draft.tags"
               multiple
               :multiple-limit="6"
-              placeholder="从系统配置的标签候选中选择"
+              :placeholder="t('apps.tagsPh')"
               style="width: 100%"
             >
-              <el-option v-for="t in settingsStore.tagOptions" :key="t" :label="t" :value="t" />
+              <el-option v-for="tag in settingsStore.tagOptions" :key="tag" :label="tag" :value="tag" />
             </el-select>
           </el-form-item>
-          <el-form-item label="备注">
-            <el-input v-model="draft.remark" type="textarea" :rows="2" placeholder="默认账号等提示信息" />
+          <el-form-item :label="t('apps.fieldRemark')">
+            <el-input v-model="draft.remark" type="textarea" :rows="2" :placeholder="t('apps.remarkPh')" />
           </el-form-item>
-          <el-form-item label="文档链接">
-            <el-input v-model="draft.doc_url" placeholder="https://wiki.example.com/…" />
+          <el-form-item :label="t('apps.fieldDocUrl')">
+            <el-input v-model="draft.doc_url" :placeholder="t('apps.fieldDocUrlPh')" />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="drawer = false">取消</el-button>
+        <el-button @click="drawer = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" class="btn-gradient" :loading="saving" @click="saveApp">
-          保存
+          {{ t('common.save') }}
         </el-button>
       </template>
     </el-drawer>
 
     <!-- 分组管理弹窗 -->
-    <el-dialog v-model="catDialog" title="分组管理" :width="isMobile ? '94%' : '560px'">
+    <el-dialog v-model="catDialog" :title="t('apps.catDialogTitle')" :width="isMobile ? '94%' : '560px'">
       <div class="cat-list">
         <div v-for="c in categories" :key="c.id" class="cat-row">
           <span class="cat-icon">
             <AppIcon :icon="c.icon" :icon-type="c.icon_type ?? 'emoji'" :size="18" />
           </span>
           <b>{{ c.name }}</b>
-          <span class="muted">{{ c.app_count }} 个应用</span>
+          <span class="muted">{{ t('apps.catCount', { n: c.app_count }) }}</span>
           <div class="cat-ops">
             <el-button link @click="moveCategory(c, -1)">↑</el-button>
             <el-button link @click="moveCategory(c, 1)">↓</el-button>
-            <el-button link type="primary" @click="openCatEdit(c)">编辑</el-button>
-            <el-button link type="danger" @click="removeCategory(c)">删除</el-button>
+            <el-button link type="primary" @click="openCatEdit(c)">{{ t('common.edit') }}</el-button>
+            <el-button link type="danger" @click="removeCategory(c)">{{ t('common.delete') }}</el-button>
           </div>
         </div>
-        <el-empty v-if="!categories.length" description="还没有分组，可先新建一个" :image-size="72" />
+        <el-empty v-if="!categories.length" :description="t('apps.catEmpty')" :image-size="72" />
       </div>
       <el-divider />
       <div class="cat-form">
-        <el-input v-model="catForm.name" placeholder="分组名称" maxlength="64" />
+        <el-input v-model="catForm.name" :placeholder="t('apps.catNamePh')" maxlength="64" />
         <el-button
           v-if="catForm.id"
           :loading="catSaving"
           type="primary"
           @click="saveCategory"
         >
-          保存修改
+          {{ t('apps.catSaveEdit') }}
         </el-button>
         <el-button
           v-else
@@ -742,13 +751,13 @@ async function doExport() {
           class="btn-gradient"
           @click="saveCategory"
         >
-          新建分组
+          {{ t('apps.catCreate') }}
         </el-button>
-        <el-button v-if="catForm.id" @click="openCatCreate">取消编辑</el-button>
+        <el-button v-if="catForm.id" @click="openCatCreate">{{ t('apps.catCancelEdit') }}</el-button>
       </div>
       <div class="cat-picker">
         <div class="cat-picker-label">
-          分组图标（当前：{{ catForm.icon || '无' }}）
+          {{ t('apps.catPickerLabel', { name: catForm.icon || t('apps.catPickerNone') }) }}
         </div>
         <IconPicker :model-value="catForm.icon" :max-height="170" @select="pickCatIcon" />
       </div>

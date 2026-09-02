@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.i18n import t
+
 
 # ---- 分组（M03-2/4）----
 class CategoryCreate(BaseModel):
@@ -16,7 +18,7 @@ class CategoryCreate(BaseModel):
     def _strip(cls, v: str) -> str:
         v = v.strip()
         if not v:
-            raise ValueError("分组名不能为空")
+            raise ValueError(t("v.category_empty"))
         return v
 
 
@@ -60,7 +62,7 @@ class AppUrlCreate(BaseModel):
     def _url_not_blank(cls, v: str) -> str:
         v = v.strip()
         if not v:
-            raise ValueError("url 不能为空")
+            raise ValueError(t("v.url_empty"))
         return v
 
     @field_validator("label")
@@ -110,7 +112,7 @@ class AppCreate(BaseModel):
     def _strip(cls, v: str) -> str:
         v = v.strip()
         if not v:
-            raise ValueError("应用名不能为空")
+            raise ValueError(t("v.app_name_empty"))
         return v
 
 

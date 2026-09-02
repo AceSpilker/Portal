@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '../router'
+import i18n from '../locales'
 import { useAuthStore } from '../stores/auth'
 import {
   currentSessionId,
@@ -44,6 +45,8 @@ request.interceptors.request.use(async (config) => {
   await ensureSession()
   // 会话 id 必须随每个请求携带（Authorization 头与请求体都按会话密钥加密，GET 无 body 时也不例外）
   config.headers['X-Session-Id'] = currentSessionId()
+  // 后端按语言偏好返回错误/提示文案（api-spec §1 通用约定）
+  config.headers['Accept-Language'] = localStorage.getItem('portal.locale') || 'zh-CN'
   if (auth.token) {
     config.headers.Authorization = await encryptHeaderValue(`Bearer ${auth.token}`)
   }
@@ -80,7 +83,7 @@ function logoutAndRedirect() {
   const auth = useAuthStore()
   auth.logout()
   if (router.currentRoute.value.name !== 'login') {
-    ElMessage.warning('登录已失效，请重新登录')
+    ElMessage.warning(i18n.global.t('request.sessionExpired'))
     router.push({ name: 'login' })
   }
 }
@@ -91,7 +94,7 @@ request.interceptors.response.use(
     const data = await decryptBody(resp.data)
     const body = data as ApiResponse
     if (body.code !== 0) {
-      return Promise.reject(new Error(body.message || `请求失败（${body.code}）`))
+      return Promise.reject(new Error(body.message || i18n.global.t('request.failed', { code: body.code })))
     }
     return body.data as never
   },

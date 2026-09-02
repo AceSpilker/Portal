@@ -1,6 +1,8 @@
 # Portal — NAS 门户系统设计方案
 
-> **版本**：v0.5 ｜ **日期**：2026-09-01 ｜ **状态**：开发中
+> **版本**：v0.6 ｜ **日期**：2026-09-02 ｜ **状态**：开发中
+>
+> **v0.6 变更**：§6 新增**国际化方案（i18n）**（中文默认 + 英文，前端 vue-i18n + 后端 Accept-Language 消息本地化）与**全局动效规范**（所有页面统一的进入动画，替代易死锁的顶层路由过渡）。
 >
 > **v0.5 变更**：UI 设计系统升级为**亮色现代风 v2**（浅色底 + 白色卡片 + 渐变主按钮 + 入场/悬停/路由过渡动效）；登录页移动端专项优化；路由改静态导入消除跳转空窗。
 >
@@ -387,6 +389,42 @@ REST 风格，前缀 `/api`，JWT 鉴权（登录/钩子除外）；FastAPI 自�
 - **触发重评估条件**：若移动端成为主要使用入口，或需要推送/扫码等原生能力，再评估 C 方案（uni-app/原生壳）。
 
 ---
+
+### 6.4 国际化方案（i18n，v0.6 定稿）
+
+**范围**：中文（zh-CN，默认）与英文（en）双语；覆盖前端全部界面文案 + 后端全部接口提示/错误文案。
+
+**前端**：
+
+| 项 | 方案 |
+|---|---|
+| 框架 | vue-i18n（Composition API，`legacy: false`） |
+| 语言包 | `src/locales/zh-CN.ts` / `en.ts` 按模块分组（common/nav/login/home/apps/settings/iconPicker） |
+| 默认语言 | zh-CN；用户切换后写入 `localStorage.portal.locale`，刷新保持 |
+| 切换入口 | 顶栏语言下拉（🌐 中文 / English），切换即时生效、无需刷新 |
+| 组件库文案 | Element Plus 经 `ElConfigProvider` 响应式传入对应语言包 |
+| 请求头 | axios 拦截器为每个请求附带 `Accept-Language`，驱动后端文案语言 |
+
+**后端**：
+
+| 项 | 方案 |
+|---|---|
+| 语言判定 | HTTP 中间件读 `Accept-Language`（`en*` → en，其余 → zh-CN），写入 contextvar |
+| 取词函数 | `app/core/i18n.py` 的 `t(key, **kwargs)`；消息表 `MESSAGES` 双语字典，缺失键回退 zh-CN |
+| 覆盖范围 | 全部 BizError 业务错误、ok 提示、pydantic 校验器文案、422 参数校验格式化（字段名标签双语） |
+| 校验器本地化 | pydantic field_validator 在请求上下文内执行，校验器直接 `raise ValueError(t(key))` |
+
+**新增文案约定**：界面文案一律不硬编码——前端进语言包、后端进 MESSAGES 并同时补 zh-CN/en 两种取值。
+
+### 6.5 全局动效规范（v0.6 定稿）
+
+| 项 | 规范 |
+|---|---|
+| 页面进入动画 | **所有路由页面统一**：`AppLayout` 内以 `:key="route.fullPath"` 的包裹层触发纯 CSS 动画 `page-in`（透明度 0→1 + 上移 10px，0.35s `cubic-bezier(0.22,1,0.36,1)`） |
+| 区块/卡片入场 | 各页面区块沿用 `fade-up`（0.7s）与 `stagger` 逐项延迟（0.05~0.33s）动画类 |
+| 悬停交互 | 卡片 `hover-lift`（上浮 + 阴影）、按钮渐变高亮 |
+| 禁用项 | **不使用顶层 `<transition mode="out-in">` 路由过渡**——多根组件或快速连续跳转会触发 Vue 过渡编排死锁（页面空白需刷新，见工作日志 019）；页面切换动效一律由 keyed 元素重放 CSS 动画实现 |
+| 降低动效偏好 | 遵循浏览器 `prefers-reduced-motion` 时可整体关闭（后续增强） |
 
 ## 7. 项目目录结构
 

@@ -14,6 +14,7 @@ import httpx
 from PIL import Image
 
 from app.core.config import settings
+from app.core.i18n import t
 from app.core.response import CODE_TARGET_UNREACHABLE, CODE_VALIDATION, BizError
 
 ICON_SIZE = 128
@@ -33,7 +34,7 @@ def icons_dir() -> Path:
 def save_icon(raw: bytes, filename: str = "") -> str:
     """保存并压缩图标，返回 /icons/<name> 相对 URL；非法图片抛 2001。"""
     if len(raw) > MAX_UPLOAD_BYTES:
-        raise BizError(CODE_VALIDATION, "图标文件不能超过 2MB", 422)
+        raise BizError(CODE_VALIDATION, t("err.icon_too_large"), 422)
     name = (filename or "").lower()
     head = raw.lstrip()[:5]
     is_svg = name.endswith(".svg") or head == b"<svg " or head == b"<?xml"
@@ -52,7 +53,7 @@ def save_icon(raw: bytes, filename: str = "") -> str:
         except BizError:
             raise
         except Exception as exc:
-            raise BizError(CODE_VALIDATION, "无法识别的图片文件", 422) from exc
+            raise BizError(CODE_VALIDATION, t("err.icon_unrecognized"), 422) from exc
     target = f"{uuid.uuid4().hex[:12]}{'.svg' if is_svg else '.png'}"
     (icons_dir() / target).write_bytes(raw)
     return f"/icons/{target}"
@@ -80,7 +81,7 @@ async def fetch_favicon(
     """
     parts = urlsplit(page_url)
     if parts.scheme not in ("http", "https") or not parts.netloc:
-        raise BizError(CODE_VALIDATION, "url 需为合法的 http(s) 地址", 422)
+        raise BizError(CODE_VALIDATION, t("err.bad_url"), 422)
 
     origin = f"{parts.scheme}://{parts.netloc}"
     candidates = [f"{origin}/favicon.ico"]
@@ -113,5 +114,7 @@ async def fetch_favicon(
                 ):
                     return resp.content
     except httpx.HTTPError as exc:  # 客户端级异常（如整体超时）
-        raise BizError(CODE_TARGET_UNREACHABLE, f"抓取图标失败：{exc.__class__.__name__}") from exc
-    raise BizError(CODE_TARGET_UNREACHABLE, "未能获取目标站图标")
+        raise BizError(
+            CODE_TARGET_UNREACHABLE, t("err.favicon_failed", reason=exc.__class__.__name__)
+        ) from exc
+    raise BizError(CODE_TARGET_UNREACHABLE, t("err.favicon_not_found"))

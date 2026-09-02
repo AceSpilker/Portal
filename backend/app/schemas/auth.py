@@ -4,19 +4,21 @@ import re
 
 from pydantic import BaseModel, field_validator
 
+from app.core.i18n import t
+
 _USERNAME_RE = re.compile(r"^[\w\-]{3,32}$")
 _PASSWORD_RE = re.compile(r"^(?=.*[A-Za-z])(?=.*\d).{8,}$")
 
 
 def validate_username(v: str) -> str:
     if not _USERNAME_RE.match(v):
-        raise ValueError("用户名需 3~32 位，仅限字母/数字/下划线/中划线")
+        raise ValueError(t("v.username_rule"))
     return v
 
 
 def validate_password(v: str) -> str:
     if not _PASSWORD_RE.match(v):
-        raise ValueError("密码至少 8 位，且同时包含字母与数字")
+        raise ValueError(t("v.password_rule"))
     return v
 
 

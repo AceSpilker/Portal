@@ -4,17 +4,19 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.i18n import t
+
 
 def _validate_name(v: str) -> str:
     v = v.strip()
     if not v:
-        raise ValueError("图标名称不能为空")
+        raise ValueError(t("v.icon_name_empty"))
     return v
 
 
 def _validate_data(v: Any) -> Any:
     if not isinstance(v, str) or not v.strip():
-        raise ValueError("图标数据不能为空")
+        raise ValueError(t("v.icon_data_empty"))
     return v
 
 

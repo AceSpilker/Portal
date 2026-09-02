@@ -2,12 +2,14 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { User as IconUser, Lock as IconLock } from '@element-plus/icons-vue'
 import AuroraBackground from '../components/AuroraBackground.vue'
 import { useAuthStore } from '../stores/auth'
 import { authApi } from '../api/auth'
 import { getHealth } from '../api/health'
 
+const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 
@@ -33,17 +35,17 @@ onMounted(async () => {
 async function handleLogin() {
   if (submitting.value) return
   if (!loginForm.username || !loginForm.password) {
-    ElMessage.warning('请输入用户名和密码')
+    ElMessage.warning(t('login.needUserPass'))
     return
   }
   submitting.value = true
   try {
     const resp = await authApi.login({ ...loginForm })
     auth.setSession(resp.access_token, resp.refresh_token, resp.user)
-    ElMessage.success(`欢迎回来，${resp.user.username}`)
+    ElMessage.success(t('login.welcomeBack', { name: resp.user.username }))
     router.push('/')
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '登录失败')
+    ElMessage.error(e instanceof Error ? e.message : t('login.failed'))
   } finally {
     submitting.value = false
   }
@@ -52,21 +54,21 @@ async function handleLogin() {
 async function handleInit() {
   if (submitting.value) return
   if (!initForm.username || !initForm.password) {
-    ElMessage.warning('请填写管理员账号与密码')
+    ElMessage.warning(t('login.needInitFields'))
     return
   }
   if (initForm.password !== initForm.confirm) {
-    ElMessage.warning('两次输入的密码不一致')
+    ElMessage.warning(t('login.passwordMismatch'))
     return
   }
   submitting.value = true
   try {
     const resp = await authApi.init({ ...initForm })
     auth.setSession(resp.access_token, resp.refresh_token, resp.user)
-    ElMessage.success('初始化完成，欢迎使用！')
+    ElMessage.success(t('login.initDone'))
     router.push('/')
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '初始化失败')
+    ElMessage.error(e instanceof Error ? e.message : t('login.initFailed'))
   } finally {
     submitting.value = false
   }
@@ -78,73 +80,73 @@ async function handleInit() {
   <div class="login-view">
     <AuroraBackground />
     <div class="page">
-    <!-- 品牌 -->
-    <div class="brand fade-up">
-      <span class="brand-text">Portal</span>
-      <span class="brand-sub">NAS 门户系统</span>
-    </div>
-
-    <!-- 卡片 -->
-    <div class="card glass fade-up" style="animation-delay: 0.12s">
-      <div v-if="mode === 'loading'" class="center">
-        <span class="spinner" />
-        <p class="muted">正在连接服务器…</p>
+      <!-- 品牌 -->
+      <div class="brand fade-up">
+        <span class="brand-text">Portal</span>
+        <span class="brand-sub">{{ t('login.brandSub') }}</span>
       </div>
 
-      <template v-else>
-        <div class="head stagger">
-          <h1>{{ mode === 'init' ? '初始化向导' : '欢迎回来' }}</h1>
-          <p class="muted">
-            {{ mode === 'init' ? '首次使用，创建管理员账号' : '登录以进入你的门户' }}
-          </p>
+      <!-- 卡片 -->
+      <div class="card glass fade-up" style="animation-delay: 0.12s">
+        <div v-if="mode === 'loading'" class="center">
+          <span class="spinner" />
+          <p class="muted">{{ t('login.connecting') }}</p>
         </div>
 
-        <el-alert
-          v-if="!backendUp"
-          type="error"
-          :closable="false"
-          show-icon
-          title="后端服务不可达，请确认服务已启动"
-          style="margin-bottom: 14px"
-        />
+        <template v-else>
+          <div class="head stagger">
+            <h1>{{ mode === 'init' ? t('login.initTitle') : t('login.loginTitle') }}</h1>
+            <p class="muted">
+              {{ mode === 'init' ? t('login.initSub') : t('login.loginSub') }}
+            </p>
+          </div>
 
-        <!-- 登录表单 -->
-        <el-form v-if="mode === 'login'" class="stagger" @submit.prevent="handleLogin">
-          <el-form-item>
-            <el-input v-model="loginForm.username" size="large" placeholder="用户名" :prefix-icon="IconUser" autocomplete="username" />
-          </el-form-item>
-          <el-form-item>
-            <el-input v-model="loginForm.password" size="large" type="password" show-password placeholder="密码" :prefix-icon="IconLock" autocomplete="current-password" />
-          </el-form-item>
-          <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" :disabled="!backendUp" native-type="submit">
-            登 录
-          </el-button>
-        </el-form>
+          <el-alert
+            v-if="!backendUp"
+            type="error"
+            :closable="false"
+            show-icon
+            :title="t('login.backendDown')"
+            style="margin-bottom: 14px"
+          />
 
-        <!-- 初始化表单 -->
-        <el-form v-else class="stagger" @submit.prevent="handleInit">
-          <el-form-item>
-            <el-input v-model="initForm.site_name" size="large" placeholder="站点名称（可修改）" />
-          </el-form-item>
-          <el-form-item>
-            <el-input v-model="initForm.username" size="large" placeholder="管理员用户名" :prefix-icon="IconUser" />
-          </el-form-item>
-          <el-form-item>
-            <el-input v-model="initForm.password" size="large" type="password" show-password placeholder="密码（≥8 位，含字母和数字）" :prefix-icon="IconLock" />
-          </el-form-item>
-          <el-form-item>
-            <el-input v-model="initForm.confirm" size="large" type="password" show-password placeholder="确认密码" :prefix-icon="IconLock" />
-          </el-form-item>
-          <el-button class="btn-gradient submit" size="large" type="primary" native-type="submit" :loading="submitting">
-            创建管理员并进入
-          </el-button>
-        </el-form>
+          <!-- 登录表单 -->
+          <el-form v-if="mode === 'login'" class="stagger" @submit.prevent="handleLogin">
+            <el-form-item>
+              <el-input v-model="loginForm.username" size="large" :placeholder="t('login.usernamePh')" :prefix-icon="IconUser" autocomplete="username" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="loginForm.password" size="large" type="password" show-password :placeholder="t('login.passwordPh')" :prefix-icon="IconLock" autocomplete="current-password" />
+            </el-form-item>
+            <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" :disabled="!backendUp" native-type="submit">
+              {{ t('login.loginBtn') }}
+            </el-button>
+          </el-form>
 
-        <p class="foot">加密传输已启用 · 数据安全传输</p>
-      </template>
-    </div>
+          <!-- 初始化表单 -->
+          <el-form v-else class="stagger" @submit.prevent="handleInit">
+            <el-form-item>
+              <el-input v-model="initForm.site_name" size="large" :placeholder="t('login.siteName')" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="initForm.username" size="large" :placeholder="t('login.username')" :prefix-icon="IconUser" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="initForm.password" size="large" type="password" show-password :placeholder="t('login.password')" :prefix-icon="IconLock" />
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="initForm.confirm" size="large" type="password" show-password :placeholder="t('login.confirm')" :prefix-icon="IconLock" />
+            </el-form-item>
+            <el-button class="btn-gradient submit" size="large" type="primary" native-type="submit" :loading="submitting">
+              {{ t('login.initBtn') }}
+            </el-button>
+          </el-form>
 
-    <p class="copyright fade-up" style="animation-delay: 0.3s">Portal · 自托管 NAS 门户</p>
+          <p class="foot">{{ t('login.encTip') }}</p>
+        </template>
+      </div>
+
+      <p class="copyright fade-up" style="animation-delay: 0.3s">Portal · {{ t('home.copyright') }}</p>
     </div>
   </div>
 </template>

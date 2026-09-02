@@ -33,3 +33,23 @@ def test_03_value_error_self_describing(client):
     )
     msg = _message(client, resp)
     assert msg == "参数校验失败：用户名需 3~32 位，仅限字母/数字/下划线/中划线"
+
+
+def test_04_accept_language_en(client):
+    """Accept-Language: en → 422 文案与错误提示整体切换英文。"""
+    resp = client.post(
+        "/api/auth/init",
+        json={"username": "admin", "password": "12345678"},
+        headers={"Accept-Language": "en"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["message"] == (
+        "Validation failed: Password needs 8+ characters with both letters and digits"
+    )
+    # 缺字段英文格式
+    resp = client.post(
+        "/api/auth/init",
+        json={"password": "abc12345"},
+        headers={"Accept-Language": "en"},
+    )
+    assert resp.json()["message"] == "Validation failed: username is required"

@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_admin
+from app.core.i18n import t
 from app.core.response import ok
 from app.db.session import get_session
 from app.models.setting import Setting
@@ -37,4 +38,4 @@ async def update_settings(
     for key, value in body.values.items():
         await session.merge(Setting(key=key, value=json.dumps(value, ensure_ascii=False)))
     await session.commit()
-    return ok(None, "设置已保存")
+    return ok(None, t("ok.settings_saved"))
