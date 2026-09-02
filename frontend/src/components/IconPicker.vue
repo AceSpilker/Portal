@@ -38,10 +38,27 @@ const search = ref('')
 
 const searching = computed(() => !!search.value.trim())
 const filteredElement = computed(() => filterElementIcons(search.value))
-const favorites = computed(() =>
+
+interface FavCell {
+  key: string
+  kind: IconPickKind
+  name: string
+  path?: string
+  component?: unknown
+}
+
+/** 常用精选：既可能是内置图标名，也可能是自定义图标路径（/icons/ 开头） */
+const favorites = computed<FavCell[]>(() =>
   settingsStore.iconFavorites
-    .filter((name) => ELEMENT_ICON_MAP[name])
-    .map((name) => ({ name, component: ELEMENT_ICON_MAP[name] })),
+    .map((key): FavCell | null => {
+      if (key.startsWith('/icons/')) {
+        const c = iconLibrary.customIcons.find((x) => x.path === key)
+        return c ? { key, kind: 'custom', name: c.name, path: c.path } : null
+      }
+      const comp = ELEMENT_ICON_MAP[key]
+      return comp ? { key, kind: 'element', name: key, component: comp } : null
+    })
+    .filter((f): f is FavCell => f !== null),
 )
 const customList = computed(() =>
   iconLibrary.customIcons
@@ -66,14 +83,15 @@ function select(kind: IconPickKind, value: string) {
       <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
         <button
           v-for="ic in favorites"
-          :key="`fav-${ic.name}`"
+          :key="`fav-${ic.key}`"
           type="button"
           class="picker-cell"
-          :class="{ active: modelValue === ic.name }"
+          :class="{ active: modelValue === ic.key }"
           :title="ic.name"
-          @click="select('element', ic.name)"
+          @click="select(ic.kind, ic.key)"
         >
-          <component :is="ic.component" class="picker-cell__svg" />
+          <img v-if="ic.kind === 'custom'" :src="ic.path" :alt="ic.name" class="picker-cell__img" />
+          <component :is="ic.component" v-else class="picker-cell__svg" />
         </button>
       </div>
     </template>

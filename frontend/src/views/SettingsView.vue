@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Collection as IconApps, Picture as IconLib, Setting as IconGeneral } from '@element-plus/icons-vue'
+import {
+  Collection as IconApps,
+  Delete as IconDelete,
+  Edit as IconEdit,
+  Picture as IconLib,
+  Setting as IconGeneral,
+} from '@element-plus/icons-vue'
 import { filterElementIcons } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
@@ -23,10 +29,35 @@ const tagOptions = ref<string[]>([])
 const newTag = ref('')
 
 // ---- 图标库 ----
-const iconTab = ref<'fav' | 'custom'>('fav')
 const iconSearch = ref('')
 const favDraft = ref<string[]>([])
 const filteredIcons = computed(() => filterElementIcons(iconSearch.value))
+
+interface IconCell {
+  kind: 'element' | 'custom'
+  key: string // element = 图标名；custom = /icons/ 路径
+  name: string
+  path?: string
+  component?: unknown
+  icon?: CustomIcon
+}
+
+/** 统一图标库网格：自定义图标置顶（可编辑/删除），其后为内置图标（可切换常用精选） */
+const iconCells = computed<IconCell[]>(() => {
+  const kw = iconSearch.value.trim().toLowerCase()
+  const customs = iconLibrary.customIcons
+    .filter((c) => !kw || c.name.toLowerCase().includes(kw))
+    .map((c) => ({ kind: 'custom' as const, key: c.path, name: c.name, path: c.path, icon: c }))
+  const elements = filteredIcons.value.map((ic) => ({
+    kind: 'element' as const,
+    key: ic.name,
+    name: ic.name,
+    component: ic.component,
+  }))
+  return [...customs, ...elements]
+})
+
+const isFav = (key: string) => favDraft.value.includes(key)
 
 // 自定义图标编辑弹窗
 const iconDialog = ref(false)
@@ -60,10 +91,10 @@ function removeTag(t: string) {
   tagOptions.value = tagOptions.value.filter((x) => x !== t)
 }
 
-function toggleFav(name: string) {
-  favDraft.value = favDraft.value.includes(name)
-    ? favDraft.value.filter((x) => x !== name)
-    : [...favDraft.value, name]
+function toggleFav(key: string) {
+  favDraft.value = favDraft.value.includes(key)
+    ? favDraft.value.filter((x) => x !== key)
+    : [...favDraft.value, key]
   if (favDraft.value.length > 100) {
     favDraft.value = favDraft.value.slice(0, 100)
     ElMessage.warning('常用图标最多 100 个')
@@ -79,6 +110,24 @@ function openIconCreate() {
 function openIconEdit(icon: CustomIcon) {
   iconForm.value = { id: icon.id, name: icon.name, data: '', filename: '', preview: icon.path }
   iconDialog.value = true
+}
+
+async function removeIcon(icon: CustomIcon) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除自定义图标「${icon.name}」？正在使用的图标无法删除。`,
+      '删除图标',
+      { type: 'warning', confirmButtonText: '删除' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await iconLibrary.remove(icon.id)
+    ElMessage.success('图标已删除')
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
 }
 
 function onIconFile(ev: Event) {
@@ -130,23 +179,6 @@ async function saveIcon() {
     ElMessage.error((e as Error).message)
   } finally {
     iconSaving.value = false
-  }
-}
-
-async function removeIcon(icon: CustomIcon) {
-  try {
-    await ElMessageBox.confirm(`确定删除自定义图标「${icon.name}」？正在使用的图标无法删除。`, '删除图标', {
-      type: 'warning',
-      confirmButtonText: '删除',
-    })
-  } catch {
-    return
-  }
-  try {
-    await iconLibrary.remove(icon.id)
-    ElMessage.success('图标已删除')
-  } catch (e) {
-    ElMessage.error((e as Error).message)
   }
 }
 
@@ -263,71 +295,71 @@ function saveIcons() {
         <header class="panel-head">
           <h3>图标库</h3>
           <p>
-            「常用精选」决定选择器置顶展示的内置图标；「自定义图标」支持上传图片，
-            可在新增/编辑应用与分组时选用。删除被引用的图标会自动拦截。
+            点击图标加入/移出「常用精选」，选择器会优先展示常用图标；自定义图标置顶展示，
+            悬停可编辑或删除（正在被使用的图标无法删除）。上传的图片会自动裁方压缩。
           </p>
         </header>
-        <el-tabs v-model="iconTab" class="panel-body icons-body">
-          <el-tab-pane label="常用精选" name="fav">
-            <div class="icons-body">
-              <el-input
-                v-model="iconSearch"
-                placeholder="搜索图标名，如 monitor / folder"
-                clearable
-                class="icons-search"
-              />
-              <div class="icon-manage-grid">
-                <button
-                  v-for="ic in filteredIcons"
-                  :key="ic.name"
-                  type="button"
-                  class="im-cell"
-                  :class="{ active: favDraft.includes(ic.name) }"
-                  :title="ic.name"
-                  @click="toggleFav(ic.name)"
-                >
-                  <component :is="ic.component" class="im-svg" />
-                  <span class="im-name">{{ ic.name }}</span>
-                </button>
-                <div v-if="!filteredIcons.length" class="im-empty">没有匹配的图标</div>
-              </div>
-              <el-button
-                type="primary"
-                class="btn-gradient"
-                :loading="saving"
-                @click="saveIcons"
+        <div class="panel-body icons-body">
+          <div class="icons-toolbar">
+            <el-input
+              v-model="iconSearch"
+              placeholder="搜索图标名，如 monitor / folder"
+              clearable
+              class="icons-search"
+            />
+            <div class="spacer" />
+            <el-button type="primary" class="btn-gradient" @click="openIconCreate">
+              + 新增图标
+            </el-button>
+          </div>
+          <div class="icon-manage-grid">
+            <div
+              v-for="cell in iconCells"
+              :key="cell.kind + cell.key"
+              class="im-cell"
+              :class="{ active: isFav(cell.key), custom: cell.kind === 'custom' }"
+            >
+              <button
+                type="button"
+                class="im-main"
+                :title="cell.kind === 'custom' ? `${cell.name}（点击加入/移出常用精选）` : `${cell.name}（点击加入/移出常用精选）`"
+                @click="toggleFav(cell.key)"
               >
-                保存常用精选（{{ favDraft.length }}）
-              </el-button>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane :label="`自定义图标（${iconLibrary.customIcons.length}）`" name="custom">
-            <div class="icons-body">
-              <div class="custom-toolbar">
-                <p class="muted-tip">上传的图片会自动裁方压缩；正在被应用/分组使用的图标不可删除。</p>
-                <el-button type="primary" class="btn-gradient" @click="openIconCreate">
-                  + 新增图标
-                </el-button>
-              </div>
-              <div class="custom-grid">
-                <div v-for="c in iconLibrary.customIcons" :key="c.id" class="custom-card">
-                  <img :src="c.path" :alt="c.name" class="custom-thumb" />
-                  <span class="custom-name" :title="c.name">{{ c.name }}</span>
-                  <div class="custom-ops">
-                    <el-button link type="primary" @click="openIconEdit(c)">编辑</el-button>
-                    <el-button link type="danger" @click="removeIcon(c)">删除</el-button>
-                  </div>
-                </div>
-                <el-empty
-                  v-if="!iconLibrary.customIcons.length"
-                  description="还没有自定义图标，点击右上角「新增图标」上传"
-                  :image-size="72"
-                />
+                <img v-if="cell.kind === 'custom'" :src="cell.path" :alt="cell.name" class="im-img" />
+                <component v-else :is="cell.component" class="im-svg" />
+                <span class="im-name">{{ cell.name }}</span>
+              </button>
+              <div v-if="cell.kind === 'custom'" class="im-ops">
+                <button
+                  type="button"
+                  class="im-op"
+                  title="编辑"
+                  @click.stop="openIconEdit(cell.icon!)"
+                >
+                  <el-icon :size="11"><IconEdit /></el-icon>
+                </button>
+                <button
+                  type="button"
+                  class="im-op danger"
+                  title="删除"
+                  @click.stop="removeIcon(cell.icon!)"
+                >
+                  <el-icon :size="11"><IconDelete /></el-icon>
+                </button>
               </div>
             </div>
-          </el-tab-pane>
-        </el-tabs>
+            <div v-if="!iconCells.length" class="im-empty">没有匹配的图标</div>
+          </div>
+          <el-button
+            type="primary"
+            class="btn-gradient"
+            :loading="saving"
+            style="align-self: flex-start"
+            @click="saveIcons"
+          >
+            保存常用精选（{{ favDraft.length }}）
+          </el-button>
+        </div>
 
         <!-- 新增/编辑自定义图标 -->
         <el-dialog
@@ -443,51 +475,10 @@ function saveIcons() {
 .icons-search {
   max-width: 320px;
 }
-.custom-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 .muted-tip {
   margin: 0;
   font-size: 12.5px;
   color: var(--p-muted);
-}
-.custom-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
-}
-.custom-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 8px 8px;
-  border: 1px solid var(--p-card-border);
-  border-radius: 12px;
-  background: #fff;
-}
-.custom-thumb {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  border-radius: 8px;
-}
-.custom-name {
-  font-size: 12.5px;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.custom-ops {
-  display: flex;
-}
-.custom-ops .el-button + .el-button {
-  margin-left: 2px;
 }
 .icon-dialog-body {
   display: flex;
@@ -519,55 +510,122 @@ function saveIcons() {
   gap: 10px;
 }
 /* 图标库管理 */
-.icon-manage-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
-  gap: 6px;
-  max-height: 460px;
-  overflow-y: auto;
-  padding: 8px;
-  border: 1px solid var(--p-card-border);
-  border-radius: 12px;
-}
-.im-cell {
+.icons-body {
   display: flex;
   flex-direction: column;
+  gap: 16px; /* 检索框与图标区等区块间距 */
+}
+.icons-search {
+  max-width: 320px;
+}
+.icons-toolbar {
+  display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 10px 4px 7px;
+  gap: 12px;
+}
+.spacer {
+  flex: 1;
+}
+.icon-manage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 12px;
+  align-content: start;
+}
+.im-cell {
+  position: relative;
   border: 1px solid var(--p-card-border);
   border-radius: 10px;
   background: #fff;
-  color: var(--p-text);
-  cursor: pointer;
-  transition:
-    border-color 0.12s,
-    background 0.12s,
-    color 0.12s;
+  transition: border-color 0.12s, background 0.12s;
 }
 .im-cell:hover {
   border-color: var(--p-primary);
-  color: var(--p-primary);
 }
 .im-cell.active {
-  background: rgba(91, 95, 241, 0.1);
+  background: rgba(91, 95, 241, 0.08);
   border-color: var(--p-primary);
+}
+.im-main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 6px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--p-text);
+  cursor: pointer;
+}
+.im-main:hover {
+  color: var(--p-primary);
+}
+.im-cell.active .im-main {
   color: var(--p-primary);
 }
 .im-svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+.im-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 6px;
 }
 .im-name {
-  font-size: 10px;
-  max-width: 78px;
+  font-size: 11px;
+  max-width: 88px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--p-muted);
 }
-.im-cell.active .im-name {
+.im-cell.active .im-name,
+.im-main:hover .im-name {
   color: var(--p-primary);
+}
+/* 悬停显示的自定义图标操作按钮 */
+.im-ops {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.im-cell:hover .im-ops,
+.im-cell.custom:focus-within .im-ops {
+  opacity: 1;
+}
+.im-op {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(23, 33, 58, 0.08);
+  color: var(--p-text);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.im-op:hover {
+  background: rgba(91, 95, 241, 0.18);
+  color: var(--p-primary);
+}
+.im-op.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }
 .im-empty {
   grid-column: 1 / -1;
