@@ -21,6 +21,7 @@
 | 枚举 | `access_type`: domain/lan/ssh/vpn/custom；`role`: admin/user；`state`: up/down/unknown；`level`: info/warn/error；`trigger_type`: cron/webhook/manual/event；`open_mode`: newtab/current/iframe |
 | 文档 | FastAPI 自动生成 `/docs`（OpenAPI），本文为业务契约补充 |
 | 传输加密 | `/api` 全部密文传输（RSA+AES-GCM 信封，见 §7）；豁免：health、crypto 握手、静态资源 |
+| 导出文件名 | `前缀_YYYYMMDDHHMMSS_RRR.后缀`：本地时间年月日时分秒 + 3 位随机数（000–999），避免同名覆盖（例：`portal-apps_20260902153045_123.json`）；适用于所有导出场景（应用/备份/报表等），由前端统一工具函数生成 |
 
 ## 2. 错误码表
 

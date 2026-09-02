@@ -140,6 +140,7 @@
       <tr><td>核心枚举</td><td><code>access_type</code>: domain/lan/ssh/vpn/custom；<code>role</code>: admin/user；<code>state</code>: up/down/unknown；<code>level</code>: info/warn/error；<code>trigger_type</code>: cron/webhook/manual/event；<code>open_mode</code>: newtab/current/iframe</td></tr>
       <tr><td>文档</td><td>FastAPI 自动 <code>/docs</code>（OpenAPI）；本文为业务契约补充</td></tr>
       <tr><td>传输加密</td><td><code>/api</code> 全部密文传输（RSA+AES-GCM 信封，见 §7 传输加密协议）；豁免：health、crypto 握手、静态资源</td></tr>
+      <tr><td>导出文件名</td><td><code>前缀_YYYYMMDDHHMMSS_RRR.后缀</code>：本地时间年月日时分秒 + 3 位随机数（000–999），避免同名覆盖（例：<code>portal-apps_20260902153045_123.json</code>）；适用于所有导出场景（应用/备份/报表等），由前端统一工具函数生成</td></tr>
     </tbody>
   </table>
 </section>

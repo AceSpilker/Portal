@@ -22,6 +22,7 @@ import { useSettingsStore } from '../stores/settings'
 import AppIcon from '../components/AppIcon.vue'
 import IconPicker from '../components/IconPicker.vue'
 import type { IconPick } from '../components/IconPicker.vue'
+import { makeExportFilename } from '../utils/export'
 import { isMobile } from '../composables/useIsMobile'
 
 const auth = useAuthStore()
@@ -460,7 +461,7 @@ async function doExport() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `portal-apps-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = makeExportFilename('portal-apps', 'json')
     a.click()
     URL.revokeObjectURL(a.href)
   } catch (e) {
