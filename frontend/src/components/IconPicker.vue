@@ -69,7 +69,13 @@ const allCells = computed<PickCell[]>(() => {
       component: ELEMENT_ICON_MAP[i.element_name ?? i.name],
       favorite: favs.includes(i.element_name ?? i.name),
     }))
-  return [...customs, ...builtins].sort((a, b) => a.name.localeCompare(b.name))
+  // 常用精选排最前（保持设置页 curated 的顺序），其余按名称排序
+  const favRank = new Map(favs.map((key, idx) => [key, idx]))
+  const rank = (c: PickCell) => favRank.get(c.key) ?? Number.MAX_SAFE_INTEGER
+  return [...customs, ...builtins].sort((a, b) => {
+    const diff = rank(a) - rank(b)
+    return diff !== 0 ? diff : a.name.localeCompare(b.name)
+  })
 })
 
 const gridCells = computed<PickCell[]>(() =>
