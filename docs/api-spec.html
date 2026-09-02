@@ -225,6 +225,11 @@
     <tr><td class="c">label / sort</td><td class="c">TEXT/INT</td><td>标签与排序</td></tr>
   </tbody></table>
 
+  <h4>custom_icons <span class="badge m1">M1 增强</span></h4>
+  <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
+    <tr><td class="c">name</td><td class="c">TEXT</td><td>UNIQUE NOT NULL（≤32）</td></tr>
+    <tr><td class="c">path</td><td class="c">TEXT</td><td>UNIQUE /icons/&lt;file&gt;；删除前校验引用（4003）</td></tr>
+  </tbody></table>
   <p><strong>dashboard_layouts</strong>（M1）：id；user_id FK；tab（标签页名）；sort；layout(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。</p>
 
   <h3 id="dm-env">3.3 网络环境</h3>
@@ -318,7 +323,7 @@
 
   <h3 id="api-apps">4.2 分类与应用</h3>
   <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
-    <tr><td class="c">CRUD</td><td class="c">/api/categories · /{id} · /sort</td><td>分组 CRUD / 排序</td><td class="c">A读 M写</td><td class="c">P2</td></tr>
+    <tr><td class="c">CRUD</td><td class="c">/api/categories · /{id} · /sort</td><td>分组 CRUD / 排序</td><td class="c">A读 M写</td><td class="c">P2</td></tr><tr><td class="c">CRUD</td><td class="c">/api/icons（/{id}）</td><td>自定义图标管理：列表 A 读；增删改 M 写；被引用删除返回 4003</td><td class="c">A读 M写</td><td class="c">P2 增强</td></tr>
     <tr><td class="c">GET/POST</td><td class="c">/api/apps · /{id}</td><td>应用列表（聚合状态点、按可见性过滤）/ CRUD</td><td class="c">A读 M写</td><td class="c">P2</td></tr>
     <tr><td class="c">PUT</td><td class="c">/api/apps/sort</td><td>批量保存排序与分组</td><td class="c">M</td><td class="c">P2</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/apps/{id}/favorite</td><td>收藏 / 取消</td><td class="c">A</td><td class="c">P4</td></tr>

@@ -77,3 +77,17 @@ class AppUrl(Base, TimestampMixin):
     sort: Mapped[int] = mapped_column(Integer, default=0)
 
     app: Mapped[App] = relationship(back_populates="urls")
+
+
+class CustomIcon(Base, TimestampMixin):
+    """自定义图标（图标库管理）：上传图片经压方存储，可被应用/分组引用。
+
+    引用方式：apps/categories 的 icon 存 path、icon_type='upload'；
+    删除前需检查引用，避免悬空。
+    """
+
+    __tablename__ = "custom_icons"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(32), unique=True)
+    path: Mapped[str] = mapped_column(String(256), unique=True)  # /icons/<file> 静态路径

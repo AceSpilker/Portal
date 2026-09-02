@@ -21,6 +21,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import AppIcon from '../components/AppIcon.vue'
 import IconPicker from '../components/IconPicker.vue'
+import type { IconPick } from '../components/IconPicker.vue'
 import { isMobile } from '../composables/useIsMobile'
 
 const auth = useAuthStore()
@@ -327,6 +328,14 @@ async function grabFavicon() {
   }
 }
 
+/** 图标库选中：element 写图标名，custom 写 /icons/ 路径并切到 upload 类型 */
+function pickAppIcon(sel: IconPick) {
+  draft.value.icon = sel.value
+  if (sel.value) {
+    draft.value.icon_type = sel.kind === 'custom' ? 'upload' : 'element'
+  }
+}
+
 // ============ 分组管理 ============
 const catDialog = ref(false)
 const catSaving = ref(false)
@@ -337,10 +346,10 @@ const catForm = ref({
   icon_type: 'element' as string | null,
 })
 
-function pickCatIcon(name: string) {
-  catForm.value.icon = name
-  // 用户在新选择器中选了图标 → 标记为 element 类型（编辑历史 emoji 分组时覆盖）
-  if (name) catForm.value.icon_type = 'element'
+function pickCatIcon(sel: IconPick) {
+  catForm.value.icon = sel.value
+  // element → 图标名；custom → /icons/ 路径（upload 类型）
+  catForm.value.icon_type = sel.value ? (sel.kind === 'custom' ? 'upload' : 'element') : catForm.value.icon_type
 }
 
 function openCatCreate() {
@@ -600,7 +609,11 @@ async function doExport() {
                 <input ref="iconFileInput" type="file" accept="image/*" hidden @change="onIconFile" />
               </template>
               <template v-else>
-                <IconPicker v-model="draft.icon" :max-height="200" />
+                <IconPicker
+                  :model-value="draft.icon"
+                  :max-height="200"
+                  @select="pickAppIcon"
+                />
               </template>
             </div>
           </el-form-item>
@@ -736,11 +749,7 @@ async function doExport() {
         <div class="cat-picker-label">
           分组图标（当前：{{ catForm.icon || '无' }}）
         </div>
-        <IconPicker
-          :model-value="catForm.icon"
-          :max-height="170"
-          @update:model-value="pickCatIcon"
-        />
+        <IconPicker :model-value="catForm.icon" :max-height="170" @select="pickCatIcon" />
       </div>
     </el-dialog>
   </div>

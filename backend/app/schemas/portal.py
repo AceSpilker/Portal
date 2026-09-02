@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     icon: str | None = None
-    icon_type: str | None = Field(default=None, pattern="^(emoji|element)$")
+    icon_type: str | None = Field(default=None, pattern="^(emoji|element|upload)$")
     sort: int = 0
     collapsed: bool = False
 
@@ -23,7 +23,7 @@ class CategoryCreate(BaseModel):
 class CategoryUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=64)
     icon: str | None = None
-    icon_type: str | None = Field(default=None, pattern="^(emoji|element)$")
+    icon_type: str | None = Field(default=None, pattern="^(emoji|element|upload)$")
     sort: int | None = None
     collapsed: bool | None = None
 

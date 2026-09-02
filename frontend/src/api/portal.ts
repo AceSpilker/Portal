@@ -1,7 +1,7 @@
 import request from './request'
 
 export type AccessType = 'domain' | 'lan' | 'ssh' | 'vpn' | 'custom'
-export type IconType = 'url' | 'upload' | 'emoji'
+export type IconType = 'url' | 'upload' | 'emoji' | 'element'
 export type OpenMode = 'newtab' | 'current' | 'iframe'
 export type Visibility = 'all' | 'admin' | 'users'
 export type HealthType = '' | 'http' | 'tcp' | 'keyword'

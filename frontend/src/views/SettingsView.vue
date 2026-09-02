@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Collection as IconApps, Picture as IconLib, Setting as IconGeneral } from '@element-plus/icons-vue'
 import { filterElementIcons } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
+import { useIconLibraryStore } from '../stores/iconLibrary'
+import type { CustomIcon } from '../api/icons'
+import { isMobile } from '../composables/useIsMobile'
 
 const settingsStore = useSettingsStore()
+const iconLibrary = useIconLibraryStore()
 
 type MenuKey = 'general' | 'apps' | 'icons'
 const active = ref<MenuKey>('general')
@@ -19,12 +23,19 @@ const tagOptions = ref<string[]>([])
 const newTag = ref('')
 
 // ---- 图标库 ----
+const iconTab = ref<'fav' | 'custom'>('fav')
 const iconSearch = ref('')
 const favDraft = ref<string[]>([])
 const filteredIcons = computed(() => filterElementIcons(iconSearch.value))
 
+// 自定义图标编辑弹窗
+const iconDialog = ref(false)
+const iconSaving = ref(false)
+const iconForm = ref({ id: undefined as number | undefined, name: '', data: '', filename: '', preview: '' })
+const iconFileInput = ref<HTMLInputElement>()
+
 onMounted(async () => {
-  await settingsStore.load(true)
+  await Promise.all([settingsStore.load(true), iconLibrary.load(true)])
   siteName.value = settingsStore.siteName
   tagOptions.value = [...settingsStore.tagOptions]
   favDraft.value = [...settingsStore.iconFavorites]
@@ -56,6 +67,86 @@ function toggleFav(name: string) {
   if (favDraft.value.length > 100) {
     favDraft.value = favDraft.value.slice(0, 100)
     ElMessage.warning('常用图标最多 100 个')
+  }
+}
+
+// ---- 自定义图标 CRUD ----
+function openIconCreate() {
+  iconForm.value = { id: undefined, name: '', data: '', filename: '', preview: '' }
+  iconDialog.value = true
+}
+
+function openIconEdit(icon: CustomIcon) {
+  iconForm.value = { id: icon.id, name: icon.name, data: '', filename: '', preview: icon.path }
+  iconDialog.value = true
+}
+
+function onIconFile(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('图标文件不能超过 2MB')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const dataUrl = reader.result as string
+    iconForm.value.preview = dataUrl
+    iconForm.value.data = dataUrl.split(',')[1] ?? ''
+    if (!iconForm.value.name) iconForm.value.name = file.name.replace(/\.[^.]+$/, '').slice(0, 32)
+  }
+  reader.readAsDataURL(file)
+}
+
+async function saveIcon() {
+  if (!iconForm.value.name.trim()) {
+    ElMessage.warning('请填写图标名称')
+    return
+  }
+  if (!iconForm.value.id && !iconForm.value.data) {
+    ElMessage.warning('请选择图标图片')
+    return
+  }
+  iconSaving.value = true
+  try {
+    if (iconForm.value.id) {
+      await iconLibrary.update(iconForm.value.id, {
+        name: iconForm.value.name.trim(),
+        ...(iconForm.value.data ? { data: iconForm.value.data, filename: iconForm.value.filename } : {}),
+      })
+      ElMessage.success('图标已更新')
+    } else {
+      await iconLibrary.create({
+        name: iconForm.value.name.trim(),
+        data: iconForm.value.data,
+        filename: iconForm.value.filename,
+      })
+      ElMessage.success('图标已添加')
+    }
+    iconDialog.value = false
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    iconSaving.value = false
+  }
+}
+
+async function removeIcon(icon: CustomIcon) {
+  try {
+    await ElMessageBox.confirm(`确定删除自定义图标「${icon.name}」？正在使用的图标无法删除。`, '删除图标', {
+      type: 'warning',
+      confirmButtonText: '删除',
+    })
+  } catch {
+    return
+  }
+  try {
+    await iconLibrary.remove(icon.id)
+    ElMessage.success('图标已删除')
+  } catch (e) {
+    ElMessage.error((e as Error).message)
   }
 }
 
@@ -172,42 +263,106 @@ function saveIcons() {
         <header class="panel-head">
           <h3>图标库</h3>
           <p>
-            管理图标选择器的「常用」精选（当前 {{ favDraft.length }} 个）——点击下方图标加入/移出常用，
-            保存后新建应用、分组弹窗的图标选择器会优先展示常用图标。
+            「常用精选」决定选择器置顶展示的内置图标；「自定义图标」支持上传图片，
+            可在新增/编辑应用与分组时选用。删除被引用的图标会自动拦截。
           </p>
         </header>
-        <div class="panel-body">
-          <el-input
-            v-model="iconSearch"
-            placeholder="搜索图标名，如 monitor / folder"
-            clearable
-            style="max-width: 320px"
-          />
-          <div class="icon-manage-grid">
-            <button
-              v-for="ic in filteredIcons"
-              :key="ic.name"
-              type="button"
-              class="im-cell"
-              :class="{ active: favDraft.includes(ic.name) }"
-              :title="ic.name"
-              @click="toggleFav(ic.name)"
-            >
-              <component :is="ic.component" class="im-svg" />
-              <span class="im-name">{{ ic.name }}</span>
-            </button>
-            <div v-if="!filteredIcons.length" class="im-empty">没有匹配的图标</div>
+        <el-tabs v-model="iconTab" class="panel-body icons-body">
+          <el-tab-pane label="常用精选" name="fav">
+            <div class="icons-body">
+              <el-input
+                v-model="iconSearch"
+                placeholder="搜索图标名，如 monitor / folder"
+                clearable
+                class="icons-search"
+              />
+              <div class="icon-manage-grid">
+                <button
+                  v-for="ic in filteredIcons"
+                  :key="ic.name"
+                  type="button"
+                  class="im-cell"
+                  :class="{ active: favDraft.includes(ic.name) }"
+                  :title="ic.name"
+                  @click="toggleFav(ic.name)"
+                >
+                  <component :is="ic.component" class="im-svg" />
+                  <span class="im-name">{{ ic.name }}</span>
+                </button>
+                <div v-if="!filteredIcons.length" class="im-empty">没有匹配的图标</div>
+              </div>
+              <el-button
+                type="primary"
+                class="btn-gradient"
+                :loading="saving"
+                @click="saveIcons"
+              >
+                保存常用精选（{{ favDraft.length }}）
+              </el-button>
+            </div>
+          </el-tab-pane>
+
+          <el-tab-pane :label="`自定义图标（${iconLibrary.customIcons.length}）`" name="custom">
+            <div class="icons-body">
+              <div class="custom-toolbar">
+                <p class="muted-tip">上传的图片会自动裁方压缩；正在被应用/分组使用的图标不可删除。</p>
+                <el-button type="primary" class="btn-gradient" @click="openIconCreate">
+                  + 新增图标
+                </el-button>
+              </div>
+              <div class="custom-grid">
+                <div v-for="c in iconLibrary.customIcons" :key="c.id" class="custom-card">
+                  <img :src="c.path" :alt="c.name" class="custom-thumb" />
+                  <span class="custom-name" :title="c.name">{{ c.name }}</span>
+                  <div class="custom-ops">
+                    <el-button link type="primary" @click="openIconEdit(c)">编辑</el-button>
+                    <el-button link type="danger" @click="removeIcon(c)">删除</el-button>
+                  </div>
+                </div>
+                <el-empty
+                  v-if="!iconLibrary.customIcons.length"
+                  description="还没有自定义图标，点击右上角「新增图标」上传"
+                  :image-size="72"
+                />
+              </div>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+
+        <!-- 新增/编辑自定义图标 -->
+        <el-dialog
+          v-model="iconDialog"
+          :title="iconForm.id ? '编辑自定义图标' : '新增自定义图标'"
+          :width="isMobile ? '94%' : '420px'"
+          append-to-body
+        >
+          <div class="icon-dialog-body">
+            <div class="icon-dialog-preview">
+              <img v-if="iconForm.preview" :src="iconForm.preview" alt="" />
+              <span v-else>?</span>
+            </div>
+            <div class="icon-dialog-fields">
+              <el-input v-model="iconForm.name" placeholder="图标名称（如 qBittorrent）" maxlength="32" />
+              <el-button @click="iconFileInput?.click()">
+                {{ iconForm.id && !iconForm.data ? '更换图片' : '选择图片' }}
+              </el-button>
+              <input
+                ref="iconFileInput"
+                type="file"
+                accept="image/*"
+                hidden
+                @change="onIconFile"
+              />
+              <p class="muted-tip">支持 PNG / JPG / SVG / WebP，≤2MB，自动裁方压缩。</p>
+            </div>
           </div>
-          <el-button
-            type="primary"
-            class="btn-gradient"
-            :loading="saving"
-            style="margin-top: 16px"
-            @click="saveIcons"
-          >
-            保存
-          </el-button>
-        </div>
+          <template #footer>
+            <el-button @click="iconDialog = false">取消</el-button>
+            <el-button type="primary" class="btn-gradient" :loading="iconSaving" @click="saveIcon">
+              保存
+            </el-button>
+          </template>
+        </el-dialog>
       </template>
     </section>
   </div>
@@ -275,6 +430,93 @@ function saveIcons() {
 }
 .tag-input {
   width: 200px;
+}
+/* 图标库管理 */
+.icons-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* 检索框与图标区等区块间距 */
+}
+.icons-body :deep(.el-tabs__content) {
+  overflow: visible;
+}
+.icons-search {
+  max-width: 320px;
+}
+.custom-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.muted-tip {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--p-muted);
+}
+.custom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.custom-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px 8px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 12px;
+  background: #fff;
+}
+.custom-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.custom-name {
+  font-size: 12.5px;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.custom-ops {
+  display: flex;
+}
+.custom-ops .el-button + .el-button {
+  margin-left: 2px;
+}
+.icon-dialog-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.icon-dialog-preview {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border: 1px dashed var(--p-card-border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--p-muted);
+  overflow: hidden;
+}
+.icon-dialog-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.icon-dialog-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 /* 图标库管理 */
 .icon-manage-grid {

@@ -77,6 +77,8 @@
 
 **app_urls**（M1）：id；app_id FK CASCADE；access_type TEXT NOT NULL（domain/lan/ssh/vpn/custom）；url TEXT NOT NULL；label TEXT ''；sort INT 0。
 
+**custom_icons**（M1 增强）：id；name UNIQUE NOT NULL（≤32 字符）；path UNIQUE（/icons/<file> 静态路径）；created_at/updated_at。删除前校验 apps/categories 引用（icon_type='upload' 且 icon=path），被引用时返回 4003。
+
 **dashboard_layouts**（M1）：id；user_id FK；tab TEXT（标签页名）；sort INT；layout TEXT(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。
 
 ### 3.3 网络环境与访问解析
@@ -189,6 +191,7 @@
 | POST | /api/apps/{id}/restore · DELETE /api/apps/{id}/purge | 回收站恢复/彻底删除 | M | M2 |
 | POST | /api/apps/{id}/check | 立即探活一次 | A | P6 |
 | GET | /api/apps/{id}/history?range=24h | 探活历史/可用率 | A | M2 |
+| GET/POST/PUT/DELETE | /api/icons（/{id}） | 自定义图标库管理：列表（A 读）/ 新增 / 编辑（改名/换图）/ 删除（M，被引用 4003） | M 写 A 读 | P2 增强 |
 | POST | /api/apps/upload-icon | 图标上传：`{filename, data(base64)}` 随加密信封传输（不用 multipart，保持全链路密文），压方存 /app/data/icons，经 `/icons/*` 静态托管 | M | P2 |
 | GET | /api/apps/favicon?url= | 抓取目标站图标（favicon.ico → 页面 link → 兜底源；失败 4004），落 /icons 返回路径 | M | P2 |
 
