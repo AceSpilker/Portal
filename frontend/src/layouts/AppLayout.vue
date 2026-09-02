@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
-import { setLocale } from '../locales'
 import { isMobile, isTablet } from '../composables/useIsMobile'
 import {
   Grid as IconApps,
@@ -27,7 +26,7 @@ interface NavItem {
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 
@@ -49,11 +48,6 @@ const pageTitle = computed(() => {
   return key ? t(key) : 'Portal'
 })
 const brand = computed(() => settingsStore.siteName)
-
-const currentLocale = computed(() => (locale.value === 'en' ? 'English' : '中文'))
-function switchLocale(lang: 'zh-CN' | 'en') {
-  setLocale(lang)
-}
 
 /** 页面路由切换全局入场动画的 key */
 const animKey = computed(() => route.fullPath)
@@ -112,17 +106,6 @@ function logout() {
       <header class="topbar">
         <h2>{{ pageTitle }}</h2>
         <div class="topbar-right">
-          <el-dropdown trigger="click" @command="switchLocale">
-            <button type="button" class="lang-btn" :title="currentLocale">
-              🌐 {{ currentLocale }}
-            </button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="zh-CN">中文</el-dropdown-item>
-                <el-dropdown-item command="en">English</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
           <span class="env">{{ t('common.envHome') }}</span>
           <el-button
             class="btn-logout-mobile"
@@ -316,24 +299,6 @@ function logout() {
     opacity: 1;
     transform: translateY(0);
   }
-}
-.lang-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--p-card-border);
-  background: #fff;
-  color: var(--p-muted);
-  font-size: 12.5px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.2s, border-color 0.2s;
-}
-.lang-btn:hover {
-  color: var(--p-primary);
-  border-color: var(--p-primary);
 }
 .page > * {
   flex-shrink: 0;
