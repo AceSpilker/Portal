@@ -33,7 +33,7 @@ def unb64(text: str) -> bytes:
 class TransportCrypto:
     def __init__(self) -> None:
         self._priv: rsa.RSAPrivateKey | None = None
-        self._pub_pem = b""
+        self._pub_spki_b64 = ""
         self._kid = ""
         self._sessions: OrderedDict[str, bytes] = OrderedDict()
         self._seen: dict[str, OrderedDict[str, None]] = {}
@@ -60,22 +60,21 @@ class TransportCrypto:
                     serialization.NoEncryption(),
                 )
             )
-        pub = self._priv.public_key()
-        self._pub_pem = pub.public_bytes(
-            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        self._kid = hashlib.sha256(pub.public_bytes(
+        pub_der = self._priv.public_key().public_bytes(
             serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
-        )).hexdigest()[:16]
+        )
+        self._pub_spki_b64 = b64(pub_der)
+        self._kid = hashlib.sha256(pub_der).hexdigest()[:16]
 
     @property
     def key_id(self) -> str:
         self._ensure_rsa()
         return self._kid
 
-    def public_key_pem(self) -> str:
+    def public_key_spki_b64(self) -> str:
+        """WebCrypto 直用格式：base64(SPKI DER)。"""
         self._ensure_rsa()
-        return self._pub_pem.decode()
+        return self._pub_spki_b64
 
     # ---- 会话密钥 ----
 
@@ -92,8 +91,6 @@ class TransportCrypto:
         )
         if len(aes) != 32:
             raise ValueError("session key must be 32 bytes")
-        import sys as _sys
-        print(f"[DBG] register sid={session_id!r} key_head={aes[:4].hex()}", file=_sys.stderr)
         with self._lock:
             self._sessions[session_id] = aes
             self._sessions.move_to_end(session_id)
@@ -103,9 +100,6 @@ class TransportCrypto:
     def session_key(self, session_id: str) -> bytes | None:
         with self._lock:
             key = self._sessions.get(session_id)
-            if key is not None:
-                import sys as _sys
-                print(f"[DBG] lookup sid={session_id!r} key_head={key[:4].hex()}", file=_sys.stderr)
             if key is not None:
                 self._sessions.move_to_end(session_id)
             return key

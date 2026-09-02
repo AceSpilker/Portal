@@ -20,6 +20,13 @@ function toB64(buf: ArrayBufferLike | Uint8Array): string {
   return btoa(bin)
 }
 
+/** 兼容 PEM（去头尾去空白）与裸 base64 两种公钥格式。 */
+function normalizePublicKey(publicKey: string): string {
+  return publicKey.includes('BEGIN')
+    ? publicKey.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '')
+    : publicKey
+}
+
 function fromB64(text: string): ArrayBuffer {
   const bin = atob(text)
   const buf = new ArrayBuffer(bin.length)
@@ -45,7 +52,7 @@ export async function ensureSession(): Promise<void> {
     const raw = await crypto.subtle.exportKey('raw', key)
     const pub = await crypto.subtle.importKey(
       'spki',
-      fromB64(info.public_key),
+      fromB64(normalizePublicKey(info.public_key)),
       { name: 'RSA-OAEP', hash: 'SHA-256' },
       false,
       ['encrypt'],

@@ -14,11 +14,11 @@ router = APIRouter()
 
 @router.get("/crypto/public-key")
 async def public_key(_: AsyncSession = Depends(get_session)):
-    """下发 RSA 公钥与 key_id（公开访问；信封不含敏感数据）。"""
+    """下发 RSA 公钥（base64(SPKI DER)，供 WebCrypto importKey 'spki'）与 key_id。"""
     return ok(
         {
             "key_id": transport_crypto.key_id,
-            "public_key": transport_crypto.public_key_pem(),
+            "public_key": transport_crypto.public_key_spki_b64(),
             "algorithm": "RSA-OAEP-SHA256",
         }
     )

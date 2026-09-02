@@ -68,9 +68,9 @@ def test_01_public_key_and_handshake(client: TestClient):
     resp = client.get("/api/crypto/public-key")
     assert resp.status_code == 200
     info = resp.json()["data"]
-    assert info["key_id"] and "BEGIN PUBLIC KEY" in info["public_key"]
+    assert info["key_id"]
 
-    pub = serialization.load_pem_public_key(info["public_key"].encode())
+    pub = serialization.load_der_public_key(unb64(info["public_key"]))
     wrapped = pub.encrypt(
         sess.raw,
         padding.OAEP(
