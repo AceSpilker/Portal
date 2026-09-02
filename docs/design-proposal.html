@@ -189,7 +189,7 @@
     <h1>Portal<span class="dot"> · </span>NAS 门户系统设计方案</h1>
     <p class="tagline">自托管门户 Dashboard —— 统一登录、Icon 磁贴直达服务、多网络环境智能解析、内置 AI 助手与 Flow 自动化，单 Docker 容器部署。</p>
     <div class="meta">
-      <span class="chip">版本 v0.3</span>
+      <span class="chip">版本 v0.4</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">状态 待评审</span>
       <span class="chip">前端 Vue 3 + TS</span>
@@ -274,6 +274,7 @@
       <tr><td>流程画布（后期）</td><td>Vue Flow</td><td>Flow 可视化编排</td></tr>
       <tr><td>后端框架</td><td><strong>Python 3.12 + FastAPI + Uvicorn</strong></td><td>异步、自动 OpenAPI 文档</td></tr>
       <tr><td>ORM / 数据库</td><td>SQLAlchemy 2.0 + <strong>SQLite</strong> 主库，镜像推送 NAS <strong>MySQL</strong></td><td>运行读写全走 SQLite；MySQL 作灾备（dev-plan P23）</td></tr>
+      <tr><td>cryptography / WebCrypto</td><td>传输加密：RSA-3072 密钥交换 + AES-256-GCM 信封（P24 已实现）</td><td>前后端数据不明文传输</td></tr>
       <tr><td>认证</td><td>JWT（access + refresh）+ bcrypt</td><td>后续可加 TOTP 两步验证</td></tr>
       <tr><td>定时任务</td><td>APScheduler</td><td>探活、监控采样、Flow cron 触发</td></tr>
       <tr><td>HTTP 客户端</td><td>httpx（异步）</td><td>健康探测、Webhook、AI API 调用</td></tr>
@@ -688,7 +689,7 @@
   <div class="callout">💡 前置问题已闭环，可直接进入 M1 开发：先搭前后端骨架与 Docker 流水线，再按"应用 CRUD → 多入口解析 → 首页磁贴"顺序迭代。</div>
 </section>
 
-<footer>Portal · NAS 门户系统设计方案 v0.3 · 2026-09-01 · 本文件为纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · NAS 门户系统设计方案 v0.4 · 2026-09-01 · 本文件为纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

@@ -97,7 +97,7 @@
     <a href="#test">测试策略总则</a>
     <a href="#board">阶段总览（进度看板）</a>
     <a class="toc-gap" href="#m1">M1 阶段明细（P0~P8）</a>
-    <a class="toc-gap" href="#m2">M2 阶段明细（P9~P18、P23）</a>
+    <a class="toc-gap" href="#m2">M2 阶段明细（P9~P18、P23、P24）</a>
     <a class="toc-gap" href="#m3">M3 阶段明细（P19~P22）</a>
     <a class="toc-gap" href="#rules">执行约定</a>
   </nav>
@@ -109,15 +109,15 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>开发计划与技术清单</h1>
-    <p class="tagline">把全部业务功能拆解为 24 个开发阶段、108 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
+    <p class="tagline">把全部业务功能拆解为 25 个开发阶段、113 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
     <div class="meta">
-      <span class="chip">版本 v1.1</span>
+      <span class="chip">版本 v1.2</span>
       <span class="chip">日期 2026-09-01</span>
-      <span class="chip">关联 feature-spec v1.3</span>
-      <span class="chip">24 阶段</span>
-      <span class="chip">108 步骤</span>
-      <span class="chip">进度 13 / 108</span>
-      <span class="chip">v1.1 新增：MySQL 数据同步（SQLite 主库 → NAS MySQL 灾备）</span>
+      <span class="chip">关联 feature-spec v1.4</span>
+      <span class="chip">25 阶段</span>
+      <span class="chip">113 步骤</span>
+      <span class="chip">进度 18 / 113</span>
+      <span class="chip">v1.2 新增：P24 传输加密（已完成）</span>
     </div>
   </div>
 </header>
@@ -125,7 +125,7 @@
 <!-- ============ 文档说明 ============ -->
 <section id="intro">
   <h2><span class="no">00</span>文档说明</h2>
-  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.3 的 222 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
+  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.4 的 223 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
   <div class="legend">
     <b>状态图例：</b>
     <span class="st open">⬜ 未开始</span>
@@ -134,10 +134,10 @@
     <span class="st block">⛔ 阻塞</span>
   </div>
   <div class="stats">
-    <div class="stat"><b>24</b><span>开发阶段</span></div>
-    <div class="stat"><b>108</b><span>开发步骤</span></div>
+    <div class="stat"><b>25</b><span>开发阶段</span></div>
+    <div class="stat"><b>113</b><span>开发步骤</span></div>
     <div class="stat"><b>3</b><span>里程碑（M1/M2/M3）</span></div>
-    <div class="stat"><b>2×24</b><span>测试关卡（单测+业务）</span></div>
+    <div class="stat"><b>2×25</b><span>测试关卡（单测+业务）</span></div>
   </div>
 </section>
 
@@ -163,6 +163,7 @@
       <tr><td>vite-plugin-pwa</td><td>PWA（manifest + service worker）</td><td class="num">P17</td></tr>
       <tr><td>Vue Flow</td><td>Flow 画布编排</td><td class="num">P19</td></tr>
       <tr><td>xterm.js</td><td>Web SSH 终端</td><td class="num">P21</td></tr>
+      <tr><td>WebCrypto（浏览器原生）</td><td>AES 会话密钥生成与信封加解密</td><td class="num">P24</td></tr>
       <tr><td>Vitest + @vue/test-utils + jsdom</td><td>前端单元测试</td><td class="num">P0</td></tr>
       <tr><td>ESLint + Prettier</td><td>代码规范</td><td class="num">P0</td></tr>
     </tbody>
@@ -184,6 +185,7 @@
       <tr><td>APScheduler</td><td>定时任务（探活/采样/阈值检查/Flow cron）</td><td class="num">P5</td></tr>
       <tr><td>httpx</td><td>异步 HTTP（探活/AI 调用/通知推送/favicon 抓取）</td><td class="num">P6</td></tr>
       <tr><td>asyncssh</td><td>SSH 托管隧道与 Web 终端</td><td class="num">P20/21</td></tr>
+      <tr><td>cryptography</td><td>传输加密：RSA 密钥管理与 AES-256-GCM 信封</td><td class="num">P24</td></tr>
       <tr><td>docker（Docker SDK）</td><td>容器管理、docker stats 兜底采集</td><td class="num">P12</td></tr>
       <tr><td>python-multipart</td><td>文件/图标上传</td><td class="num">P2</td></tr>
       <tr><td>sse-starlette</td><td>AI 流式输出（SSE）</td><td class="num">P13</td></tr>
@@ -253,6 +255,7 @@
       <tr><td class="num">P17</td><td><a href="#p17">安全增强与系统完善</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P18</td><td><a href="#p18">M2 集成验收</a></td><td><span class="badge m2">M2</span></td><td>2</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P23</td><td><a href="#p23">MySQL 数据同步（SQLite→MySQL）</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P24</td><td><a href="#p24">传输加密（全链路密文化）<span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st done">✅ 已完成</span></td></tr>
       <tr><td class="num">P19</td><td><a href="#p19">Flow 画布编排</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P20</td><td><a href="#p20">SSH 托管隧道与端口进阶</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P21</td><td><a href="#p21">监控与企业化进阶</a></td><td><span class="badge m3">M3</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
@@ -563,6 +566,22 @@
   <div class="gate"><b>单元测试关卡：</b><ul><li>upsert 幂等（重复推送结果一致）；删除对齐；连接失败退避重试；同步范围过滤（敏感表排除）；两库类型映射（时间/布尔/JSON 字段）。</li></ul></div>
   <div class="gate"><b>业务功能测试关卡：</b><ul><li>配置 NAS 真实 MySQL → 推送后在 MySQL 端查表数据一致；停掉 MySQL 容器 → 本地功能照常、恢复后自动补推；清空本地库从 MySQL 恢复成功。</li></ul></div>
   <div class="goal">退出标准：真实 NAS MySQL 环境定时推送连续 72h 无失败告警。</div>
+
+  <h3 id="p24">P24 · 传输加密：全链路密文化 <span class="badge core">★</span> <span class="st done">✅ 已完成</span></h3>
+  <p><strong>数据策略</strong>（用户要求：所有数据不能明文传输）：TLS 为基线，叠加<strong>应用层端到端加密</strong>——RSA-3072(OAEP/SHA-256) 会话密钥交换 + AES-256-GCM 信封；<code>/api</code> 全部请求体、响应体、Authorization 头密文传输；豁免：health、握手本身、静态资源。协议详见 api-spec §7。</p>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">24.1</td><td>密钥管理与公钥下发</td><td>RSA 密钥对生成/持久化（data/keys/transport_rsa.pem）、key_id、<code>GET /api/crypto/public-key</code></td><td>M01-15</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">24.2</td><td>会话握手与信封引擎</td><td><code>POST /api/crypto/handshake</code>、AES-256-GCM 加解密、会话密钥 LRU 内存缓存</td><td>M01-15</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">24.3</td><td>传输加密中间件</td><td>请求体解密/响应体加密/Authorization 头解密/豁免清单（纯 ASGI 实现）</td><td>M01-15</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">24.4</td><td>前端 WebCrypto 接入</td><td>AES 会话密钥生成与信封加解密、axios 拦截器集成、1100 自动重新握手</td><td>M01-15</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">24.5</td><td>重放防护与测试</td><td>nonce 去重（1101）、加密链路 pytest（握手/往返/重放/缺会话/明文拒绝）</td><td>M01-15</td><td><span class="st done">✅</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>加密往返（同会话加解密一致）；重放 nonce 拒绝（1101）；明文体拒绝（1102）；缺会话拒绝（1100）；豁免清单保持明文。</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>加密链路下完整业务流——登录 → me → 修改密码 → 旧 token 失效 → 重新登录全部经密文信封执行并通过（test_crypto.py::test_08）。</li></ul></div>
+  <div class="goal">退出标准：ruff/pytest 全绿；豁免清单（health/握手/静态资源）保持明文可用；密钥不落日志。</div>
 </section>
 
 <!-- ============ M3 明细 ============ -->

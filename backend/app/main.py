@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail
 from app.db.session import init_db
 
@@ -23,6 +24,9 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Portal API", version="0.1.0", lifespan=lifespan)
+
+# 传输加密（P24）：/api 请求体/响应体/Authorization 头密文传输
+app.add_middleware(TransportEncryptionMiddleware)
 
 
 @app.exception_handler(BizError)

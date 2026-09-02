@@ -132,14 +132,14 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>功能详述（Feature Spec）</h1>
-    <p class="tagline">系统全部功能的权威清单：18 个功能模块、222 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
+    <p class="tagline">系统全部功能的权威清单：18 个功能模块、223 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
     <div class="meta">
-      <span class="chip">版本 v1.3</span>
+      <span class="chip">版本 v1.4</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">关联 design-proposal v0.3</span>
       <span class="chip">18 模块</span>
-      <span class="chip">222 功能点</span>
-      <span class="chip">v1.3 新增：移动端 UI 方案落地</span>
+      <span class="chip">223 功能点</span>
+      <span class="chip">v1.4 新增：传输加密（数据不明文）</span>
     </div>
   </div>
 </header>
@@ -157,7 +157,7 @@
   </div>
   <div class="stats">
     <div class="stat"><b>18</b><span>功能模块</span></div>
-    <div class="stat"><b>222</b><span>功能点</span></div>
+    <div class="stat"><b>223</b><span>功能点</span></div>
     <div class="stat"><b>4</b><span>可选独立模块</span></div>
     <div class="stat"><b>3</b><span>个落地阶段</span></div>
   </div>
@@ -169,7 +169,7 @@
   <table>
     <thead><tr><th style="width:8%">编码</th><th style="width:22%">模块</th><th>一句话定位</th><th style="width:10%">功能点</th><th style="width:14%">主力阶段</th></tr></thead>
     <tbody>
-      <tr><td>M01</td><td><a href="#m01">认证与账户</a></td><td>登录、权限、账号安全</td><td>14</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M01</td><td><a href="#m01">认证与账户</a></td><td>登录、权限、账号安全、传输加密</td><td>15</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td>M02</td><td><a href="#m02">首页仪表盘</a></td><td>磁贴布局、搜索、小组件</td><td>21</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td>M03</td><td><a href="#m03">应用与书签管理</a></td><td>应用的组织与全生命周期</td><td>16</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td>M04</td><td><a href="#m04">多访问方式管理 <span class="badge core">★ 核心</span></a></td><td>多入口 + 环境识别 + 智能解析</td><td>18</td><td><span class="badge p1">M1</span></td></tr>
@@ -193,7 +193,7 @@
 
 <!-- ============ M01 ============ -->
 <section id="m01">
-  <h2><span class="no">M01</span>认证与账户 <span class="badge p1">14 项</span></h2>
+  <h2><span class="no">M01</span>认证与账户 <span class="badge p1">15 项</span></h2>
   <p>定位：系统的安全底座。MVP 只做"够用且安全"，企业级登录方式放在 M3。</p>
   <table>
     <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
@@ -212,6 +212,7 @@
       <tr><td class="num">12</td><td>OIDC / LDAP 登录</td><td>对接公司单点登录 / 企业 LDAP，账号自动映射</td><td><span class="badge p3">M3</span></td></tr>
       <tr><td class="num">13</td><td>Passkey 免密登录</td><td>WebAuthn 指纹/Face ID 登录（可选）</td><td><span class="badge p3">M3</span></td></tr>
       <tr><td class="num">14</td><td>审计日志</td><td>记录登录、配置变更、容器操作、Flow 执行，可筛选导出</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">15</td><td>传输加密 <span class="badge core">★</span></td><td>应用层端到端加密：RSA-3072 会话密钥交换 + AES-256-GCM 信封，/api 请求体/响应体/Authorization 头全部密文传输，HTTPS 之外的第二道保障；豁免 health/握手/静态资源；nonce 重放防护</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
 </section>
@@ -740,7 +741,7 @@
   <div class="callout">💡 说明：本项目的所有文档产出均提供 <strong>MD + HTML 双版本</strong>；工作过程记录见项目根目录 <code>logs/</code> 文件夹。</div>
 </section>
 
-<footer>Portal · 功能详述 v1.3 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · 功能详述 v1.4 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

@@ -104,6 +104,7 @@
     <a class="lv2" href="#api-rest">4.6~4.12 其余模块</a>
     <a class="toc-gap" href="#rt">实时协议（WS/SSE）</a>
     <a href="#env">环境与配置附录</a>
+    <a href="#sec7">传输加密协议 ★</a>
   </nav>
 </aside>
 
@@ -115,11 +116,11 @@
     <h1>Portal<span class="dot"> · </span>接口与数据模型详述（API Spec）</h1>
     <p class="tagline">后端建表与前后端联调的契约依据：31 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
     <div class="meta">
-      <span class="chip">版本 v1.0</span>
+      <span class="chip">版本 v1.1</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">关联 feature-spec v1.3 · design-proposal v0.3</span>
       <span class="chip">31 张表</span>
-      <span class="chip">90+ 端点</span>
+      <span class="chip">90+ 端点</span><span class="chip">v1.1 新增：传输加密协议</span>
     </div>
   </div>
 </header>
@@ -138,6 +139,7 @@
       <tr><td>ID 与敏感值</td><td>自增整数；Token/密钥只回传脱敏掩码</td></tr>
       <tr><td>核心枚举</td><td><code>access_type</code>: domain/lan/ssh/vpn/custom；<code>role</code>: admin/user；<code>state</code>: up/down/unknown；<code>level</code>: info/warn/error；<code>trigger_type</code>: cron/webhook/manual/event；<code>open_mode</code>: newtab/current/iframe</td></tr>
       <tr><td>文档</td><td>FastAPI 自动 <code>/docs</code>（OpenAPI）；本文为业务契约补充</td></tr>
+      <tr><td>传输加密</td><td><code>/api</code> 全部密文传输（RSA+AES-GCM 信封，见 §7 传输加密协议）；豁免：health、crypto 握手、静态资源</td></tr>
     </tbody>
   </table>
 </section>
@@ -163,6 +165,9 @@
       <tr><td class="c">4004</td><td>目标不可达（探活/推送失败等业务失败）</td><td class="c">200</td></tr>
       <tr><td class="c">5001</td><td>服务器内部错误</td><td class="c">500</td></tr>
       <tr><td class="c">5002</td><td>依赖服务不可用（MySQL/AI/通知渠道）</td><td class="c">502</td></tr>
+      <tr><td class="c">1100</td><td>加密会话缺失/无效（前端应重新握手）</td><td class="c">400</td></tr>
+      <tr><td class="c">1101</td><td>密文重放（nonce 重复）</td><td class="c">400</td></tr>
+      <tr><td class="c">1102</td><td>密文解密失败</td><td class="c">400</td></tr>
     </tbody>
   </table>
 </section>
@@ -288,6 +293,14 @@
 <section id="api">
   <h2><span class="no">04</span>API 端点明细</h2>
   <p>权限列：<strong>P</strong>=公开（免认证）、<strong>A</strong>=任意登录用户、<strong>M</strong>=仅管理员。阶段列 = 端点落地阶段（对应 dev-plan）。</p>
+  <table>
+    <thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead>
+    <tbody>
+      <tr><td class="c">GET</td><td class="c">/api/crypto/public-key</td><td>下发 RSA 公钥与 key_id（豁免加密）</td><td class="c">P</td><td class="c">P24 ✅</td></tr>
+      <tr><td class="c">POST</td><td class="c">/api/crypto/handshake</td><td>注册前端封装的 AES-256 会话密钥（豁免加密）</td><td class="c">P</td><td class="c">P24 ✅</td></tr>
+    </tbody>
+  </table>
+  <p class="note">握手之外的 <code>/api</code> 请求/响应均须为密文信封（格式见 §7 传输加密协议）；豁免：<code>/api/health</code>、静态资源。</p>
 
   <h3 id="api-auth">4.1 认证与账户</h3>
   <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
@@ -422,7 +435,50 @@ data: {"type": <span class="s">"error"</span>,  "code": <span class="k">5002</sp
   <div class="callout">💡 本文档与 dev-plan 的步骤联动：P0 建表即按 §3 的 M1 表执行；各阶段 API 开发按 §4 对应小节实现并以 §2 错误码返回。</div>
 </section>
 
-<footer>Portal · 接口与数据模型详述 v1.0 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+
+<!-- ============ 07 传输加密协议 ============ -->
+<section id="sec7">
+  <h2><span class="no">07</span>传输加密协议（P24 已实现 ✅）</h2>
+  <p>需求：<strong>所有数据不能明文传输</strong>。方案：<strong>TLS 为基线</strong>（NAS 反代 HTTPS），叠加<strong>应用层端到端加密</strong>——即使走 HTTP（内网直连），<code>/api</code> 数据也全部为密文。</p>
+  <h3>7.1 算法与密钥</h3>
+  <table>
+    <thead><tr><th style="width:20%">项</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>密钥交换</td><td>RSA-3072，OAEP(SHA-256)；私钥持久化于 <code>data/keys/transport_rsa.pem</code>（首启自动生成）</td></tr>
+      <tr><td>会话加密</td><td>AES-256-GCM（12 字节 nonce，认证加密防篡改）</td></tr>
+      <tr><td>会话密钥</td><td>前端生成（WebCrypto，内存中的 CryptoKey）；后端以公钥封装接收，仅存进程内存（LRU ≤500）</td></tr>
+      <tr><td>轮换</td><td>后端重启/密钥轮换后前端收到 1100，自动重新握手</td></tr>
+      <tr><td>重放防护</td><td>同会话 nonce LRU 去重（512），重复即 1101</td></tr>
+    </tbody>
+  </table>
+  <h3>7.2 端点与流程</h3>
+  <ol>
+    <li><code>GET /api/crypto/public-key</code> → <code>{key_id, public_key, algorithm}</code>（豁免加密）</li>
+    <li>前端生成 AES-256 密钥 + 随机 <code>sid</code>，以公钥封装 → <code>POST /api/crypto/handshake {sid, key}</code></li>
+    <li>之后所有 <code>/api</code> 请求：头 <code>X-Session-Id: &lt;sid&gt;</code>，请求体 <code>{"enc":1,"n":"&lt;b64 nonce&gt;","p":"&lt;b64 密文&gt;"}</code></li>
+    <li>所有 <code>/api</code> 响应：同格式密文信封（HTTP 状态码保留明文，便于链路排障）</li>
+    <li>Authorization 头：<code>ENC &lt;nonce&gt;:&lt;payload&gt;</code>（payload 为 AESGCM("Bearer &lt;jwt&gt;")），中间件解密后进入认证</li>
+  </ol>
+  <h3>7.3 豁免清单（保持明文）</h3>
+  <p><code>/api/health</code>（容器探活）、<code>/api/crypto/*</code>（公钥下发与握手）、静态资源。三者不含业务数据。</p>
+  <h3>7.4 错误处理</h3>
+  <table>
+    <thead><tr><th style="width:12%">code</th><th>含义</th><th style="width:34%">前端动作</th></tr></thead>
+    <tbody>
+      <tr><td class="c">1100</td><td>加密会话缺失/无效</td><td>重新握手后重试一次</td></tr>
+      <tr><td class="c">1101</td><td>密文重放</td><td>提示异常</td></tr>
+      <tr><td class="c">1102</td><td>密文解密失败</td><td>重新握手后重试一次</td></tr>
+    </tbody>
+  </table>
+  <h3>7.5 边界与预留</h3>
+  <ul>
+    <li>WS/SSE 上线时采用帧级加密（同信封格式，预留）；</li>
+    <li>multipart 上传暂未加密，P2 文件管理阶段评估加密分片；</li>
+    <li>后端重启丢失内存会话 → 前端 1100 自动重新握手，用户无感。</li>
+  </ul>
+</section>
+
+<footer>Portal · 接口与数据模型详述 v1.1 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 
