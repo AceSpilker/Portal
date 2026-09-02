@@ -6,6 +6,7 @@ import {
   Collection as IconApps,
   Delete as IconDelete,
   Edit as IconEdit,
+  InfoFilled as IconInfo,
   Picture as IconLib,
   Setting as IconGeneral,
 } from '@element-plus/icons-vue'
@@ -13,18 +14,23 @@ import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
 import type { IconItem } from '../api/icons'
+import { getHealth } from '../api/health'
+import { setLocale, getLocale } from '../locales'
+import type { AppLocale } from '../locales'
 import { isMobile } from '../composables/useIsMobile'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'apps' | 'icons'
+type MenuKey = 'general' | 'apps' | 'icons' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
 // ---- 常规设置 ----
 const siteName = ref('')
+const langDraft = ref<AppLocale>(getLocale())
+const aboutVersion = ref('')
 
 // ---- 应用配置 ----
 const tagOptions = ref<string[]>([])
@@ -86,7 +92,18 @@ onMounted(async () => {
   siteName.value = settingsStore.siteName
   tagOptions.value = [...settingsStore.tagOptions]
   favDraft.value = [...settingsStore.iconFavorites]
+  try {
+    aboutVersion.value = (await getHealth()).version
+  } catch {
+    aboutVersion.value = ''
+  }
 })
+
+function changeLang(v: AppLocale) {
+  langDraft.value = v
+  setLocale(v)
+  save({ 'general.language': v }, t('settings.languageSaved'))
+}
 
 function addTag() {
   const tag = newTag.value.trim()
@@ -252,6 +269,10 @@ function saveIcons() {
           <el-icon><component :is="IconLib" /></el-icon>
           <span>{{ t('settings.menuIcons') }}</span>
         </el-menu-item>
+        <el-menu-item index="about">
+          <el-icon><component :is="IconInfo" /></el-icon>
+          <span>{{ t('settings.menuAbout') }}</span>
+        </el-menu-item>
       </el-menu>
       <p class="menu-hint">{{ t('settings.menuHint') }}</p>
     </aside>
@@ -263,9 +284,15 @@ function saveIcons() {
           <h3>{{ t('settings.generalTitle') }}</h3>
           <p>{{ t('settings.generalDesc') }}</p>
         </header>
-        <el-form label-position="top" class="panel-body" size="large">
+        <el-form label-position="top" class="panel-body">
           <el-form-item :label="t('settings.siteName')" style="max-width: 360px">
             <el-input v-model="siteName" maxlength="64" placeholder="Portal" />
+          </el-form-item>
+          <el-form-item :label="t('settings.language')" style="max-width: 360px">
+            <el-select v-model="langDraft" style="width: 100%" @change="changeLang">
+              <el-option label="简体中文" value="zh-CN" />
+              <el-option label="English" value="en" />
+            </el-select>
           </el-form-item>
           <el-button type="primary" class="btn-gradient" :loading="saving" @click="saveGeneral">
             {{ t('common.save') }}
@@ -284,7 +311,6 @@ function saveIcons() {
               v-for="t in tagOptions"
               :key="t"
               closable
-              size="large"
               class="tag-item"
               @close="removeTag(t)"
             >
@@ -381,6 +407,7 @@ function saveIcons() {
           </el-button>
         </div>
 
+
         <!-- 新增/编辑自定义图标 -->
         <el-dialog
           v-model="iconDialog"
@@ -421,6 +448,22 @@ function saveIcons() {
           </template>
         </el-dialog>
       </template>
+        <template v-else-if="active === 'about'">
+          <header class="panel-head">
+            <h3>{{ t('settings.aboutTitle') }}</h3>
+            <p>Portal · {{ t('home.copyright') }}</p>
+          </header>
+          <div class="panel-body about-body">
+            <div class="about-row">
+              <span class="muted-tip">{{ t('settings.version') }}</span>
+              <b>Portal {{ aboutVersion || '—' }}</b>
+            </div>
+            <div class="about-row">
+              <span class="muted-tip">{{ t('settings.storageMode') }}</span>
+              <b>SQLite</b>
+            </div>
+          </div>
+        </template>
     </section>
   </div>
 </template>
@@ -504,6 +547,16 @@ function saveIcons() {
   margin: 0;
   font-size: 12.5px;
   color: var(--p-muted);
+}
+.about-body {
+  max-width: 480px;
+}
+.about-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--p-card-border);
 }
 .icon-dialog-body {
   display: flex;

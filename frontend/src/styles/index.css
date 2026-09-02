@@ -145,6 +145,22 @@ body {
 .btn-gradient:active:not(.is-disabled) {
   transform: translateY(0) scale(0.98);
 }
+/* ---------- 统一控件尺寸（全局：任何页面/表单上下文中保持一致） ---------- */
+.el-button:not(.is-circle):not(.is-link):not(.is-text) {
+  height: 36px;
+  padding: 0 18px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+/* 主操作按钮（渐变）统一 40px，比次级按钮略突出 */
+.el-button.btn-gradient:not(.is-circle):not(.is-link):not(.is-text) {
+  height: 40px;
+  padding: 0 24px;
+}
+/* 工具栏检索框统一宽度 */
+.app-search-input {
+  width: min(320px, 100%);
+}
 
 /* ---------- Element Plus 输入框微调（亮色） ---------- */
 .el-input__wrapper,

@@ -332,6 +332,12 @@ async function grabFavicon() {
 }
 
 /** 图标库选中：element 写图标名，custom 写 /icons/ 路径并切到 upload 类型 */
+/** 切换图标来源 tab：清空已选图标（不同来源的值不通用，避免预览碎图） */
+function switchIconType(type: string | number | boolean | undefined) {
+  draft.value.icon_type = type as IconType
+  draft.value.icon = ''
+}
+
 function pickAppIcon(sel: IconPick) {
   draft.value.icon = sel.value
   if (sel.value) {
@@ -579,7 +585,7 @@ async function doExport() {
       append-to-body
     >
       <div class="drawer-body">
-        <el-form label-position="top" size="large">
+        <el-form label-position="top">
           <el-form-item :label="t('apps.fieldName')" required>
             <el-input v-model="draft.name" :placeholder="t('apps.fieldNamePh')" maxlength="128" />
           </el-form-item>
@@ -600,13 +606,15 @@ async function doExport() {
 
           <el-form-item :label="t('apps.fieldIcon')">
             <div class="icon-editor">
-              <el-radio-group v-model="draft.icon_type">
-                <el-radio-button value="url">{{ t('apps.iconUrl') }}</el-radio-button>
-                <el-radio-button value="upload">{{ t('apps.iconUpload') }}</el-radio-button>
-                <el-radio-button value="element">{{ t('apps.iconLibrary') }}</el-radio-button>
-              </el-radio-group>
-              <div class="icon-preview">
-                <AppIcon :icon="draft.icon" :icon-type="draft.icon_type" :size="32" />
+              <div class="icon-editor-head">
+                <el-radio-group :model-value="draft.icon_type" @change="switchIconType">
+                  <el-radio-button value="url">{{ t('apps.iconUrl') }}</el-radio-button>
+                  <el-radio-button value="upload">{{ t('apps.iconUpload') }}</el-radio-button>
+                  <el-radio-button value="element">{{ t('apps.iconLibrary') }}</el-radio-button>
+                </el-radio-group>
+                <div class="icon-preview">
+                  <AppIcon :icon="draft.icon" :icon-type="draft.icon_type" :size="32" />
+                </div>
               </div>
               <template v-if="draft.icon_type === 'url'">
                 <el-input v-model="draft.icon" :placeholder="t('apps.iconUrlPh')" />
@@ -783,7 +791,7 @@ async function doExport() {
   flex-shrink: 0;
 }
 .search {
-  width: min(280px, 100%);
+  width: min(320px, 100%);
 }
 .cat-filter {
   width: 160px;
@@ -847,9 +855,16 @@ async function doExport() {
   flex-direction: column;
   gap: 10px;
 }
+.icon-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .icon-preview {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
   border-radius: 12px;
   border: 1px dashed var(--p-card-border);
   display: flex;
