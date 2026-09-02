@@ -18,11 +18,13 @@
     "element-plus": "^2.8.0",
     "pinia": "^2.2.2",
     "vue": "^3.4.38",
+    "vue-draggable-plus": "^0.6.1",
     "vue-i18n": "^11.4.2",
     "vue-router": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^26.4.1",
     "@vitejs/plugin-vue": "^5.1.2",
     "@vue/test-utils": "^2.4.6",
     "eslint": "^10.9.1",

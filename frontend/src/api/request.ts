@@ -48,7 +48,10 @@ request.interceptors.request.use(async (config) => {
   // 后端按语言偏好返回错误/提示文案（api-spec §1 通用约定）
   config.headers['Accept-Language'] = localStorage.getItem('portal.locale') || 'zh-CN'
   if (auth.token) {
-    config.headers.Authorization = await encryptHeaderValue(`Bearer ${auth.token}`)
+    // 续期请求必须携带 refresh token（后端按 refresh 类型解码）；
+    // 其余请求携带 access token。两者都随会话密钥加密传输（api-spec §7）。
+    const bearer = config._isRefresh ? auth.refreshToken : auth.token
+    config.headers.Authorization = await encryptHeaderValue(`Bearer ${bearer}`)
   }
   if (config.data !== undefined && config.data !== null) {
     ;(config as typeof config & { _raw?: unknown })._raw = config.data
