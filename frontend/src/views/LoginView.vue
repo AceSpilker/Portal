@@ -7,7 +7,6 @@ import AuroraBackground from '../components/AuroraBackground.vue'
 import { useAuthStore } from '../stores/auth'
 import { authApi } from '../api/auth'
 import { getHealth } from '../api/health'
-import { isMobile } from '../composables/useIsMobile'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -77,7 +76,7 @@ const siteName = ref('Portal')
 
 <template>
   <AuroraBackground />
-  <div class="page" :class="{ mobile: isMobile }">
+  <div class="page">
     <!-- 品牌 -->
     <div class="brand fade-up">
       <span class="brand-text">Portal</span>
@@ -151,12 +150,13 @@ const siteName = ref('Portal')
 <style scoped>
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 22px;
-  padding: 24px;
+  gap: clamp(16px, 2.4vh, 22px);
+  padding: clamp(16px, 4vw, 24px);
 }
 .brand {
   display: flex;
@@ -164,7 +164,7 @@ const siteName = ref('Portal')
   gap: 12px;
 }
 .brand-text {
-  font-size: 34px;
+  font-size: clamp(30px, 6vw, 34px);
 }
 .brand-sub {
   color: var(--p-muted);
@@ -173,7 +173,7 @@ const siteName = ref('Portal')
 }
 .card {
   width: min(420px, 100%);
-  padding: 34px 34px 24px;
+  padding: clamp(24px, 4.5vw, 34px) clamp(20px, 4.5vw, 34px) clamp(18px, 3vw, 24px);
 }
 .head h1 {
   margin: 0 0 4px;
@@ -213,6 +213,9 @@ const siteName = ref('Portal')
   height: 44px;
   border-radius: 12px;
   font-size: 15px;
+}
+:deep(.el-input__wrapper) {
+  padding: 4px 14px;
 }
 .foot {
   text-align: center;

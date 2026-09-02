@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth'
-import { useIsMobile } from '../composables/useIsMobile'
+import { isMobile, isTablet } from '../composables/useIsMobile'
 import {
   Grid as IconApps,
   Monitor as IconMonitor,
@@ -11,7 +11,6 @@ import {
 } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
-const { isMobile } = useIsMobile()
 const year = new Date().getFullYear()
 
 function logout() {
@@ -27,6 +26,14 @@ const upcoming = [
   { icon: IconFlow, title: 'Flow 自动化', desc: '触发器 → 条件 → 动作', stage: 'M2', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
 ]
 
+const navItems = [
+  { icon: IconHome, label: '首页', active: true },
+  { icon: IconApps, label: '应用', tag: 'P2', disabled: true },
+  { icon: IconMonitor, label: '监控', tag: 'P5', disabled: true },
+  { icon: IconFlow, label: 'Flow', tag: 'M2', disabled: true },
+  { icon: IconAi, label: 'AI', tag: 'M2', disabled: true },
+]
+
 const tabs = [
   { icon: IconHome, label: '首页', active: true },
   { icon: IconApps, label: '应用', disabled: true },
@@ -38,19 +45,27 @@ const tabs = [
 
 <template>
   <div class="shell" :class="{ mobile: isMobile }">
-    <!-- 桌面侧边导航（移动端隐藏，改用底部 Tab） -->
-    <aside v-if="!isMobile" class="side glass">
-      <div class="logo"><span class="brand-text">Portal</span></div>
+    <!-- 桌面/平板侧边导航（平板为图标栏；移动端隐藏，改用底部 Tab） -->
+    <aside class="side glass" :class="{ rail: isTablet }">
+      <div class="logo">
+        <span v-if="!isTablet" class="brand-text">Portal</span>
+        <span v-else class="brand-dot" />
+      </div>
       <nav class="nav">
-        <div class="nav-item active"><span class="dot" />首页</div>
-        <div class="nav-item disabled">应用<span class="tag">P2</span></div>
-        <div class="nav-item disabled">监控<span class="tag">P5</span></div>
-        <div class="nav-item disabled">Flow<span class="tag">M2</span></div>
-        <div class="nav-item disabled">AI<span class="tag">M2</span></div>
+        <div
+          v-for="item in navItems"
+          :key="item.label"
+          class="nav-item"
+          :class="{ active: item.active, disabled: item.disabled, 'icon-only': isTablet }"
+        >
+          <el-icon :size="20"><component :is="item.icon" /></el-icon>
+          <span v-if="!isTablet" class="nav-label">{{ item.label }}</span>
+          <span v-if="item.tag && !isTablet" class="tag">{{ item.tag }}</span>
+        </div>
       </nav>
       <div class="side-foot">
-        <span class="user">{{ auth.user?.username }}</span>
-        <el-tooltip content="退出登录" placement="top">
+        <span v-if="!isTablet" class="user">{{ auth.user?.username }}</span>
+        <el-tooltip content="退出登录" placement="top" :disabled="isTablet">
           <el-button circle size="small" :icon="IconLogout" @click="logout" />
         </el-tooltip>
       </div>
@@ -62,7 +77,7 @@ const tabs = [
         <h2>首页</h2>
         <div class="topbar-right">
           <span class="env">🏠 家庭内网</span>
-          <el-button v-if="isMobile" circle size="small" :icon="IconLogout" @click="logout" />
+          <el-button class="btn-logout-mobile" circle size="small" :icon="IconLogout" @click="logout" />
         </div>
       </header>
 
@@ -91,7 +106,7 @@ const tabs = [
     </main>
 
     <!-- 移动端底部 Tab 导航（M16-3，含安全区适配 M16-7） -->
-    <nav v-if="isMobile" class="tabbar">
+    <nav class="tabbar">
       <div
         v-for="tab in tabs"
         :key="tab.label"
@@ -107,26 +122,37 @@ const tabs = [
 
 <style scoped>
 .shell {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
-  gap: 18px;
-  padding: 18px;
+  gap: clamp(12px, 1.6vw, 18px);
+  padding: clamp(12px, 1.6vw, 18px);
+  box-sizing: border-box;
+  overflow: hidden;
   background:
     radial-gradient(900px 500px at 85% -10%, rgba(91, 95, 241, 0.08), transparent 60%),
     radial-gradient(700px 500px at -10% 110%, rgba(6, 182, 212, 0.06), transparent 60%);
 }
 .side {
-  width: 216px;
+  width: clamp(200px, 16vw, 216px);
   display: flex;
   flex-direction: column;
-  padding: 18px 14px;
-  position: sticky;
-  top: 18px;
-  height: calc(100vh - 36px);
+  padding: clamp(12px, 1.6vw, 18px) 14px;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.side.rail {
+  width: 68px;
+  padding: 14px 10px;
 }
 .logo {
   font-size: 22px;
   padding: 4px 10px 18px;
+  text-align: center;
+}
+.side.rail .logo {
+  padding: 4px 0 18px;
 }
 .nav {
   display: flex;
@@ -144,6 +170,7 @@ const tabs = [
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s, transform 0.15s, color 0.2s;
+  white-space: nowrap;
 }
 .nav-item.active {
   background: linear-gradient(135deg, rgba(91, 95, 241, 0.12), rgba(139, 92, 246, 0.08));
@@ -165,6 +192,10 @@ const tabs = [
   background: rgba(91, 95, 241, 0.07);
   transform: translateX(2px);
 }
+.side.rail .nav-item {
+  justify-content: center;
+  padding: 11px 0;
+}
 .tag {
   margin-left: auto;
   font-size: 10.5px;
@@ -181,29 +212,40 @@ const tabs = [
   border-top: 1px solid var(--p-card-border);
   padding: 12px 6px 0;
 }
+.side.rail .side-foot {
+  justify-content: center;
+}
 .user {
   font-size: 13.5px;
   color: var(--p-text);
 }
 .main {
-  padding: 6px 4px;
+  padding: 4px 6px;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.4vw, 16px);
 }
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 6px 16px;
+  padding: 4px 6px 0;
+  flex-shrink: 0;
 }
 .topbar h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: clamp(18px, 2vw, 20px);
 }
 .topbar-right {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.btn-logout-mobile {
+  display: none;
 }
 .env {
   font-size: 12.5px;
@@ -212,20 +254,22 @@ const tabs = [
   background: #fff;
   padding: 4px 12px;
   border-radius: 999px;
+  white-space: nowrap;
 }
 .hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 26px 30px;
-  margin-bottom: 18px;
+  gap: 12px;
+  padding: clamp(18px, 2.4vw, 30px);
+  flex-shrink: 0;
   background:
     linear-gradient(120deg, rgba(91, 95, 241, 0.06), rgba(6, 182, 212, 0.05)),
     #fff;
 }
 .hero h1 {
   margin: 0 0 6px;
-  font-size: 22px;
+  font-size: clamp(19px, 2.2vw, 22px);
 }
 .hero p {
   margin: 0;
@@ -242,12 +286,17 @@ const tabs = [
   white-space: nowrap;
 }
 .grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+  gap: clamp(10px, 1.4vw, 14px);
+  padding: 2px;
 }
 .cell {
-  padding: 18px;
+  padding: clamp(14px, 1.8vw, 20px);
   position: relative;
 }
 .cell-icon {
@@ -280,14 +329,48 @@ const tabs = [
   background: #fff;
 }
 .foot {
+  flex-shrink: 0;
   text-align: center;
   color: rgba(23, 33, 58, 0.3);
   font-size: 12px;
-  padding: 26px 0 6px;
+  padding: 10px 0 2px;
+}
+
+/* ===== 平板（768~1079）：侧栏收窄为图标栏 ===== */
+@media (max-width: 1079px) and (min-width: 768px) {
+  .side {
+    width: 68px;
+    padding: 14px 10px;
+  }
+  .side .logo {
+    padding: 4px 0 18px;
+    text-align: center;
+  }
+  .side .nav-item {
+    justify-content: center;
+    padding: 11px 0;
+  }
+  .side .nav-label,
+  .side .tag,
+  .side .user {
+    display: none;
+  }
+  .side .side-foot {
+    justify-content: center;
+  }
 }
 
 /* ===== 移动端适配（M16 / <768px）===== */
 @media (max-width: 767px) {
+  .side {
+    display: none;
+  }
+  .tabbar {
+    display: flex;
+  }
+  .btn-logout-mobile {
+    display: inline-flex;
+  }
   .shell {
     padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
   }
@@ -298,7 +381,7 @@ const tabs = [
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
-    padding: 20px;
+    padding: 18px;
   }
   .grid {
     grid-template-columns: 1fr 1fr;
@@ -317,13 +400,17 @@ const tabs = [
   }
 }
 
-/* ===== 底部 Tab 导航（移动端） ===== */
+/* ===== 底部 Tab 导航（移动端；桌面隐藏） ===== */
+@media (min-width: 768px) {
+  .tabbar {
+    display: none;
+  }
+}
 .tabbar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  display: flex;
   justify-content: space-around;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.92);
