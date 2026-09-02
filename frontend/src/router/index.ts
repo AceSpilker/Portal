@@ -5,6 +5,7 @@ import AppLayout from '../layouts/AppLayout.vue'
 import HomeView from '../views/HomeView.vue'
 import AppsManageView from '../views/AppsManageView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import ToolsView from '../views/ToolsView.vue'
 
 // 视图数量仍少，静态导入避免懒加载空窗；页面增多后再按需改回懒加载
 const router = createRouter({
@@ -28,6 +29,7 @@ const router = createRouter({
           component: SettingsView,
           meta: { titleKey: 'settings.title', requiresAdmin: true },
         },
+        { path: 'tools', name: 'tools', component: ToolsView, meta: { titleKey: 'nav.tools' } },
       ],
     },
   ],

@@ -10,6 +10,7 @@ import {
   Grid as IconApps,
   Monitor as IconMonitor,
   MagicStick as IconAi,
+  Suitcase as IconTools,
   Setting as IconSetting,
   Share as IconFlow,
   SwitchButton as IconLogout,
@@ -39,6 +40,7 @@ const navItems = computed<NavItem[]>(() => [
   { icon: IconMonitor, label: t('nav.monitor'), tag: 'P5', disabled: true },
   { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
   { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
+    { icon: IconTools, label: t('nav.tools'), to: '/tools' },
   ...(auth.isAdmin ? [{ icon: IconSetting, label: t('nav.settings'), to: '/settings' }] : []),
 ])
 

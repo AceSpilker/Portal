@@ -147,15 +147,15 @@ body {
 }
 /* ---------- 统一控件尺寸（全局：任何页面/表单上下文中保持一致） ---------- */
 .el-button:not(.is-circle):not(.is-link):not(.is-text) {
-  height: 36px;
-  padding: 0 18px;
-  font-size: 14px;
-  border-radius: 10px;
+  height: 32px;
+  padding: 0 15px;
+  font-size: 13px;
+  border-radius: 8px;
 }
-/* 主操作按钮（渐变）统一 40px，比次级按钮略突出 */
+/* 主操作按钮（渐变）统一 36px，比次级按钮略突出 */
 .el-button.btn-gradient:not(.is-circle):not(.is-link):not(.is-text) {
-  height: 40px;
-  padding: 0 24px;
+  height: 36px;
+  padding: 0 20px;
 }
 /* 工具栏检索框统一宽度 */
 .app-search-input {
