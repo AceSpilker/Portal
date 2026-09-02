@@ -206,7 +206,9 @@
 | GET/POST | /api/network-profiles · PUT/DELETE /{id} | 环境档案 CRUD | A读 M写 | P3 |
 | POST | /api/network-profiles/detect | 返回 {client_ip, matched_profile, candidates} | A | P3 |
 | POST | /api/network-profiles/{id}/test | 档案连通性测试 | M | P3 |
-| PUT | /api/me/env | 手动环境偏好（覆盖自动） | A | P3 |
+| PUT | /api/network-profiles/sort | 档案批量排序 {items:[{id,sort}]} | M | P3 |
+| GET | /api/me/env | 当前环境状态：{auto_profile, manual_profile, effective_profile} | A | P3 |
+| PUT | /api/me/env | 手动环境偏好（覆盖自动，profile_id=null 恢复自动） | A | P3 |
 | GET | /api/connectivity/matrix | 全应用×全入口探测矩阵 | A读 M执行 | P3 |
 | POST | /api/tunnels/{urlId}/open · GET /api/tunnels · DELETE /{id} | SSH 隧道开关（M2 服务端托管） | A | M2 |
 | GET/POST/PUT/DELETE | /api/credentials… | SSH 凭据管理（回传脱敏） | M | M2 |
@@ -300,6 +302,7 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
+| GET/PUT | /api/me/layouts | 当前用户仪表盘布局（tab 维度整份读写） | A | P4 |
 | GET/PUT | /api/settings | 键值批量读写 | A读 M写 | P7 |
 | GET/PUT | /api/settings/sync | MySQL 同步配置与连接测试 | M | P23 |
 | POST | /api/mysql/test | MySQL 连接测试（按当前配置即时校验） | M | P23 |

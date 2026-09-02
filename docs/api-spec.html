@@ -346,7 +346,9 @@
     <tr><td class="c">CRUD</td><td class="c">/api/network-profiles · /{id}</td><td>环境档案 CRUD</td><td class="c">A读 M写</td><td class="c">P3</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/network-profiles/detect</td><td>{client_ip, matched_profile, candidates}</td><td class="c">A</td><td class="c">P3</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/network-profiles/{id}/test</td><td>档案连通性测试</td><td class="c">M</td><td class="c">P3</td></tr>
-    <tr><td class="c">PUT</td><td class="c">/api/me/env</td><td>手动环境偏好（覆盖自动识别）</td><td class="c">A</td><td class="c">P3</td></tr>
+    <tr><td class="c">PUT</td><td class="c">/api/network-profiles/sort</td><td>档案批量排序 {items:[{id,sort}]}</td><td class="c">M</td><td class="c">P3</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/me/env</td><td>当前环境状态：{auto_profile, manual_profile, effective_profile}</td><td class="c">A</td><td class="c">P3</td></tr>
+    <tr><td class="c">PUT</td><td class="c">/api/me/env</td><td>手动环境偏好（覆盖自动识别，profile_id=null 恢复自动）</td><td class="c">A</td><td class="c">P3</td></tr>
     <tr><td class="c">GET</td><td class="c">/api/connectivity/matrix</td><td>全应用×全入口探测矩阵</td><td class="c">A读 M执行</td><td class="c">P3</td></tr>
     <tr><td class="c">POST/GET/DEL</td><td class="c">/api/tunnels/{urlId}/open · /api/tunnels</td><td>SSH 隧道开关（服务端托管）</td><td class="c">A</td><td class="c">M2</td></tr>
     <tr><td class="c">CRUD</td><td class="c">/api/credentials…</td><td>SSH 凭据管理（回传脱敏）</td><td class="c">M</td><td class="c">M2</td></tr>
@@ -385,6 +387,7 @@
     <tr><td>日历/待办</td><td class="c">CRUD /api/calendar/events · /api/todos</td><td>日程与待办</td><td class="c">A</td><td class="c">M2</td></tr>
     <tr><td>文件</td><td class="c">GET /api/files/list · GET download · POST upload/mkdir/rename/delete/move · GET/PUT content(M3) · POST analyze(M3)</td><td>文件管理（白名单目录）</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>下载/媒体</td><td class="c">GET /api/downloads/summary · /tasks · POST /tasks · GET /api/media/recent</td><td>qBittorrent 集成 / 最近入库</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td>仪表盘布局</td><td class="c">GET/PUT /api/me/layouts</td><td>当前用户仪表盘布局（tab 维度整份读写）</td><td class="c">A</td><td class="c">P4</td></tr>
     <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore · POST /api/mysql/test · POST /api/redis/test</td><td>键值设置 / MySQL 同步 / Redis 连接测试</td><td class="c">M</td><td class="c">P7/P23/P25</td></tr>
     <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs · GET /api/system/info · /check · /check-update</td><td>备份 / Token / 审计 / 系统</td><td class="c">M</td><td class="c">P2~M2</td></tr>
   </tbody></table>
