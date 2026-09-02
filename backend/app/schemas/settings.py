@@ -12,6 +12,10 @@ WRITABLE_KEYS: set[str] = {
     "general.language",
     "appearance.theme_color",
     "appearance.dark_mode",
+    "appearance.wallpaper_type",
+    "appearance.wallpaper_value",
+    "appearance.wallpaper_blur",
+    "appearance.wallpaper_mask",
     "apps.tag_options",
     "apps.icon_favorites",
     "sync.enabled",
@@ -51,4 +55,15 @@ class SettingsUpdate(BaseModel):
                 not isinstance(value, int) or not 1 <= value <= 1440
             ):
                 raise ValueError(t("err.sync_interval"))
+            if key == "appearance.wallpaper_type" and value not in (
+                "none",
+                "solid",
+                "gradient",
+                "image",
+            ):
+                raise ValueError(t("err.wallpaper_type"))
+            if key in ("appearance.wallpaper_blur", "appearance.wallpaper_mask"):
+                limit = 20 if key.endswith("blur") else 90
+                if not isinstance(value, int) or not 0 <= value <= limit:
+                    raise ValueError(t("err.wallpaper_range"))
         return v

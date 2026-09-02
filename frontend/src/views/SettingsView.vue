@@ -4,15 +4,19 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
   Collection as IconApps,
+  Connection as IconAccess,
   Delete as IconDelete,
   Edit as IconEdit,
   InfoFilled as IconInfo,
   Picture as IconLib,
   Setting as IconGeneral,
+  Brush as IconAppearance,
 } from '@element-plus/icons-vue'
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
+import AccessPanel from '../components/AccessPanel.vue'
+import AppearancePanel from '../components/AppearancePanel.vue'
 import type { IconItem } from '../api/icons'
 import { getHealth } from '../api/health'
 import { setLocale, getLocale } from '../locales'
@@ -23,7 +27,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'apps' | 'icons' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -261,6 +265,10 @@ function saveIcons() {
           <el-icon><component :is="IconGeneral" /></el-icon>
           <span>{{ t('settings.menuGeneral') }}</span>
         </el-menu-item>
+        <el-menu-item index="appearance">
+          <el-icon><component :is="IconAppearance" /></el-icon>
+          <span>{{ t('settings.menuAppearance') }}</span>
+        </el-menu-item>
         <el-menu-item index="apps">
           <el-icon><component :is="IconApps" /></el-icon>
           <span>{{ t('settings.menuApps') }}</span>
@@ -268,6 +276,10 @@ function saveIcons() {
         <el-menu-item index="icons">
           <el-icon><component :is="IconLib" /></el-icon>
           <span>{{ t('settings.menuIcons') }}</span>
+        </el-menu-item>
+        <el-menu-item index="access">
+          <el-icon><component :is="IconAccess" /></el-icon>
+          <span>{{ t('settings.menuAccess') }}</span>
         </el-menu-item>
         <el-menu-item index="about">
           <el-icon><component :is="IconInfo" /></el-icon>
@@ -298,6 +310,10 @@ function saveIcons() {
             {{ t('common.save') }}
           </el-button>
         </el-form>
+      </template>
+
+      <template v-else-if="active === 'appearance'">
+        <AppearancePanel />
       </template>
 
       <template v-else-if="active === 'apps'">
@@ -447,6 +463,9 @@ function saveIcons() {
             </el-button>
           </template>
         </el-dialog>
+      </template>
+      <template v-else-if="active === 'access'">
+        <AccessPanel />
       </template>
         <template v-else-if="active === 'about'">
           <header class="panel-head">
@@ -619,7 +638,7 @@ function saveIcons() {
   position: relative;
   border: 1px solid var(--p-card-border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--p-card);
   transition: border-color 0.12s, background 0.12s;
 }
 .im-cell:hover {

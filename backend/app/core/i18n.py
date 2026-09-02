@@ -101,6 +101,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "不支持的设置项：{keys}",
         "en": "Unsupported setting keys: {keys}",
     },
+    # ---- 网络环境（M04-7/8；P3）----
+    "err.profile_not_found": {"zh-CN": "网络环境档案不存在", "en": "Network profile not found"},
+    "err.default_profile_exists": {
+        "zh-CN": "默认兜底档案已存在（全库仅可有一个）",
+        "en": "Default fallback profile already exists (only one allowed)",
+    },
+    "ok.profile_deleted": {"zh-CN": "环境档案已删除", "en": "Network profile deleted"},
+    "ok.env_saved": {"zh-CN": "环境偏好已保存", "en": "Environment preference saved"},
     "err.site_name_empty": {"zh-CN": "站点名称不能为空", "en": "Site name must not be empty"},
     "err.tag_options_invalid": {
         "zh-CN": "标签选项需为非空字符串数组",
@@ -116,6 +124,17 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "同步间隔需为 1~1440 分钟",
         "en": "Sync interval must be 1-1440 minutes",
     },
+    # ---- 布局 / 壁纸（M02；P4）----
+    "ok.layout_saved": {"zh-CN": "布局已保存", "en": "Layout saved"},
+    "v.layout_too_large": {"zh-CN": "布局数据过大", "en": "Layout payload too large"},
+    "err.wallpaper_type": {
+        "zh-CN": "壁纸类型仅支持 none/solid/gradient/image",
+        "en": "Wallpaper type must be none/solid/gradient/image",
+    },
+    "err.wallpaper_range": {
+        "zh-CN": "壁纸模糊/遮罩取值超出范围",
+        "en": "Wallpaper blur/mask value out of range",
+    },
     # ---- 校验（schemas 校验器）----
     "v.category_empty": {"zh-CN": "分组名不能为空", "en": "Group name must not be empty"},
     "v.app_name_empty": {"zh-CN": "应用名不能为空", "en": "App name must not be empty"},
@@ -130,6 +149,26 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "v.icon_name_empty": {"zh-CN": "图标名称不能为空", "en": "Icon name must not be empty"},
     "v.icon_data_empty": {"zh-CN": "图标数据不能为空", "en": "Icon data must not be empty"},
+    "v.profile_name_empty": {
+        "zh-CN": "环境档案名称不能为空",
+        "en": "Profile name must not be empty",
+    },
+    "v.cidr_required": {
+        "zh-CN": "CIDR 档案至少需要一个网段",
+        "en": "A CIDR profile needs at least one network segment",
+    },
+    "v.cidr_invalid": {
+        "zh-CN": "存在无效的 CIDR 网段（如 192.168.1.0/24）",
+        "en": "Invalid CIDR segment (e.g. 192.168.1.0/24)",
+    },
+    "v.prefer_invalid": {
+        "zh-CN": "入口优先顺序包含未知入口类型",
+        "en": "Entry preference contains an unknown access type",
+    },
+    "v.prefer_duplicated": {
+        "zh-CN": "入口优先顺序不能重复",
+        "en": "Entry preference must not contain duplicates",
+    },
     # ---- 校验格式化（response.py）----
     "v.prefix": {"zh-CN": "参数校验失败：", "en": "Validation failed: "},
     "v.missing": {"zh-CN": "{field} 为必填项", "en": "{field} is required"},

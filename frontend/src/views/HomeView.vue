@@ -1,46 +1,254 @@
 <script setup lang="ts">
+/**
+ * 首页仪表盘（M02；dev-plan P4）。
+ *
+ * - 分组区块 + 应用磁贴（图标/名称/状态点，P6 接入探活数据）；
+ * - 拖拽排序（区块内磁贴 + 区块本身），位置即改即存（/api/me/layouts）；
+ * - 卡片 1x/2x 宽度、收藏区置顶、收藏星标（POST /apps/{id}/favorite）；
+ * - 打开方式：新标签 / 当前页 / iframe 内嵌；多入口走智能解析浮层（P3.8）；
+ * - 时钟小组件 + 时段问候；移动端单列与触控目标 ≥44px。
+ */
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '../stores/auth'
+import { ElMessage } from 'element-plus'
+import { VueDraggable } from 'vue-draggable-plus'
 import {
-  Grid as IconApps,
-  Monitor as IconMonitor,
-  MagicStick as IconAi,
-  Share as IconFlow,
+  CaretBottom as IconCollapse,
+  CaretRight as IconExpand,
+  Plus as IconPlus,
+  Rank as IconDrag,
+  Star as IconStar,
+  StarFilled as IconStarFilled,
 } from '@element-plus/icons-vue'
+import { portalApi } from '../api/portal'
+import type { Category, PortalApp } from '../api/portal'
+import { layoutApi } from '../api/dashboard'
+import { useAuthStore } from '../stores/auth'
+import { useOpenApp } from '../composables/useOpenApp'
+import AppIcon from '../components/AppIcon.vue'
+import {
+  buildSections,
+  DEFAULT_LAYOUT,
+  parseLayout,
+  reorderSubset,
+  syncOrder,
+  type DashboardLayoutData,
+} from '../utils/layout'
+import { isMobile } from '../composables/useIsMobile'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const { openApp } = useOpenApp()
 
-/** 后续阶段的占位卡片（彩色图标区分） */
-const upcoming = [
-  { icon: IconApps, title: 'home.cardAppsTitle', desc: 'home.cardAppsDesc', stage: 'P2', color: '#5b5ff1', bg: 'rgba(91, 95, 241, 0.1)' },
-  { icon: IconMonitor, title: 'home.cardMonitorTitle', desc: 'home.cardMonitorDesc', stage: 'P5', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)' },
-  { icon: IconAi, title: 'home.cardAiTitle', desc: 'home.cardAiDesc', stage: 'M2', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
-  { icon: IconFlow, title: 'home.cardFlowTitle', desc: 'home.cardFlowDesc', stage: 'M2', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
-]
+// ---- 数据 ----
+const apps = ref<PortalApp[]>([])
+const categories = ref<Category[]>([])
+const loading = ref(false)
+
+// ---- 布局（P4.2/4.3）----
+const layout = ref<DashboardLayoutData>({ ...DEFAULT_LAYOUT })
+const sections = ref<{ key: string; title: string; collapsed: boolean; apps: PortalApp[] }[]>([])
+const collapsedDraft = ref<Record<string, boolean>>({})
+
+function rebuildSections() {
+  layout.value.order = syncOrder(layout.value.order, apps.value)
+  sections.value = buildSections(apps.value, categories.value, layout.value)
+  collapsedDraft.value = Object.fromEntries(sections.value.map((s) => [s.key, s.collapsed]))
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const [appList, catList, layouts] = await Promise.all([
+      portalApi.listApps(),
+      portalApi.listCategories(),
+      layoutApi.getMyLayouts(),
+    ])
+    apps.value = appList
+    categories.value = catList
+    const mine = layouts.find((l) => l.tab === 'default')
+    layout.value = parseLayout(mine?.layout)
+    rebuildSections()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    loading.value = false
+  }
+}
+
+function persistLayout() {
+  layoutApi.saveMyLayout('default', { ...layout.value }).catch((e) => ElMessage.error((e as Error).message))
+}
+
+// ---- 打开方式（P4.1）----
+function onTileClick(app: PortalApp) {
+  openApp(app)
+}
+
+// ---- 收藏（P4.5）----
+async function toggleFavorite(app: PortalApp) {
+  try {
+    const r = await portalApi.toggleFavorite(app.id)
+    app.favorite = r.favorite
+    rebuildSections() // 收藏区置顶联动
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+// ---- 卡片尺寸（P4.3）----
+function toggleSize(app: PortalApp) {
+  const key = String(app.id)
+  layout.value.sizes[key] = layout.value.sizes[key] === 2 ? 1 : 2
+  persistLayout()
+}
+
+// ---- 折叠（M02-4）----
+function toggleCollapse(key: string) {
+  collapsedDraft.value[key] = !collapsedDraft.value[key]
+  layout.value.collapsed[key] = collapsedDraft.value[key]
+  persistLayout()
+}
+
+// ---- 拖拽排序（P4.2）----
+let saveTimer: number | undefined
+function persistSoon() {
+  window.clearTimeout(saveTimer)
+  saveTimer = window.setTimeout(persistLayout, 400)
+}
+
+function onTilesDragEnd() {
+  // 各区块（含收藏区）按拖拽后的局部顺序回写全局扁平顺序
+  let order = layout.value.order
+  for (const s of sections.value) {
+    order = reorderSubset(order, s.apps.map((a) => String(a.id)))
+  }
+  layout.value.order = order
+  persistSoon()
+}
+
+function onSectionsDragEnd() {
+  layout.value.sections = sections.value.map((s) => s.key)
+  persistSoon()
+}
+
+// ---- 时钟小组件（P4.7）----
+const now = ref(new Date())
+let clockTimer: number | undefined
+const clockText = computed(() =>
+  now.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+)
+const dateText = computed(() =>
+  now.value.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }),
+)
+const greetingKey = computed(() => {
+  const h = now.value.getHours()
+  if (h < 5) return 'home.greetNight'
+  if (h < 9) return 'home.greetMorning'
+  if (h < 12) return 'home.greetForenoon'
+  if (h < 14) return 'home.greetNoon'
+  if (h < 18) return 'home.greetAfternoon'
+  return 'home.greetEvening'
+})
+
+onMounted(() => {
+  load()
+  clockTimer = window.setInterval(() => (now.value = new Date()), 30_000)
+})
+onBeforeUnmount(() => window.clearInterval(clockTimer))
 </script>
 
 <template>
-  <div class="home">
-    <!-- 欢迎横幅 -->
+  <div class="home" v-loading="loading">
+    <!-- 欢迎横幅 + 时钟小组件（P4.7） -->
     <section class="hero glass fade-up">
-      <div>
-        <h1>{{ t('home.greeting', { name: auth.user?.username ?? '' }) }}</h1>
+      <div class="hero-text">
+        <h1>{{ t(greetingKey) }}，{{ auth.user?.username ?? '' }} 👋</h1>
         <p>{{ t('home.heroText') }}</p>
       </div>
-      <span class="pill">{{ t('home.pill') }}</span>
+      <div class="clock" :title="dateText">
+        <span class="clock-time">{{ clockText }}</span>
+        <span class="clock-date">{{ dateText }}</span>
+      </div>
     </section>
 
-    <!-- 占位卡片 -->
-    <section class="grid stagger">
-      <div v-for="item in upcoming" :key="item.title" class="cell glass hover-lift">
-        <span class="cell-icon" :style="{ background: item.bg, color: item.color }">
-          <el-icon :size="22"><component :is="item.icon" /></el-icon>
-        </span>
-        <b>{{ t(item.title) }}</b>
-        <p>{{ t(item.desc) }}</p>
-        <span class="stage">{{ item.stage }}</span>
-      </div>
+    <!-- 区块列表：收藏区置顶 + 分组区块，支持区块拖拽排序 -->
+    <VueDraggable
+      v-model="sections"
+      handle=".sec-handle"
+      class="sections"
+      :disabled="isMobile"
+      @end="onSectionsDragEnd"
+    >
+      <section v-for="sec in sections" :key="sec.key" class="section glass">
+        <header class="sec-head">
+          <el-icon class="sec-handle" :size="14"><IconDrag /></el-icon>
+          <button type="button" class="sec-toggle" @click="toggleCollapse(sec.key)">
+            <el-icon :size="13">
+              <component :is="collapsedDraft[sec.key] ? IconExpand : IconCollapse" />
+            </el-icon>
+          </button>
+          <h3>
+            <el-icon v-if="sec.key === 'fav'" class="sec-fav-icon"><IconStarFilled /></el-icon>
+            {{ sec.key === 'fav' ? t('home.favSection') : sec.key === 'none' ? t('apps.uncategorized') : sec.title }}
+            <span class="sec-count">{{ sec.apps.length }}</span>
+          </h3>
+        </header>
+
+        <!-- 区块内磁贴拖拽（收藏区亦可调序）；空态提示置于拖拽容器外 -->
+        <div v-show="!collapsedDraft[sec.key]" class="tiles-wrap">
+          <VueDraggable v-model="sec.apps" class="tiles" :animation="160" @end="onTilesDragEnd">
+            <button
+              v-for="app in sec.apps"
+              :key="app.id"
+              type="button"
+              class="tile"
+              :class="{ wide: layout.sizes[String(app.id)] === 2 }"
+              :title="app.name"
+              @click="onTileClick(app)"
+            >
+              <span class="tile-icon">
+                <AppIcon :icon="app.icon" :icon-type="app.icon_type" :size="30" />
+                <span class="status-dot unknown" :title="t('home.statusPending')" />
+              </span>
+              <span class="tile-name">{{ app.name }}</span>
+              <span v-if="app.description" class="tile-desc">{{ app.description }}</span>
+              <!-- 悬停操作：收藏 / 尺寸（阻止冒泡） -->
+              <span class="tile-ops" @click.stop>
+                <button
+                  type="button"
+                  class="tile-op"
+                  :class="{ active: app.favorite }"
+                  :title="t('home.favToggle')"
+                  @click="toggleFavorite(app)"
+                >
+                  <el-icon :size="12">
+                    <component :is="app.favorite ? IconStarFilled : IconStar" />
+                  </el-icon>
+                </button>
+                <button
+                  type="button"
+                  class="tile-op"
+                  :title="t('home.sizeToggle')"
+                  @click="toggleSize(app)"
+                >
+                  <span class="size-glyph" :class="{ wide: layout.sizes[String(app.id)] === 2 }" />
+                </button>
+              </span>
+            </button>
+          </VueDraggable>
+          <p v-if="!sec.apps.length" class="tile-empty">{{ t('common.noData') }}</p>
+        </div>
+      </section>
+    </VueDraggable>
+
+    <!-- 空状态 -->
+    <section v-if="!loading && !sections.length" class="empty glass">
+      <el-icon :size="34"><IconPlus /></el-icon>
+      <p>{{ t('home.emptyTip') }}</p>
+      <el-button type="primary" class="btn-gradient" @click="$router.push('/apps')">
+        {{ t('home.emptyGo') }}
+      </el-button>
     </section>
 
     <footer class="foot">© {{ new Date().getFullYear() }} Portal · {{ t('home.copyright') }}</footer>
@@ -54,106 +262,275 @@ const upcoming = [
   display: flex;
   flex-direction: column;
   gap: clamp(10px, 1.4vw, 16px);
+  overflow-y: auto;
+  padding-bottom: 4px;
 }
 .hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: clamp(18px, 2.4vw, 30px);
+  padding: clamp(16px, 2.2vw, 26px);
   flex-shrink: 0;
   background:
     linear-gradient(120deg, rgba(91, 95, 241, 0.06), rgba(6, 182, 212, 0.05)),
-    #fff;
+    var(--p-card);
 }
-.hero h1 {
+.hero-text h1 {
   margin: 0 0 6px;
-  font-size: clamp(19px, 2.2vw, 22px);
+  font-size: clamp(18px, 2vw, 21px);
 }
-.hero p {
+.hero-text p {
   margin: 0;
   color: var(--p-muted);
-  font-size: 13.5px;
+  font-size: 13px;
 }
-.pill {
+.clock {
+  text-align: right;
+  flex-shrink: 0;
+}
+.clock-time {
+  display: block;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(120deg, var(--p-primary), var(--p-primary-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.clock-date {
   font-size: 12px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  color: var(--p-primary);
-  background: rgba(91, 95, 241, 0.08);
-  border: 1px solid rgba(91, 95, 241, 0.25);
-  white-space: nowrap;
+  color: var(--p-muted);
 }
-.grid {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  align-content: start;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+/* ---- 区块 ---- */
+.sections {
+  display: flex;
+  flex-direction: column;
   gap: clamp(10px, 1.4vw, 14px);
-  padding: 2px;
 }
-.cell {
-  padding: clamp(14px, 1.8vw, 20px);
-  position: relative;
+.section {
+  padding: clamp(12px, 1.6vw, 18px);
 }
-.cell-icon {
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sec-handle {
+  color: var(--p-muted);
+  cursor: grab;
+}
+.sec-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-}
-.cell b {
-  display: block;
-  margin-bottom: 4px;
-}
-.cell p {
-  margin: 0;
-  font-size: 12.5px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
   color: var(--p-muted);
+  cursor: pointer;
 }
-.stage {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  font-size: 10.5px;
+.sec-toggle:hover {
+  background: rgba(91, 95, 241, 0.1);
+  color: var(--p-primary);
+}
+.sec-head h3 {
+  margin: 0;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sec-fav-icon {
+  color: #f59e0b;
+}
+.sec-count {
+  font-size: 11px;
   color: var(--p-muted);
   border: 1px solid var(--p-card-border);
   border-radius: 999px;
-  padding: 1px 8px;
-  background: #fff;
+  padding: 0 7px;
+}
+/* ---- 磁贴 ---- */
+.tiles-wrap {
+  min-height: 20px;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: clamp(8px, 1.1vw, 12px);
+  min-height: 20px;
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 96px;
+  padding: 14px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 14px;
+  background: var(--p-card);
+  color: var(--p-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.tile.wide {
+  grid-column: span 2;
+}
+.tile:hover {
+  border-color: var(--p-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(23, 43, 99, 0.1);
+}
+.tile-icon {
+  position: relative;
+  display: inline-flex;
+}
+.status-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--p-card);
+}
+.status-dot.unknown {
+  background: #9aa3b8;
+}
+.tile-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile-desc {
+  font-size: 11.5px;
+  color: var(--p-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.tile-ops {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tile:hover .tile-ops {
+  opacity: 1;
+}
+.tile-op {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 7px;
+  background: rgba(23, 33, 58, 0.06);
+  color: var(--p-muted);
+  cursor: pointer;
+}
+.tile-op:hover,
+.tile-op.active {
+  color: var(--p-primary);
+  background: rgba(91, 95, 241, 0.12);
+}
+.tile-op.active {
+  color: #f59e0b;
+}
+.size-glyph {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+.size-glyph.wide {
+  width: 14px;
+}
+.tile-empty {
+  color: var(--p-muted);
+  font-size: 12.5px;
+  padding: 8px 0;
+}
+/* ---- 空状态 / 底部 ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--p-muted);
+}
+.empty p {
+  margin: 0;
+  font-size: 13.5px;
 }
 .foot {
   flex-shrink: 0;
   text-align: center;
-  color: rgba(23, 33, 58, 0.3);
+  color: rgba(127, 137, 160, 0.8);
   font-size: 12px;
-  padding: 10px 0 2px;
+  padding: 6px 0 2px;
 }
+/* ---- 底部 ---- */
 
-/* ===== 移动端适配（<768px）===== */
+/* ===== 移动端（P4.8：<768px 单列，触控目标 ≥44px）===== */
 @media (max-width: 767px) {
   .hero {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
-    padding: 18px;
+    gap: 8px;
   }
-  .grid {
+  .clock {
+    text-align: left;
+  }
+  .tiles {
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
   }
-  .cell {
-    padding: 14px;
+  .tile {
+    min-height: 76px;
+    padding: 12px;
+  }
+  .tile.wide {
+    grid-column: span 2;
+  }
+  .tile-desc {
+    display: none;
+  }
+  /* 悬停操作在触屏上常显（M16 触控目标 ≥44px） */
+  .tile-ops {
+    opacity: 1;
+  }
+  .tile-op {
+    width: 44px;
+    height: 44px;
+  }
+  .sec-handle {
+    display: none;
   }
 }
 @media (max-width: 400px) {
-  .grid {
+  .tiles {
     grid-template-columns: 1fr;
+  }
+  .tile.wide {
+    grid-column: span 1;
   }
 }
 </style>

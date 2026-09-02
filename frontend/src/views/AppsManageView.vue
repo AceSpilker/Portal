@@ -22,6 +22,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import AppIcon from '../components/AppIcon.vue'
 import IconPicker from '../components/IconPicker.vue'
+import EntryPopup from '../components/EntryPopup.vue'
 import type { IconPick } from '../components/IconPicker.vue'
 import { makeExportFilename } from '../utils/export'
 import { isMobile } from '../composables/useIsMobile'
@@ -89,6 +90,22 @@ const ACCESS_LABEL = computed<Record<AccessType, string>>(() => ({
   vpn: t('apps.urlType.vpn'),
   custom: t('apps.urlType.custom'),
 }))
+
+// ============ 多入口选择浮层（M04-12；dev-plan P3.8）============
+const entryPopupOpen = ref(false)
+const entryPopupApp = ref<PortalApp | null>(null)
+
+function openEntryPopup(app: PortalApp) {
+  if (!app.urls.length) return
+  entryPopupApp.value = app
+  entryPopupOpen.value = true
+}
+
+function chooseEntryUrl(app: PortalApp, url: string) {
+  if (app.open_mode === 'current') window.location.href = url
+  else window.open(url, '_blank', 'noopener')
+}
+
 const VISIBILITY_LABEL = computed<Record<Visibility, string>>(() => ({
   all: t('apps.visibility.all'),
   admin: t('apps.visibility.admin'),
@@ -544,8 +561,10 @@ async function doExport() {
                 v-for="u in row.urls"
                 :key="u.id"
                 size="small"
-                class="url-tag"
+                class="url-tag clickable"
                 :type="u.access_type === 'domain' ? 'primary' : u.access_type === 'lan' ? 'success' : 'info'"
+                :title="t('entry.pickTitle')"
+                @click="openEntryPopup(row)"
               >
                 {{ ACCESS_LABEL[u.access_type as AccessType] }}·{{ u.label || u.url }}
               </el-tag>
@@ -771,6 +790,9 @@ async function doExport() {
         <IconPicker :model-value="catForm.icon" :max-height="170" @select="pickCatIcon" />
       </div>
     </el-dialog>
+
+    <!-- 多入口选择浮层（M04-12）：点击入口标签打开，按当前环境优先级排序 -->
+    <EntryPopup v-model="entryPopupOpen" :app="entryPopupApp" @choose="chooseEntryUrl" />
   </div>
 </template>
 
@@ -839,6 +861,9 @@ async function doExport() {
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.url-tag.clickable {
+  cursor: pointer;
 }
 .muted {
   color: var(--p-muted);

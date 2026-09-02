@@ -14,6 +14,11 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "general.language": json.dumps("zh-CN"),
     "appearance.theme_color": json.dumps("#4f6ef7"),
     "appearance.dark_mode": json.dumps("auto"),
+    # 壁纸（M02-20）：none / solid（纯色）/ gradient（渐变）/ image（图片 URL）
+    "appearance.wallpaper_type": json.dumps("none"),
+    "appearance.wallpaper_value": json.dumps(""),
+    "appearance.wallpaper_blur": json.dumps(0),
+    "appearance.wallpaper_mask": json.dumps(35),
     # 应用表单的标签候选（M03-3，系统配置→应用配置中维护）
     "apps.tag_options": json.dumps(
         ["媒体", "影音", "下载", "工具", "开发", "监控", "网络", "网盘", "家庭", "工作"],

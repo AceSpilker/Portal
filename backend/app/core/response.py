@@ -78,6 +78,10 @@ _FIELD_LABELS: dict[str, dict[str, str]] = {
     "general.site_name": {"zh-CN": "站点名称", "en": "site name"},
     "filename": {"zh-CN": "文件名", "en": "filename"},
     "data": {"zh-CN": "数据", "en": "data"},
+    "match_type": {"zh-CN": "匹配方式", "en": "match type"},
+    "cidrs": {"zh-CN": "网段列表", "en": "CIDR list"},
+    "prefer_types": {"zh-CN": "入口优先顺序", "en": "entry preference"},
+    "enabled": {"zh-CN": "启用状态", "en": "enabled"},
 }
 
 

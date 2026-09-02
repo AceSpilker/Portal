@@ -6,9 +6,10 @@
 
 import base64
 import binascii
+import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import String, cast, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, require_admin
 from app.core.i18n import t
-from app.core.response import CODE_NOT_FOUND, BizError, ok
+from app.core.response import CODE_NOT_FOUND, CODE_VALIDATION, BizError, ok
 from app.db.session import get_session
 from app.models.portal import App, AppUrl, Category
 from app.models.user import User
@@ -345,3 +346,80 @@ async def delete_url(
     await session.delete(url)
     await session.commit()
     return ok(None, "入口已删除")
+
+
+# ============ 智能解析（M04-10；dev-plan P3.3）============
+
+
+def _order_urls_by_prefer(urls: list[AppUrl], prefer_types: list[str]) -> list[AppUrl]:
+    """按档案的入口类型优先顺序稳定排序；不在偏好中的类型排在末尾（保持原相对次序）。"""
+    if not prefer_types:
+        return list(urls)
+
+    def _key(u: AppUrl):
+        try:
+            return (prefer_types.index(u.access_type), u.sort, u.id)
+        except ValueError:
+            return (len(prefer_types), u.sort, u.id)
+
+    return sorted(urls, key=_key)
+
+
+async def _effective_profile(session: AsyncSession, user: User, env: str, request: Request):
+    """确定解析用的目标档案：显式 pid > 用户手动偏好 > 来源 IP 自动识别（M04-9/10）。"""
+    from app.models.network import NetworkProfile
+    from app.services.network import client_ip_from_request, enabled_profiles, match_profile
+
+    if env != "auto":
+        if not env.isdigit():
+            raise BizError(CODE_VALIDATION, t("v.invalid", field="env"), 422)
+        profile = await session.get(NetworkProfile, int(env))
+        if profile is None:
+            raise BizError(CODE_NOT_FOUND, t("err.profile_not_found"), 404)
+        return profile
+    # 手动偏好优先；档案被删/停用时回退自动识别
+    try:
+        pref_id = (json.loads(user.prefs or "{}")).get("env_profile_id")
+    except ValueError:
+        pref_id = None
+    if pref_id:
+        profile = await session.get(NetworkProfile, int(pref_id))
+        if profile is not None and profile.enabled:
+            return profile
+    return match_profile(client_ip_from_request(request), await enabled_profiles(session))
+
+
+@router.get("/apps/{app_id}/resolve")
+async def resolve_app(
+    app_id: int,
+    request: Request,
+    user: User = Depends(get_current_user),
+    env: str = "auto",
+    session: AsyncSession = Depends(get_session),
+):
+    """按当前环境的入口优先级返回推荐入口 + 备选列表（api-spec §4.2）。"""
+    app = await _get_app(session, app_id)
+    if user.role != "admin" and app.visibility != "all":
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
+    profile = await _effective_profile(session, user, env, request)
+    prefer = (profile.prefer_types if profile else []) or []
+    ordered = _order_urls_by_prefer(list(app.urls), prefer)
+    recommended = AppUrlOut.model_validate(ordered[0]).model_dump() if ordered else None
+    alternatives = [AppUrlOut.model_validate(u).model_dump() for u in ordered[1:]]
+    return ok({"recommended": recommended, "alternatives": alternatives})
+
+
+# ============ 收藏（M02-9；dev-plan P4.5）============
+
+
+@router.post("/apps/{app_id}/favorite")
+async def toggle_favorite(
+    app_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """收藏/取消（全局标记，非用户维度；api-spec §4.2 权限 A）。"""
+    app = await _get_app(session, app_id, with_urls=False)
+    app.favorite = not app.favorite
+    await session.commit()
+    return ok({"id": app.id, "favorite": app.favorite})

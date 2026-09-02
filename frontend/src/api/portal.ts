@@ -114,6 +114,8 @@ export const portalApi = {
     request.put<never, PortalApp>(`/apps/${id}`, payload),
   deleteApp: (id: number) => request.delete<never, null>(`/apps/${id}`),
   sortApps: (items: SortItem[]) => request.put<never, null>('/apps/sort', { items }),
+  toggleFavorite: (id: number) =>
+    request.post<never, { id: number; favorite: boolean }>(`/apps/${id}/favorite`),
 
   // ---- 访问入口 ----
   listUrls: (appId: number) => request.get<never, AppUrl[]>(`/apps/${appId}/urls`),

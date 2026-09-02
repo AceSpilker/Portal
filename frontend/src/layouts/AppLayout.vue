@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
+import { useEnvStore } from '../stores/env'
 import { isMobile, isTablet } from '../composables/useIsMobile'
+import CommandPalette from '../components/CommandPalette.vue'
 import {
   Grid as IconApps,
   Monitor as IconMonitor,
@@ -14,6 +16,8 @@ import {
   Share as IconFlow,
   SwitchButton as IconLogout,
   HomeFilled as IconHome,
+  ArrowDown as IconArrowDown,
+  Search as IconSearch,
 } from '@element-plus/icons-vue'
 
 interface NavItem {
@@ -29,8 +33,34 @@ const router = useRouter()
 const { t } = useI18n()
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
+const envStore = useEnvStore()
+const paletteVisible = ref(false)
 
-onMounted(() => settingsStore.load())
+onMounted(() => {
+  settingsStore.load()
+  // 网络环境自动识别 + 档案列表（顶栏切换器，M04-8/9）
+  envStore.load()
+})
+
+/** 切换器展示的生效环境名（手动优先，其次自动识别结果） */
+const envLabel = computed(() => {
+  if (!envStore.loaded) return t('env.detecting')
+  return envStore.effective?.name ?? t('env.autoNone')
+})
+
+const autoOptionLabel = computed(() =>
+  envStore.autoProfile
+    ? t('env.autoOption', { name: envStore.autoProfile.name })
+    : t('env.autoNone'),
+)
+
+async function onEnvCommand(command: string | number) {
+  try {
+    await envStore.setManual(command === 'auto' ? null : Number(command))
+  } catch {
+    // 错误消息由请求拦截器统一提示
+  }
+}
 
 /** 管理员额外显示系统配置入口 */
 const navItems = computed<NavItem[]>(() => [
@@ -106,7 +136,42 @@ function logout() {
       <header class="topbar">
         <h2>{{ pageTitle }}</h2>
         <div class="topbar-right">
-          <span class="env">{{ t('common.envHome') }}</span>
+          <!-- 全局命令面板（M02-6）：Ctrl/Cmd+K 或点击唤起 -->
+          <button type="button" class="palette-trigger" @click="paletteVisible = true">
+            <el-icon :size="13"><IconSearch /></el-icon>
+            <span class="palette-kbd">Ctrl K</span>
+          </button>
+          <!-- 环境切换器（M04-9）：手动覆盖自动识别，选择被记忆 -->
+          <el-dropdown trigger="click" @command="onEnvCommand">
+            <button type="button" class="env-badge" :title="t('env.currentIp', { ip: envStore.clientIp })">
+              <span class="env-dot" :class="{ manual: !!envStore.manualProfile }" />
+              <span class="env-name">{{ envLabel }}</span>
+              <span v-if="envStore.manualProfile" class="env-mode">{{ t('env.badgeManual') }}</span>
+              <el-icon :size="12"><IconArrowDown /></el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="auto">
+                  <span class="env-option" :class="{ active: !envStore.manualProfile }">
+                    {{ autoOptionLabel }}
+                  </span>
+                </el-dropdown-item>
+                <el-dropdown-item
+                  v-for="p in envStore.profiles.filter((x) => x.enabled)"
+                  :key="p.id"
+                  :command="p.id"
+                >
+                  <span
+                    class="env-option"
+                    :class="{ active: envStore.manualProfile?.id === p.id }"
+                  >
+                    {{ p.name }}
+                    <em v-if="p.match_type === 'default'">· {{ t('env.matchDefault') }}</em>
+                  </span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
           <el-button
             class="btn-logout-mobile"
             circle
@@ -126,6 +191,9 @@ function logout() {
         </router-view>
       </div>
     </main>
+
+    <!-- 全局命令面板（M02-6） -->
+    <CommandPalette v-model="paletteVisible" />
 
     <!-- 移动端底部 Tab 导航（M16-3，含安全区适配 M16-7） -->
     <nav class="tabbar">
@@ -222,7 +290,7 @@ function logout() {
   border: 1px solid var(--p-card-border);
   padding: 0 7px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--p-card);
 }
 .side-foot {
   display: flex;
@@ -257,6 +325,7 @@ function logout() {
 .topbar h2 {
   margin: 0;
   font-size: clamp(18px, 2vw, 20px);
+  white-space: nowrap;
 }
 .topbar-right {
   display: flex;
@@ -266,14 +335,84 @@ function logout() {
 .btn-logout-mobile {
   display: none;
 }
-.env {
-  font-size: 12.5px;
+.palette-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
   color: var(--p-muted);
+  border: 1px solid var(--p-card-border);
+  background: var(--p-card);
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.palette-trigger:hover {
+  border-color: var(--p-primary);
+  color: var(--p-primary);
+}
+.palette-kbd {
+  font-size: 10.5px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 5px;
+  padding: 0 5px;
+  background: var(--p-bg);
+}
+.env-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--p-text);
   border: 1px solid var(--p-card-border);
   background: #fff;
   padding: 4px 12px;
   border-radius: 999px;
   white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+
+}
+.env-badge:hover {
+  border-color: var(--p-primary);
+  color: var(--p-primary);
+}
+.env-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.env-dot.manual {
+  background: var(--p-primary);
+}
+.env-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.env-mode {
+  font-size: 10.5px;
+  color: var(--p-primary);
+  border: 1px solid rgba(91, 95, 241, 0.35);
+  background: rgba(91, 95, 241, 0.08);
+  padding: 0 6px;
+  border-radius: 999px;
+}
+.env-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.env-option em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--p-muted);
+}
+.env-option.active {
+  color: var(--p-primary);
+  font-weight: 600;
 }
 /* 路由页面容器：占满剩余空间并负责滚动 */
 .page {
@@ -346,6 +485,13 @@ function logout() {
   .btn-logout-mobile {
     display: inline-flex;
   }
+  /* 移动端：快捷键提示无意义，隐藏 kbd 徽标仅留搜索图标；环境名收窄 */
+  .palette-kbd {
+    display: none;
+  }
+  .env-name {
+    max-width: 110px;
+  }
   .shell {
     padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
   }
@@ -367,7 +513,7 @@ function logout() {
   bottom: 0;
   justify-content: space-around;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--p-tabbar-bg, rgba(255, 255, 255, 0.92));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--p-card-border);
