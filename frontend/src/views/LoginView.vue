@@ -2,11 +2,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User as IconUser, Lock as IconLock, MagicStick as IconWand } from '@element-plus/icons-vue'
+import { User as IconUser, Lock as IconLock } from '@element-plus/icons-vue'
 import AuroraBackground from '../components/AuroraBackground.vue'
 import { useAuthStore } from '../stores/auth'
 import { authApi } from '../api/auth'
 import { getHealth } from '../api/health'
+import { isMobile } from '../composables/useIsMobile'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -15,7 +16,6 @@ type Mode = 'loading' | 'login' | 'init'
 const mode = ref<Mode>('loading')
 const backendUp = ref(true)
 const submitting = ref(false)
-const siteName = ref('Portal')
 
 const loginForm = reactive({ username: '', password: '' })
 const initForm = reactive({ username: '', password: '', confirm: '', site_name: 'Portal' })
@@ -63,7 +63,7 @@ async function handleInit() {
     siteName.value = initForm.site_name || 'Portal'
     const resp = await authApi.init({ ...initForm })
     auth.setSession(resp.access_token, resp.refresh_token, resp.user)
-    ElMessage.success('初始化完成，欢迎使用的 Portal！')
+    ElMessage.success('初始化完成，欢迎使用！')
     router.push('/')
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '初始化失败')
@@ -71,21 +71,23 @@ async function handleInit() {
     submitting.value = false
   }
 }
+
+const siteName = ref('Portal')
 </script>
 
 <template>
   <AuroraBackground />
-  <div class="page">
+  <div class="page" :class="{ mobile: isMobile }">
     <!-- 品牌 -->
     <div class="brand fade-up">
       <span class="brand-text">Portal</span>
       <span class="brand-sub">NAS 门户系统</span>
     </div>
 
-    <!-- 玻璃卡片 -->
+    <!-- 卡片 -->
     <div class="card glass fade-up" style="animation-delay: 0.12s">
       <div v-if="mode === 'loading'" class="center">
-        <el-icon class="is-loading spin"><IconWand /></el-icon>
+        <span class="spinner" />
         <p class="muted">正在连接服务器…</p>
       </div>
 
@@ -102,31 +104,19 @@ async function handleInit() {
           type="error"
           :closable="false"
           show-icon
-          class="stagger"
           title="后端服务不可达，请确认服务已启动"
           style="margin-bottom: 14px"
         />
 
         <!-- 登录表单 -->
-        <el-form
-          v-if="mode === 'login'"
-          class="stagger"
-          @submit.prevent="handleLogin"
-        >
+        <el-form v-if="mode === 'login'" class="stagger" @submit.prevent="handleLogin">
           <el-form-item>
-            <el-input v-model="loginForm.username" size="large" placeholder="用户名" :prefix-icon="IconUser" @keyup.enter="handleLogin" />
+            <el-input v-model="loginForm.username" size="large" placeholder="用户名" :prefix-icon="IconUser" autocomplete="username" />
           </el-form-item>
           <el-form-item>
-            <el-input v-model="loginForm.password" size="large" type="password" show-password placeholder="密码" :prefix-icon="IconLock" @keyup.enter="handleLogin" />
+            <el-input v-model="loginForm.password" size="large" type="password" show-password placeholder="密码" :prefix-icon="IconLock" autocomplete="current-password" @keyup.enter="handleLogin" />
           </el-form-item>
-          <el-button
-            class="btn-gradient submit"
-            size="large"
-            type="primary"
-            :loading="submitting"
-            :disabled="!backendUp"
-            @click="handleLogin"
-          >
+          <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" :disabled="!backendUp" native-type="submit">
             登 录
           </el-button>
         </el-form>
@@ -145,12 +135,12 @@ async function handleInit() {
           <el-form-item>
             <el-input v-model="initForm.confirm" size="large" type="password" show-password placeholder="确认密码" :prefix-icon="IconLock" @keyup.enter="handleInit" />
           </el-form-item>
-          <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" @click="handleInit">
+          <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" native-type="submit" @click="handleInit">
             创建管理员并进入
           </el-button>
         </el-form>
 
-        <p class="foot muted">P1 认证与账户 · 已接入</p>
+        <p class="foot">加密传输已启用 · 数据安全传输</p>
       </template>
     </div>
 
@@ -182,12 +172,13 @@ async function handleInit() {
   letter-spacing: 3px;
 }
 .card {
-  width: min(420px, 92vw);
-  padding: 34px 34px 22px;
+  width: min(420px, 100%);
+  padding: 34px 34px 24px;
 }
 .head h1 {
   margin: 0 0 4px;
   font-size: 24px;
+  letter-spacing: 0.5px;
 }
 .head .muted {
   margin: 0 0 18px;
@@ -198,9 +189,19 @@ async function handleInit() {
   text-align: center;
   padding: 30px 0;
 }
-.spin {
-  font-size: 30px;
-  color: var(--p-primary);
+.spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(91, 95, 241, 0.2);
+  border-top-color: var(--p-primary);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .muted {
   color: var(--p-muted);
@@ -209,15 +210,19 @@ async function handleInit() {
   width: 100%;
   margin-top: 6px;
   letter-spacing: 6px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 15px;
 }
 .foot {
   text-align: center;
   font-size: 12px;
-  margin: 18px 0 0;
-  opacity: 0.6;
+  margin: 16px 0 0;
+  color: var(--p-muted);
+  opacity: 0.8;
 }
 .copyright {
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(23, 33, 58, 0.35);
   font-size: 12px;
   letter-spacing: 1px;
 }
@@ -225,14 +230,47 @@ async function handleInit() {
 /* ===== 移动端适配（M16）===== */
 @media (max-width: 767px) {
   .page {
-    padding: 20px 14px calc(24px + env(safe-area-inset-bottom));
-    gap: 16px;
+    padding: max(28px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+    gap: 18px;
+    justify-content: flex-start;
+    padding-top: 12vh;
   }
-  .card {
-    padding: 26px 22px 18px;
+  .brand {
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
   }
   .brand-text {
-    font-size: 28px;
+    font-size: 40px;
+  }
+  .brand-sub {
+    font-size: 12px;
+    letter-spacing: 5px;
+  }
+  .card {
+    padding: 26px 20px 20px;
+    border-radius: 24px;
+  }
+  .head h1 {
+    font-size: 21px;
+    text-align: center;
+  }
+  .head .muted {
+    text-align: center;
+  }
+  :deep(.el-form-item) {
+    margin-bottom: 16px;
+  }
+  :deep(.el-input__wrapper) {
+    padding: 4px 14px;
+  }
+  .submit {
+    height: 48px;
+    letter-spacing: 4px;
+    font-size: 16px;
+  }
+  .foot {
+    margin-top: 14px;
   }
 }
 </style>

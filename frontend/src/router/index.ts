@@ -1,19 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import LoginView from '../views/LoginView.vue'
+import DashboardView from '../views/DashboardView.vue'
 
+// P1 阶段仅两个视图，静态导入避免懒加载空窗；页面增多后再按需改回懒加载
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/login',
       name: 'login',
-      component: () => import('../views/LoginView.vue'),
+      component: LoginView,
       meta: { public: true },
     },
     {
       path: '/',
       name: 'dashboard',
-      component: () => import('../views/DashboardView.vue'),
+      component: DashboardView,
     },
   ],
 })

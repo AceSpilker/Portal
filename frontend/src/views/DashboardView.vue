@@ -19,12 +19,12 @@ function logout() {
   window.location.href = '/login'
 }
 
-/** 后续阶段的占位卡片 */
+/** 后续阶段的占位卡片（彩色图标区分） */
 const upcoming = [
-  { icon: IconApps, title: '应用管理', desc: '磁贴与分组、多入口配置', stage: 'P2' },
-  { icon: IconMonitor, title: '服务器监控', desc: 'CPU / 内存 / 磁盘 / 网络', stage: 'P5' },
-  { icon: IconAi, title: 'AI 助手', desc: '对话与意图导航', stage: 'M2' },
-  { icon: IconFlow, title: 'Flow 自动化', desc: '触发器 → 条件 → 动作', stage: 'M2' },
+  { icon: IconApps, title: '应用管理', desc: '磁贴与分组、多入口配置', stage: 'P2', color: '#5b5ff1', bg: 'rgba(91, 95, 241, 0.1)' },
+  { icon: IconMonitor, title: '服务器监控', desc: 'CPU / 内存 / 磁盘 / 网络', stage: 'P5', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)' },
+  { icon: IconAi, title: 'AI 助手', desc: '对话与意图导航', stage: 'M2', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
+  { icon: IconFlow, title: 'Flow 自动化', desc: '触发器 → 条件 → 动作', stage: 'M2', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
 ]
 
 const tabs = [
@@ -37,14 +37,12 @@ const tabs = [
 </script>
 
 <template>
-  <el-container class="shell">
+  <div class="shell" :class="{ mobile: isMobile }">
     <!-- 桌面侧边导航（移动端隐藏，改用底部 Tab） -->
     <aside v-if="!isMobile" class="side glass">
       <div class="logo"><span class="brand-text">Portal</span></div>
       <nav class="nav">
-        <div class="nav-item active">
-          <span class="dot" />首页
-        </div>
+        <div class="nav-item active"><span class="dot" />首页</div>
         <div class="nav-item disabled">应用<span class="tag">P2</span></div>
         <div class="nav-item disabled">监控<span class="tag">P5</span></div>
         <div class="nav-item disabled">Flow<span class="tag">M2</span></div>
@@ -59,7 +57,7 @@ const tabs = [
     </aside>
 
     <!-- 主区 -->
-    <el-main class="main" :class="{ mobile: isMobile }">
+    <main class="main" :class="{ mobile: isMobile }">
       <header class="topbar">
         <h2>首页</h2>
         <div class="topbar-right">
@@ -80,7 +78,9 @@ const tabs = [
       <!-- 占位卡片 -->
       <section class="grid stagger">
         <div v-for="item in upcoming" :key="item.title" class="cell glass hover-lift">
-          <el-icon :size="26" class="cell-icon"><component :is="item.icon" /></el-icon>
+          <span class="cell-icon" :style="{ background: item.bg, color: item.color }">
+            <el-icon :size="22"><component :is="item.icon" /></el-icon>
+          </span>
           <b>{{ item.title }}</b>
           <p>{{ item.desc }}</p>
           <span class="stage">{{ item.stage }}</span>
@@ -88,7 +88,7 @@ const tabs = [
       </section>
 
       <footer class="foot">© {{ year }} Portal · 自托管 NAS 门户</footer>
-    </el-main>
+    </main>
 
     <!-- 移动端底部 Tab 导航（M16-3，含安全区适配 M16-7） -->
     <nav v-if="isMobile" class="tabbar">
@@ -102,20 +102,21 @@ const tabs = [
         <span>{{ tab.label }}</span>
       </div>
     </nav>
-  </el-container>
+  </div>
 </template>
 
 <style scoped>
 .shell {
   min-height: 100vh;
-  padding: 18px;
+  display: flex;
   gap: 18px;
+  padding: 18px;
   background:
-    radial-gradient(900px 500px at 85% -10%, rgba(99, 102, 241, 0.14), transparent 60%),
-    radial-gradient(700px 500px at -10% 110%, rgba(34, 211, 238, 0.08), transparent 60%);
+    radial-gradient(900px 500px at 85% -10%, rgba(91, 95, 241, 0.08), transparent 60%),
+    radial-gradient(700px 500px at -10% 110%, rgba(6, 182, 212, 0.06), transparent 60%);
 }
 .side {
-  width: 212px;
+  width: 216px;
   display: flex;
   flex-direction: column;
   padding: 18px 14px;
@@ -142,40 +143,42 @@ const tabs = [
   color: var(--p-text);
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition: background 0.2s, transform 0.15s, color 0.2s;
 }
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.18));
-  border: 1px solid rgba(129, 140, 248, 0.35);
+  background: linear-gradient(135deg, rgba(91, 95, 241, 0.12), rgba(139, 92, 246, 0.08));
+  color: var(--p-primary);
+  font-weight: 600;
 }
 .nav-item.active .dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #22d3ee;
-  box-shadow: 0 0 10px #22d3ee;
+  background: var(--p-primary);
+  box-shadow: 0 0 8px rgba(91, 95, 241, 0.8);
 }
 .nav-item.disabled {
   color: var(--p-muted);
   cursor: not-allowed;
 }
 .nav-item:not(.disabled):hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(91, 95, 241, 0.07);
   transform: translateX(2px);
 }
 .tag {
   margin-left: auto;
   font-size: 10.5px;
   color: var(--p-muted);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--p-card-border);
   padding: 0 7px;
   border-radius: 999px;
+  background: #fff;
 }
 .side-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--p-card-border);
   padding: 12px 6px 0;
 }
 .user {
@@ -206,6 +209,7 @@ const tabs = [
   font-size: 12.5px;
   color: var(--p-muted);
   border: 1px solid var(--p-card-border);
+  background: #fff;
   padding: 4px 12px;
   border-radius: 999px;
 }
@@ -215,6 +219,9 @@ const tabs = [
   justify-content: space-between;
   padding: 26px 30px;
   margin-bottom: 18px;
+  background:
+    linear-gradient(120deg, rgba(91, 95, 241, 0.06), rgba(6, 182, 212, 0.05)),
+    #fff;
 }
 .hero h1 {
   margin: 0 0 6px;
@@ -229,8 +236,9 @@ const tabs = [
   font-size: 12px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(34, 211, 238, 0.2));
-  border: 1px solid rgba(129, 140, 248, 0.4);
+  color: var(--p-primary);
+  background: rgba(91, 95, 241, 0.08);
+  border: 1px solid rgba(91, 95, 241, 0.25);
   white-space: nowrap;
 }
 .grid {
@@ -239,12 +247,17 @@ const tabs = [
   gap: 14px;
 }
 .cell {
-  padding: 20px;
+  padding: 18px;
   position: relative;
 }
 .cell-icon {
-  color: #818cf8;
-  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin-bottom: 12px;
 }
 .cell b {
   display: block;
@@ -264,10 +277,11 @@ const tabs = [
   border: 1px solid var(--p-card-border);
   border-radius: 999px;
   padding: 1px 8px;
+  background: #fff;
 }
 .foot {
   text-align: center;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(23, 33, 58, 0.3);
   font-size: 12px;
   padding: 26px 0 6px;
 }
@@ -275,7 +289,7 @@ const tabs = [
 /* ===== 移动端适配（M16 / <768px）===== */
 @media (max-width: 767px) {
   .shell {
-    padding: 12px 12px calc(76px + env(safe-area-inset-bottom));
+    padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
   }
   .topbar h2 {
     font-size: 18px;
@@ -312,10 +326,11 @@ const tabs = [
   display: flex;
   justify-content: space-around;
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  background: rgba(13, 19, 34, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--p-card-border);
+  box-shadow: 0 -8px 30px rgba(23, 43, 99, 0.06);
   z-index: 30;
 }
 .tab {
@@ -335,7 +350,8 @@ const tabs = [
   transform: scale(0.92);
 }
 .tab.active {
-  color: #818cf8;
+  color: var(--p-primary);
+  font-weight: 600;
 }
 .tab.disabled {
   opacity: 0.38;
