@@ -31,6 +31,7 @@ onMounted(async () => {
 })
 
 async function handleLogin() {
+  if (submitting.value) return
   if (!loginForm.username || !loginForm.password) {
     ElMessage.warning('请输入用户名和密码')
     return
@@ -49,6 +50,7 @@ async function handleLogin() {
 }
 
 async function handleInit() {
+  if (submitting.value) return
   if (!initForm.username || !initForm.password) {
     ElMessage.warning('请填写管理员账号与密码')
     return
@@ -113,7 +115,7 @@ const siteName = ref('Portal')
             <el-input v-model="loginForm.username" size="large" placeholder="用户名" :prefix-icon="IconUser" autocomplete="username" />
           </el-form-item>
           <el-form-item>
-            <el-input v-model="loginForm.password" size="large" type="password" show-password placeholder="密码" :prefix-icon="IconLock" autocomplete="current-password" @keyup.enter="handleLogin" />
+            <el-input v-model="loginForm.password" size="large" type="password" show-password placeholder="密码" :prefix-icon="IconLock" autocomplete="current-password" />
           </el-form-item>
           <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" :disabled="!backendUp" native-type="submit">
             登 录
@@ -132,9 +134,9 @@ const siteName = ref('Portal')
             <el-input v-model="initForm.password" size="large" type="password" show-password placeholder="密码（≥8 位，含字母和数字）" :prefix-icon="IconLock" />
           </el-form-item>
           <el-form-item>
-            <el-input v-model="initForm.confirm" size="large" type="password" show-password placeholder="确认密码" :prefix-icon="IconLock" @keyup.enter="handleInit" />
+            <el-input v-model="initForm.confirm" size="large" type="password" show-password placeholder="确认密码" :prefix-icon="IconLock" />
           </el-form-item>
-          <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" native-type="submit" @click="handleInit">
+          <el-button class="btn-gradient submit" size="large" type="primary" native-type="submit" :loading="submitting">
             创建管理员并进入
           </el-button>
         </el-form>

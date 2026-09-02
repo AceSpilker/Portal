@@ -104,6 +104,9 @@ request.interceptors.response.use(
       _raw?: unknown
       _isRefresh?: boolean
     }) | undefined
+    // 优先展示后端统一响应里的友好错误信息
+    const friendlyMessage =
+      typeof body?.message === 'string' && body.message ? body.message : error.message
 
     // 加密会话失效（服务端重启等）→ 重新握手并重试一次
     if (code === 1100 && original && !original._retried) {
@@ -124,7 +127,7 @@ request.interceptors.response.use(
       }
       logoutAndRedirect()
     }
-    return Promise.reject(error)
+    return Promise.reject(new Error(friendlyMessage))
   },
 )
 
