@@ -71,7 +71,14 @@ const isFav = (key: string) => favDraft.value.includes(key)
 // 自定义图标编辑弹窗
 const iconDialog = ref(false)
 const iconSaving = ref(false)
-const iconForm = ref({ id: undefined as number | undefined, name: '', data: '', filename: '', preview: '' })
+const iconForm = ref({
+  id: undefined as number | undefined,
+  name: '',
+  data: '',
+  filename: '',
+  preview: '',
+  element_name: '' as string | null,
+})
 const iconFileInput = ref<HTMLInputElement>()
 
 onMounted(async () => {
@@ -112,12 +119,19 @@ function toggleFav(key: string) {
 
 // ---- 自定义图标 CRUD ----
 function openIconCreate() {
-  iconForm.value = { id: undefined, name: '', data: '', filename: '', preview: '' }
+  iconForm.value = { id: undefined, name: '', data: '', filename: '', preview: '', element_name: '' }
   iconDialog.value = true
 }
 
 function openIconEdit(icon: IconItem) {
-  iconForm.value = { id: icon.id, name: icon.name, data: '', filename: '', preview: icon.path ?? '' }
+  iconForm.value = {
+    id: icon.id,
+    name: icon.name,
+    data: '',
+    filename: '',
+    preview: icon.path ?? '',
+    element_name: icon.element_name ?? '',
+  }
   iconDialog.value = true
 }
 
@@ -377,6 +391,11 @@ function saveIcons() {
           <div class="icon-dialog-body">
             <div class="icon-dialog-preview">
               <img v-if="iconForm.preview" :src="iconForm.preview" alt="" />
+              <component
+                v-else-if="iconForm.element_name && ELEMENT_ICON_MAP[iconForm.element_name]"
+                :is="ELEMENT_ICON_MAP[iconForm.element_name]"
+                class="im-svg"
+              />
               <span v-else>?</span>
             </div>
             <div class="icon-dialog-fields">

@@ -44,101 +44,65 @@ interface PickCell {
   name: string
   path?: string
   component?: unknown
+  favorite: boolean
 }
 
-/** 内置图标（来自图标库实体，可搜索） */
-const builtinCells = computed<PickCell[]>(() =>
-  iconLibrary.icons
+/** 统一网格：内置与自定义图标合并（按名称排序），自定义图标带角标便于识别 */
+const allCells = computed<PickCell[]>(() => {
+  const favs = settingsStore.iconFavorites
+  const customs = iconLibrary.icons
+    .filter((i) => i.source === 'custom')
+    .map((i) => ({
+      key: i.path ?? '',
+      kind: 'custom' as const,
+      name: i.name,
+      path: i.path ?? '',
+      component: undefined,
+      favorite: favs.includes(i.path ?? ''),
+    }))
+  const builtins = iconLibrary.icons
     .filter((i) => i.source === 'builtin')
-    .filter((i) => !searching.value || i.name.toLowerCase().includes(kw.value))
     .map((i) => ({
       key: i.element_name ?? i.name,
       kind: 'element' as const,
       name: i.name,
       component: ELEMENT_ICON_MAP[i.element_name ?? i.name],
-    })),
+      favorite: favs.includes(i.element_name ?? i.name),
+    }))
+  return [...customs, ...builtins].sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const gridCells = computed<PickCell[]>(() =>
+  searching.value
+    ? allCells.value.filter((c) => c.name.toLowerCase().includes(kw.value))
+    : allCells.value,
 )
 
-/** 自定义图标 */
-const customCells = computed<PickCell[]>(() =>
-  iconLibrary.icons
-    .filter((i) => i.source === 'custom')
-    .filter((i) => !searching.value || i.name.toLowerCase().includes(kw.value))
-    .map((i) => ({ key: i.path ?? '', kind: 'custom' as const, name: i.name, path: i.path ?? '' })),
-)
-
-/** 常用精选：内置名 / 自定义路径，均从图标库实体解析 */
-const favorites = computed<PickCell[]>(() =>
-  settingsStore.iconFavorites
-    .map((key): PickCell | null => {
-      if (key.startsWith('/icons/')) {
-        const found = customCells.value.find((c) => c.key === key)
-        return found ?? null
-      }
-      const found = builtinCells.value.find((c) => c.key === key)
-      return found ?? null
-    })
-    .filter((f): f is PickCell => f !== null),
-)
-
-function select(kind: IconPickKind, value: string) {
-  emit('update:modelValue', props.modelValue === value ? '' : value)
-  emit('select', { kind, value: props.modelValue === value ? '' : value })
+function select(cell: PickCell) {
+  const value = props.modelValue === cell.key ? '' : cell.key
+  emit('update:modelValue', value)
+  emit('select', { kind: cell.kind, value })
 }
 </script>
 
 <template>
   <div class="icon-picker">
     <el-input v-model="search" :placeholder="ph" clearable class="picker-search" />
-    <template v-if="!searching && favorites.length">
-      <div class="picker-label">{{ t('iconPicker.favorites') }}</div>
-      <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
-        <button
-          v-for="ic in favorites"
-          :key="`fav-${ic.kind}-${ic.key}`"
-          type="button"
-          class="picker-cell"
-          :class="{ active: modelValue === ic.key }"
-          :title="ic.name"
-          @click="select(ic.kind, ic.key)"
-        >
-          <img v-if="ic.kind === 'custom'" :src="ic.path" :alt="ic.name" class="picker-cell__img" />
-          <component :is="ic.component" v-else class="picker-cell__svg" />
-        </button>
-      </div>
-    </template>
-    <template v-if="customCells.length">
-      <div class="picker-label">{{ t('iconPicker.custom') }}</div>
-      <div class="picker-grid" :style="{ maxHeight: `${Math.min(maxHeight, 120)}px` }">
-        <button
-          v-for="c in customCells"
-          :key="`cus-${c.key}`"
-          type="button"
-          class="picker-cell"
-          :class="{ active: modelValue === c.key }"
-          :title="c.name"
-          @click="select('custom', c.key)"
-        >
-          <img :src="c.path" :alt="c.name" class="picker-cell__img" />
-        </button>
-      </div>
-    </template>
-    <div class="picker-label">
-      {{ searching ? t('iconPicker.searchResult', { n: builtinCells.length }) : t('iconPicker.all') }}
-    </div>
     <div class="picker-grid" :style="{ maxHeight: `${maxHeight}px` }">
       <button
-        v-for="ic in builtinCells"
-        :key="ic.key"
+        v-for="cell in gridCells"
+        :key="`${cell.kind}-${cell.key}`"
         type="button"
         class="picker-cell"
-        :class="{ active: modelValue === ic.key }"
-        :title="ic.name"
-        @click="select('element', ic.key)"
+        :class="{ active: modelValue === cell.key }"
+        :title="cell.name"
+        @click="select(cell)"
       >
-        <component :is="ic.component" class="picker-cell__svg" />
+        <img v-if="cell.kind === 'custom'" :src="cell.path" :alt="cell.name" class="picker-cell__img" />
+        <component :is="cell.component" v-else class="picker-cell__svg" />
+        <span v-if="cell.favorite" class="picker-cell__fav">★</span>
       </button>
-      <div v-if="searching && !builtinCells.length" class="picker-empty">{{ t('iconPicker.noMatch') }}</div>
+      <div v-if="!gridCells.length" class="picker-empty">{{ t('iconPicker.noMatch') }}</div>
     </div>
   </div>
 </template>
@@ -153,10 +117,6 @@ function select(kind: IconPickKind, value: string) {
 .picker-search {
   margin-bottom: 2px;
 }
-.picker-label {
-  font-size: 12px;
-  color: var(--p-muted);
-}
 .picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
@@ -168,6 +128,7 @@ function select(kind: IconPickKind, value: string) {
   align-content: start;
 }
 .picker-cell {
+  position: relative;
   height: 36px;
   display: flex;
   align-items: center;
@@ -197,6 +158,14 @@ function select(kind: IconPickKind, value: string) {
   height: 22px;
   object-fit: contain;
   border-radius: 4px;
+}
+.picker-cell__fav {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--p-primary);
 }
 .picker-empty {
   grid-column: 1 / -1;

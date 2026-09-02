@@ -303,7 +303,7 @@ function logout() {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  animation: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes page-in {
   from {

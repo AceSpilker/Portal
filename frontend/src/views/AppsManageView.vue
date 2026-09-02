@@ -576,6 +576,7 @@ async function doExport() {
       :title="draft.id ? t('apps.editApp') : t('apps.createApp')"
       :size="isMobile ? '100%' : '620px'"
       destroy-on-close
+      append-to-body
     >
       <div class="drawer-body">
         <el-form label-position="top" size="large">
@@ -716,7 +717,7 @@ async function doExport() {
     </el-drawer>
 
     <!-- 分组管理弹窗 -->
-    <el-dialog v-model="catDialog" :title="t('apps.catDialogTitle')" :width="isMobile ? '94%' : '560px'">
+    <el-dialog v-model="catDialog" :title="t('apps.catDialogTitle')" :width="isMobile ? '94%' : '560px'" append-to-body>
       <div class="cat-list">
         <div v-for="c in categories" :key="c.id" class="cat-row">
           <span class="cat-icon">
