@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.middleware import TransportEncryptionMiddleware
-from app.core.response import CODE_VALIDATION, BizError, fail
+from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
 from app.db.session import init_db
 
 
@@ -37,7 +37,7 @@ async def biz_error_handler(_: Request, exc: BizError):
 
 @app.exception_handler(RequestValidationError)
 async def validation_handler(_: Request, exc: RequestValidationError):
-    return fail(CODE_VALIDATION, f"参数校验失败：{exc.errors()[:3]}", 422)
+    return fail(CODE_VALIDATION, format_validation_errors(exc.errors()), 422)
 
 
 app.include_router(api_router, prefix="/api")
