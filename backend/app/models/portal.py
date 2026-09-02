@@ -15,7 +15,10 @@ class Category(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(64), unique=True)
+    # icon: emoji 字符（历史数据）/ Element Plus 图标名，随 icon_type 区分
     icon: Mapped[str | None] = mapped_column(Text, default=None)
+    # icon_type: NULL 视为历史 emoji；新数据走 element
+    icon_type: Mapped[str | None] = mapped_column(String(16), default=None)
     sort: Mapped[int] = mapped_column(Integer, default=0)
     collapsed: Mapped[bool] = mapped_column(default=False)  # 首页折叠默认态（P4 使用）
 

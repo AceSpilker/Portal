@@ -197,13 +197,14 @@
   <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
     <tr><td class="c">name</td><td class="c">TEXT</td><td>NOT NULL</td></tr>
     <tr><td class="c">icon</td><td class="c">TEXT</td><td>NULL</td></tr>
+    <tr><td class="c">icon_type</td><td class="c">TEXT</td><td>NULL 视为历史 emoji；新数据 element（Element 图标名）</td></tr>
     <tr><td class="c">sort / collapsed</td><td class="c">INTEGER</td><td>排序；默认折叠</td></tr>
   </tbody></table>
   <h4>apps <span class="badge m1">M1</span></h4>
   <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
     <tr><td class="c">name</td><td class="c">TEXT</td><td>NOT NULL</td></tr>
     <tr><td class="c">description</td><td class="c">TEXT</td><td>默认 ''</td></tr>
-    <tr><td class="c">icon / icon_type</td><td class="c">TEXT</td><td>icon_type：url / upload / emoji</td></tr>
+    <tr><td class="c">icon / icon_type</td><td class="c">TEXT</td><td>icon_type：url / upload / emoji / element（Element 图标名）</td></tr>
     <tr><td class="c">category_id</td><td class="c">INTEGER</td><td>FK categories，NULL 可不属于分组</td></tr>
     <tr><td class="c">sort / enabled</td><td class="c">INTEGER</td><td>排序；启用</td></tr>
     <tr><td class="c">health_type</td><td class="c">TEXT</td><td>'' / http / tcp / keyword</td></tr>

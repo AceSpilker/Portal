@@ -33,6 +33,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const tagOptions = computed(
     () => (map.value['apps.tag_options'] as string[] | undefined) ?? [],
   )
+  /** 图标库「常用」精选（IconPicker 置顶展示） */
+  const iconFavorites = computed(
+    () => (map.value['apps.icon_favorites'] as string[] | undefined) ?? [],
+  )
 
-  return { map, loaded, load, save, siteName, tagOptions }
+  return { map, loaded, load, save, siteName, tagOptions, iconFavorites }
 })

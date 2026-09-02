@@ -32,6 +32,12 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # 轻量迁移：create_all 不会给已有表补列，逐条尝试（列已存在则忽略）
+        for stmt in ("ALTER TABLE categories ADD COLUMN icon_type VARCHAR(16)",):
+            try:
+                await conn.exec_driver_sql(stmt)
+            except Exception:
+                pass
     async with SessionLocal() as session:
         for key, value in DEFAULT_SETTINGS.items():
             await session.merge(Setting(key=key, value=value))

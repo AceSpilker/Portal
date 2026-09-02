@@ -19,6 +19,14 @@ DEFAULT_SETTINGS: dict[str, str] = {
         ["媒体", "影音", "下载", "工具", "开发", "监控", "网络", "网盘", "家庭", "工作"],
         ensure_ascii=False,
     ),
+    # 图标库「常用」精选（M03-5，系统配置→图标库中维护，元素为 Element 图标名）
+    "apps.icon_favorites": json.dumps(
+        [
+            "Monitor", "Folder", "FolderOpened", "Cpu", "Download", "Upload",
+            "Cloudy", "VideoPlay", "Camera", "HomeFilled", "Link", "Setting",
+        ],
+        ensure_ascii=False,
+    ),
     "sync.enabled": json.dumps(False),
     "sync.interval_min": json.dumps(30),
 }

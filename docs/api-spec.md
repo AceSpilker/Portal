@@ -71,9 +71,9 @@
 
 ### 3.2 门户核心（应用/分组/入口）
 
-**categories**（M1）：id；name NOT NULL；icon TEXT NULL；sort INT 0；collapsed INT 0。
+**categories**（M1）：id；name NOT NULL；icon TEXT NULL；icon_type TEXT NULL（NULL 视为历史 emoji，新数据 element=Element 图标名）；sort INT 0；collapsed INT 0。
 
-**apps**（M1）：id；name NOT NULL；description ''；icon TEXT；icon_type TEXT（url/upload/emoji）；category_id FK NULL；sort INT 0；enabled INT 1；health_type TEXT（''/http/tcp/keyword）；health_target TEXT NULL（URL 或 host:port）；health_interval INT 60；open_mode TEXT（newtab/current/iframe）DEFAULT 'newtab'；visibility TEXT（all/admin/users）DEFAULT 'all'；favorite INT 0；tags TEXT(JSON) '[]'；remark TEXT ''；doc_url TEXT NULL；deleted INT 0（回收站）；deleted_at NULL。
+**apps**（M1）：id；name NOT NULL；description ''；icon TEXT；icon_type TEXT（url/upload/emoji/element，element 存 Element 图标名）；category_id FK NULL；sort INT 0；enabled INT 1；health_type TEXT（''/http/tcp/keyword）；health_target TEXT NULL（URL 或 host:port）；health_interval INT 60；open_mode TEXT（newtab/current/iframe）DEFAULT 'newtab'；visibility TEXT（all/admin/users）DEFAULT 'all'；favorite INT 0；tags TEXT(JSON) '[]'；remark TEXT ''；doc_url TEXT NULL；deleted INT 0（回收站）；deleted_at NULL。
 
 **app_urls**（M1）：id；app_id FK CASCADE；access_type TEXT NOT NULL（domain/lan/ssh/vpn/custom）；url TEXT NOT NULL；label TEXT ''；sort INT 0。
 

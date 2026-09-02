@@ -10,6 +10,8 @@ export interface Category {
   id: number
   name: string
   icon: string | null
+  /** NULL = 历史 emoji 数据；新数据为 element（Element Plus 图标名） */
+  icon_type: string | null
   sort: number
   collapsed: boolean
   /** 列表接口聚合返回；其他接口为 0 */
@@ -49,6 +51,7 @@ export interface PortalApp {
 export interface CategoryPayload {
   name: string
   icon?: string | null
+  icon_type?: string | null
   sort?: number
   collapsed?: boolean
 }

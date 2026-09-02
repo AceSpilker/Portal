@@ -11,6 +11,7 @@ WRITABLE_KEYS: set[str] = {
     "appearance.theme_color",
     "appearance.dark_mode",
     "apps.tag_options",
+    "apps.icon_favorites",
     "sync.enabled",
     "sync.interval_min",
 }
@@ -37,6 +38,13 @@ class SettingsUpdate(BaseModel):
                     raise ValueError("标签选项需为非空字符串数组")
                 if len(value) > 50:
                     raise ValueError("标签选项最多 50 个")
+            if key == "apps.icon_favorites":
+                if not isinstance(value, list) or not all(
+                    isinstance(t, str) and t.strip() for t in value
+                ):
+                    raise ValueError("常用图标需为非空字符串数组")
+                if len(value) > 100:
+                    raise ValueError("常用图标最多 100 个")
             if key == "sync.interval_min" and (
                 not isinstance(value, int) or not 1 <= value <= 1440
             ):

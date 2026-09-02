@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Collection as IconApps, Setting as IconGeneral } from '@element-plus/icons-vue'
+import { Collection as IconApps, Picture as IconLib, Setting as IconGeneral } from '@element-plus/icons-vue'
+import { filterElementIcons } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 
 const settingsStore = useSettingsStore()
 
-type MenuKey = 'general' | 'apps'
+type MenuKey = 'general' | 'apps' | 'icons'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -17,10 +18,16 @@ const siteName = ref('')
 const tagOptions = ref<string[]>([])
 const newTag = ref('')
 
+// ---- 图标库 ----
+const iconSearch = ref('')
+const favDraft = ref<string[]>([])
+const filteredIcons = computed(() => filterElementIcons(iconSearch.value))
+
 onMounted(async () => {
   await settingsStore.load(true)
   siteName.value = settingsStore.siteName
   tagOptions.value = [...settingsStore.tagOptions]
+  favDraft.value = [...settingsStore.iconFavorites]
 })
 
 function addTag() {
@@ -40,6 +47,16 @@ function addTag() {
 
 function removeTag(t: string) {
   tagOptions.value = tagOptions.value.filter((x) => x !== t)
+}
+
+function toggleFav(name: string) {
+  favDraft.value = favDraft.value.includes(name)
+    ? favDraft.value.filter((x) => x !== name)
+    : [...favDraft.value, name]
+  if (favDraft.value.length > 100) {
+    favDraft.value = favDraft.value.slice(0, 100)
+    ElMessage.warning('常用图标最多 100 个')
+  }
 }
 
 async function save(values: Record<string, unknown>, tip: string) {
@@ -65,6 +82,10 @@ function saveGeneral() {
 function saveTags() {
   save({ 'apps.tag_options': [...tagOptions.value] }, '标签选项已保存')
 }
+
+function saveIcons() {
+  save({ 'apps.icon_favorites': [...favDraft.value] }, '常用图标已保存')
+}
 </script>
 
 <template>
@@ -80,6 +101,10 @@ function saveTags() {
         <el-menu-item index="apps">
           <el-icon><component :is="IconApps" /></el-icon>
           <span>应用配置</span>
+        </el-menu-item>
+        <el-menu-item index="icons">
+          <el-icon><component :is="IconLib" /></el-icon>
+          <span>图标库</span>
         </el-menu-item>
       </el-menu>
       <p class="menu-hint">更多配置项（外观、通知、安全、同步等）将随后续阶段开放。</p>
@@ -137,6 +162,48 @@ function saveTags() {
             :loading="saving"
             style="margin-top: 16px"
             @click="saveTags"
+          >
+            保存
+          </el-button>
+        </div>
+      </template>
+
+      <template v-else-if="active === 'icons'">
+        <header class="panel-head">
+          <h3>图标库</h3>
+          <p>
+            管理图标选择器的「常用」精选（当前 {{ favDraft.length }} 个）——点击下方图标加入/移出常用，
+            保存后新建应用、分组弹窗的图标选择器会优先展示常用图标。
+          </p>
+        </header>
+        <div class="panel-body">
+          <el-input
+            v-model="iconSearch"
+            placeholder="搜索图标名，如 monitor / folder"
+            clearable
+            style="max-width: 320px"
+          />
+          <div class="icon-manage-grid">
+            <button
+              v-for="ic in filteredIcons"
+              :key="ic.name"
+              type="button"
+              class="im-cell"
+              :class="{ active: favDraft.includes(ic.name) }"
+              :title="ic.name"
+              @click="toggleFav(ic.name)"
+            >
+              <component :is="ic.component" class="im-svg" />
+              <span class="im-name">{{ ic.name }}</span>
+            </button>
+            <div v-if="!filteredIcons.length" class="im-empty">没有匹配的图标</div>
+          </div>
+          <el-button
+            type="primary"
+            class="btn-gradient"
+            :loading="saving"
+            style="margin-top: 16px"
+            @click="saveIcons"
           >
             保存
           </el-button>
@@ -208,6 +275,64 @@ function saveTags() {
 }
 .tag-input {
   width: 200px;
+}
+/* 图标库管理 */
+.icon-manage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 6px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 12px;
+}
+.im-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px 7px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--p-text);
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background 0.12s,
+    color 0.12s;
+}
+.im-cell:hover {
+  border-color: var(--p-primary);
+  color: var(--p-primary);
+}
+.im-cell.active {
+  background: rgba(91, 95, 241, 0.1);
+  border-color: var(--p-primary);
+  color: var(--p-primary);
+}
+.im-svg {
+  width: 20px;
+  height: 20px;
+}
+.im-name {
+  font-size: 10px;
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--p-muted);
+}
+.im-cell.active .im-name {
+  color: var(--p-primary);
+}
+.im-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--p-muted);
+  font-size: 13px;
+  padding: 24px 0;
 }
 
 @media (max-width: 767px) {

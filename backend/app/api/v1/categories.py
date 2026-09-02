@@ -55,7 +55,13 @@ async def create_category(
 ):
     if await _name_taken(session, body.name):
         raise BizError(CODE_DUPLICATED, "分组名已存在", 409)
-    cat = Category(name=body.name, icon=body.icon, sort=body.sort, collapsed=body.collapsed)
+    cat = Category(
+        name=body.name,
+        icon=body.icon,
+        icon_type=body.icon_type,
+        sort=body.sort,
+        collapsed=body.collapsed,
+    )
     session.add(cat)
     await session.commit()
     await session.refresh(cat)

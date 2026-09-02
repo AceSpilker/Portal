@@ -83,6 +83,7 @@ async def export_apps(
                 "id": c.id,
                 "name": c.name,
                 "icon": c.icon,
+                "icon_type": c.icon_type,
                 "sort": c.sort,
                 "collapsed": c.collapsed,
             }

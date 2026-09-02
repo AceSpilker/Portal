@@ -19,8 +19,8 @@ import type {
 } from '../api/portal'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
-import { filterElementIcons } from '../utils/elementIcons'
 import AppIcon from '../components/AppIcon.vue'
+import IconPicker from '../components/IconPicker.vue'
 import { isMobile } from '../composables/useIsMobile'
 
 const auth = useAuthStore()
@@ -57,10 +57,6 @@ onMounted(() => {
   settingsStore.load()
   loadAll()
 })
-
-/** 图标库搜索关键字 */
-const elementSearch = ref('')
-const elementIcons = computed(() => filterElementIcons(elementSearch.value))
 
 const filtered = computed(() => {
   let list = apps.value
@@ -154,7 +150,6 @@ function openCreate() {
   urlRows.value = []
   removedUrlIds.value = []
   faviconSource.value = ''
-  elementSearch.value = ''
   drawer.value = true
 }
 
@@ -185,7 +180,6 @@ function openEdit(app: PortalApp) {
   }))
   removedUrlIds.value = []
   faviconSource.value = ''
-  elementSearch.value = ''
   drawer.value = true
 }
 
@@ -336,15 +330,31 @@ async function grabFavicon() {
 // ============ 分组管理 ============
 const catDialog = ref(false)
 const catSaving = ref(false)
-const catForm = ref({ id: undefined as number | undefined, name: '', icon: '' })
+const catForm = ref({
+  id: undefined as number | undefined,
+  name: '',
+  icon: '',
+  icon_type: 'element' as string | null,
+})
+
+function pickCatIcon(name: string) {
+  catForm.value.icon = name
+  // 用户在新选择器中选了图标 → 标记为 element 类型（编辑历史 emoji 分组时覆盖）
+  if (name) catForm.value.icon_type = 'element'
+}
 
 function openCatCreate() {
-  catForm.value = { id: undefined, name: '', icon: '' }
+  catForm.value = { id: undefined, name: '', icon: '', icon_type: 'element' }
   catDialog.value = true
 }
 
 function openCatEdit(cat: Category) {
-  catForm.value = { id: cat.id, name: cat.name, icon: cat.icon ?? '' }
+  catForm.value = {
+    id: cat.id,
+    name: cat.name,
+    icon: cat.icon ?? '',
+    icon_type: cat.icon_type ?? 'emoji',
+  }
   catDialog.value = true
 }
 
@@ -355,7 +365,11 @@ async function saveCategory() {
   }
   catSaving.value = true
   try {
-    const payload = { name: catForm.value.name.trim(), icon: catForm.value.icon || null }
+    const payload = {
+      name: catForm.value.name.trim(),
+      icon: catForm.value.icon || null,
+      icon_type: catForm.value.icon ? 'element' : catForm.value.icon_type,
+    }
     if (catForm.value.id) await portalApi.updateCategory(catForm.value.id, payload)
     else await portalApi.createCategory(payload)
     catDialog.value = false
@@ -586,24 +600,7 @@ async function doExport() {
                 <input ref="iconFileInput" type="file" accept="image/*" hidden @change="onIconFile" />
               </template>
               <template v-else>
-                <el-input
-                  v-model="elementSearch"
-                  placeholder="搜索图标，如 monitor / cloud / server"
-                  clearable
-                />
-                <div class="icon-grid">
-                  <button
-                    v-for="ic in elementIcons"
-                    :key="ic.name"
-                    type="button"
-                    class="icon-cell"
-                    :class="{ active: draft.icon === ic.name }"
-                    :title="ic.name"
-                    @click="draft.icon = ic.name"
-                  >
-                    <component :is="ic.component" class="icon-cell__svg" />
-                  </button>
-                </div>
+                <IconPicker v-model="draft.icon" :max-height="200" />
               </template>
             </div>
           </el-form-item>
@@ -699,7 +696,9 @@ async function doExport() {
     <el-dialog v-model="catDialog" title="分组管理" :width="isMobile ? '94%' : '560px'">
       <div class="cat-list">
         <div v-for="c in categories" :key="c.id" class="cat-row">
-          <span class="cat-icon">{{ c.icon || '📁' }}</span>
+          <span class="cat-icon">
+            <AppIcon :icon="c.icon" :icon-type="c.icon_type ?? 'emoji'" :size="18" />
+          </span>
           <b>{{ c.name }}</b>
           <span class="muted">{{ c.app_count }} 个应用</span>
           <div class="cat-ops">
@@ -713,15 +712,35 @@ async function doExport() {
       </div>
       <el-divider />
       <div class="cat-form">
-        <el-input v-model="catForm.icon" placeholder="图标 emoji" class="cat-icon-input" maxlength="4" />
         <el-input v-model="catForm.name" placeholder="分组名称" maxlength="64" />
-        <el-button v-if="catForm.id" :loading="catSaving" type="primary" @click="saveCategory">
+        <el-button
+          v-if="catForm.id"
+          :loading="catSaving"
+          type="primary"
+          @click="saveCategory"
+        >
           保存修改
         </el-button>
-        <el-button v-else :loading="catSaving" type="primary" class="btn-gradient" @click="saveCategory">
+        <el-button
+          v-else
+          :loading="catSaving"
+          type="primary"
+          class="btn-gradient"
+          @click="saveCategory"
+        >
           新建分组
         </el-button>
         <el-button v-if="catForm.id" @click="openCatCreate">取消编辑</el-button>
+      </div>
+      <div class="cat-picker">
+        <div class="cat-picker-label">
+          分组图标（当前：{{ catForm.icon || '无' }}）
+        </div>
+        <IconPicker
+          :model-value="catForm.icon"
+          :max-height="170"
+          @update:model-value="pickCatIcon"
+        />
       </div>
     </el-dialog>
   </div>
@@ -828,41 +847,6 @@ async function doExport() {
   display: flex;
   gap: 8px;
 }
-.icon-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
-  gap: 4px;
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 2px;
-  border: 1px solid var(--p-card-border);
-  border-radius: 10px;
-}
-.icon-cell {
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--p-text);
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.icon-cell:hover {
-  background: rgba(91, 95, 241, 0.08);
-  color: var(--p-primary);
-}
-.icon-cell.active {
-  background: rgba(91, 95, 241, 0.14);
-  color: var(--p-primary);
-  border-color: var(--p-primary);
-}
-.icon-cell__svg {
-  width: 20px;
-  height: 20px;
-}
 .url-editor {
   width: 100%;
   display: flex;
@@ -928,6 +912,9 @@ async function doExport() {
 }
 .cat-icon {
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  color: var(--p-primary);
 }
 .cat-ops {
   margin-left: auto;
@@ -940,8 +927,12 @@ async function doExport() {
   display: flex;
   gap: 8px;
 }
-.cat-icon-input {
-  width: 96px;
-  flex-shrink: 0;
+.cat-picker {
+  margin-top: 12px;
+}
+.cat-picker-label {
+  font-size: 12px;
+  color: var(--p-muted);
+  margin-bottom: 8px;
 }
 </style>
