@@ -61,7 +61,6 @@ async function handleInit() {
   }
   submitting.value = true
   try {
-    siteName.value = initForm.site_name || 'Portal'
     const resp = await authApi.init({ ...initForm })
     auth.setSession(resp.access_token, resp.refresh_token, resp.user)
     ElMessage.success('初始化完成，欢迎使用！')
@@ -72,13 +71,13 @@ async function handleInit() {
     submitting.value = false
   }
 }
-
-const siteName = ref('Portal')
 </script>
 
 <template>
-  <AuroraBackground />
-  <div class="page">
+  <!-- 单根容器：<Transition mode="out-in"> 要求路由组件必须单根，多根会导致过渡编排失效（跳转白屏） -->
+  <div class="login-view">
+    <AuroraBackground />
+    <div class="page">
     <!-- 品牌 -->
     <div class="brand fade-up">
       <span class="brand-text">Portal</span>
@@ -146,6 +145,7 @@ const siteName = ref('Portal')
     </div>
 
     <p class="copyright fade-up" style="animation-delay: 0.3s">Portal · 自托管 NAS 门户</p>
+    </div>
   </div>
 </template>
 
