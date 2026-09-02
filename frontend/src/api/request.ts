@@ -97,7 +97,10 @@ request.interceptors.response.use(
   },
   async (error) => {
     const status = error.response?.status
-    const body = error.response?.data as Record<string, unknown> | undefined
+    // 错误响应也可能是密文信封（BizError 走应用层加密），先解密再取 code/message
+    const body = (await decryptBody(error.response?.data).catch(() => undefined)) as
+      | Record<string, unknown>
+      | undefined
     const code = typeof body?.code === 'number' ? body.code : undefined
     const original = error.config as (typeof error.config & {
       _retried?: boolean
