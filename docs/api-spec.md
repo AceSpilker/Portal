@@ -1,8 +1,10 @@
 # Portal · 接口与数据模型详述（API Spec）
 
-> **版本**：v1.1 ｜ **日期**：2026-09-01 ｜ **关联文档**：《功能详述 feature-spec》v1.4、《总体设计方案 design-proposal》v0.3
+> **版本**：v1.2 ｜ **日期**：2026-09-02 ｜ **关联文档**：《功能详述 feature-spec》v1.6、《总体设计方案 design-proposal》v0.7
 >
 > **v1.1 变更**：新增 **§7 传输加密协议**（RSA+AES-GCM 信封、豁免清单、重放防护）；§2 增补 1100/1101/1102 错误码；§4 增补 crypto 端点组。
+>
+> **v1.2 变更**：**外部存储与缓存**——§1 增补可选外部服务约定；§3.11 settings 补 `mysql.*` / `redis.*` 键组；§4.12 增补 `POST /api/redis/test`、`POST /api/mysql/test`；§6.1 补 Redis 环境变量；同步 icons 表 v2 定义。
 >
 > **文档定位**：后端建表与前后端联调的**契约依据**——字段级数据模型（31 张表）、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发时以此为准；字段或契约变更需升版本并在 `logs/` 记录。
 
@@ -21,6 +23,7 @@
 | 枚举 | `access_type`: domain/lan/ssh/vpn/custom；`role`: admin/user；`state`: up/down/unknown；`level`: info/warn/error；`trigger_type`: cron/webhook/manual/event；`open_mode`: newtab/current/iframe |
 | 文档 | FastAPI 自动生成 `/docs`（OpenAPI），本文为业务契约补充 |
 | 传输加密 | `/api` 全部密文传输（RSA+AES-GCM 信封，见 §7）；豁免：health、crypto 握手、静态资源 |
+| 可选外部服务 | MySQL（灾备镜像）与 Redis（会话/缓存）均为**可选**：未配置时全部使用 SQLite + 进程内存，功能不受影响；配置存于 settings（密码加密存储），支持环境变量覆盖 |
 | 导出文件名 | `前缀_YYYYMMDDHHMMSS_RRR.后缀`：本地时间年月日时分秒 + 3 位随机数（000–999），避免同名覆盖（例：`portal-apps_20260902153045_123.json`）；适用于所有导出场景（应用/备份/报表等），由前端统一工具函数生成 |
 
 ## 2. 错误码表
@@ -78,7 +81,7 @@
 
 **app_urls**（M1）：id；app_id FK CASCADE；access_type TEXT NOT NULL（domain/lan/ssh/vpn/custom）；url TEXT NOT NULL；label TEXT ''；sort INT 0。
 
-**custom_icons**（M1 增强）：id；name UNIQUE NOT NULL（≤32 字符）；path UNIQUE（/icons/<file> 静态路径）；created_at/updated_at。删除前校验 apps/categories 引用（icon_type='upload' 且 icon=path），被引用时返回 4003。
+**icons**（M1 增强，v2 统一实体）：id；name UNIQUE NOT NULL（≤32）；source（builtin/custom）；element_name UNIQUE NULL（内置渲染用）；path UNIQUE NULL（覆盖图/自定义图）；hidden BOOL（内置软删，播种不复活）。全部图标可改名/换图/删除；删除前校验 apps/categories 引用（被引用返回 4003）。
 
 **dashboard_layouts**（M1）：id；user_id FK；tab TEXT（标签页名）；sort INT；layout TEXT(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。
 
@@ -142,7 +145,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
 **sync_state**（M2）：id；table_name TEXT UNIQUE；last_push_at NULL；rows_pushed INT 0；status TEXT（idle/running/failed）；message TEXT ''。
 
@@ -299,6 +302,8 @@
 |---|---|---|---|---|
 | GET/PUT | /api/settings | 键值批量读写 | A读 M写 | P7 |
 | GET/PUT | /api/settings/sync | MySQL 同步配置与连接测试 | M | P23 |
+| POST | /api/mysql/test | MySQL 连接测试（按当前配置即时校验） | M | P23 |
+| POST | /api/redis/test | Redis 连接测试（按当前配置即时校验） | M | P25 |
 | POST | /api/sync/push · GET /api/sync/status · POST /api/sync/restore | 立即推送 / 状态 / 从 MySQL 恢复 | M | P23 |
 | GET | /api/backup/export · POST /api/backup/import | 全量导出/导入 | M | P2/P17 |
 | POST | /api/backup/factory-reset | 恢复出厂（需密码二次确认） | M | M2 |
@@ -335,6 +340,7 @@
 | SYNC__ENABLED | false | MySQL 定时推送开关 |
 | SYNC__INTERVAL_MIN | 30 | 推送间隔（分钟） |
 | SYNC__MYSQL__HOST / PORT / USER / PASSWORD / DATABASE | — | MySQL 连接（也可在设置页配置，环境变量优先） |
+| REDIS__HOST / PORT / PASSWORD / DB | — | Redis 连接（也可在设置页配置，环境变量优先）；未配置时会话/缓存走进程内存 |
 | HOST_PROC / HOST_SYS | 空 | 宿主机只读挂载路径（如 /host/proc），为空则读容器自身 |
 | DOCKER_SOCK_ENABLED | false | Docker 管理模块开关 |
 | LOG_LEVEL | info | 日志级别 |

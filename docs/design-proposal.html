@@ -189,7 +189,7 @@
     <h1>Portal<span class="dot"> · </span>NAS 门户系统设计方案</h1>
     <p class="tagline">自托管门户 Dashboard —— 统一登录、Icon 磁贴直达服务、多网络环境智能解析、内置 AI 助手与 Flow 自动化，单 Docker 容器部署。</p>
     <div class="meta">
-      <span class="chip">版本 v0.6</span>
+      <span class="chip">版本 v0.7</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">状态 待评审</span>
       <span class="chip">前端 Vue 3 + TS</span>
@@ -274,6 +274,7 @@
       <tr><td>流程画布（后期）</td><td>Vue Flow</td><td>Flow 可视化编排</td></tr>
       <tr><td>后端框架</td><td><strong>Python 3.12 + FastAPI + Uvicorn</strong></td><td>异步、自动 OpenAPI 文档</td></tr>
       <tr><td>ORM / 数据库</td><td>SQLAlchemy 2.0 + <strong>SQLite</strong> 主库，镜像推送 NAS <strong>MySQL</strong></td><td>运行读写全走 SQLite；MySQL 作灾备（dev-plan P23）</td></tr>
+      <tr><td>缓存/会话（可选）</td><td><strong>Redis</strong>（redis.asyncio）+ 进程内存降级实现</td><td>未配置 Redis 时自动回退进程内存（dev-plan P25）</td></tr>
       <tr><td>cryptography / WebCrypto</td><td>传输加密：RSA-3072 密钥交换 + AES-256-GCM 信封（P24 已实现）</td><td>前后端数据不明文传输</td></tr>
       <tr><td>认证</td><td>JWT（access + refresh）+ bcrypt</td><td>后续可加 TOTP 两步验证</td></tr>
       <tr><td>定时任务</td><td>APScheduler</td><td>探活、监控采样、Flow cron 触发</td></tr>
@@ -287,6 +288,24 @@
 </section>
 
 <!-- ============ 03 功能模块 ============ -->
+  <h3>存储与缓存体系（v0.7 定稿）</h3>
+  <p>系统默认<strong>零外部依赖</strong>（SQLite + 进程内存）；客户机已有的 MySQL / Redis 服务只需在「系统配置」中填连接信息即可启用，全部可选、可降级。</p>
+  <table>
+    <thead><tr><th style="width:16%">层</th><th style="width:22%">未配置（默认）</th><th>配置后</th></tr></thead>
+    <tbody>
+      <tr><td><strong>运行主库</strong></td><td><strong>SQLite</strong>（data/portal.db）</td><td>不变（MySQL 仅作镜像，不承载运行读写）——全部业务数据读写</td></tr>
+      <tr><td><strong>灾备镜像</strong></td><td>不启用</td><td><strong>MySQL</strong>：按可配置间隔定时全量 upsert（删除对齐、敏感表排除）；"立即推送"与"从 MySQL 恢复到 SQLite"（恢复前自动备份本地）</td></tr>
+      <tr><td><strong>会话存储</strong></td><td>进程内存（重启丢失）</td><td><strong>Redis</strong>：登录会话清单、登出黑名单、登录限速计数、传输加密会话密钥；重启后会话保持</td></tr>
+      <tr><td><strong>高速缓存</strong></td><td>直接回源</td><td><strong>Redis</strong>：统一 CacheStore 接口（get/set/ttl/del）；监控实时数据、AI 上下文等热点数据按需接入</td></tr>
+    </tbody>
+  </table>
+  <p><strong>降级与自检</strong>：连接参数存于系统配置（密码加密存储，支持环境变量覆盖）；连接失败做退避与降级，恢复后自动回切/补推；健康自检（M15-10）输出各外部服务连通性与当前存储模式。</p>
+  <p><strong>配置项</strong>（系统配置 → 新增分组，均可选）：</p>
+  <ul>
+    <li><strong>MySQL</strong>：host / 端口 / 账号 / 密码（加密存储）/ 目标库 / 推送间隔（分钟）/ 开关 / 立即推送 / 测试连接；</li>
+    <li><strong>Redis</strong>：host / 端口 / 密码 / DB / key 前缀 / 开关 / 测试连接。</li>
+  </ul>
+
 <section id="s3">
   <h2><span class="no">03</span>功能模块设计</h2>
   <p>以下按模块展开。<span class="badge core">核心</span> 为本项目差异化重点，<span class="badge p1">M1</span><span class="badge p2">M2</span><span class="badge p3">M3</span> 表示建议落地阶段（见 §10 路线图）。</p>

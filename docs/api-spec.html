@@ -116,7 +116,7 @@
     <h1>Portal<span class="dot"> · </span>接口与数据模型详述（API Spec）</h1>
     <p class="tagline">后端建表与前后端联调的契约依据：31 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
     <div class="meta">
-      <span class="chip">版本 v1.1</span>
+      <span class="chip">版本 v1.2</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">关联 feature-spec v1.3 · design-proposal v0.3</span>
       <span class="chip">31 张表</span>
@@ -140,6 +140,7 @@
       <tr><td>核心枚举</td><td><code>access_type</code>: domain/lan/ssh/vpn/custom；<code>role</code>: admin/user；<code>state</code>: up/down/unknown；<code>level</code>: info/warn/error；<code>trigger_type</code>: cron/webhook/manual/event；<code>open_mode</code>: newtab/current/iframe</td></tr>
       <tr><td>文档</td><td>FastAPI 自动 <code>/docs</code>（OpenAPI）；本文为业务契约补充</td></tr>
       <tr><td>传输加密</td><td><code>/api</code> 全部密文传输（RSA+AES-GCM 信封，见 §7 传输加密协议）；豁免：health、crypto 握手、静态资源</td></tr>
+      <tr><td>可选外部服务</td><td>MySQL（灾备镜像）与 Redis（会话/缓存）均为<strong>可选</strong>：未配置时全部使用 SQLite + 进程内存，功能不受影响；配置存于 settings（密码加密存储），支持环境变量覆盖</td></tr>
       <tr><td>导出文件名</td><td><code>前缀_YYYYMMDDHHMMSS_RRR.后缀</code>：本地时间年月日时分秒 + 3 位随机数（000–999），避免同名覆盖（例：<code>portal-apps_20260902153045_123.json</code>）；适用于所有导出场景（应用/备份/报表等），由前端统一工具函数生成</td></tr>
     </tbody>
   </table>
@@ -226,9 +227,12 @@
     <tr><td class="c">label / sort</td><td class="c">TEXT/INT</td><td>标签与排序</td></tr>
   </tbody></table>
 
-  <h4>custom_icons <span class="badge m1">M1 增强</span></h4>
+  <h4>icons <span class="badge m1">M1 增强（v2 统一实体）</span></h4>
   <table><thead><tr><th style="width:18%">字段</th><th style="width:18%">类型</th><th>约束 / 说明</th></tr></thead><tbody>
     <tr><td class="c">name</td><td class="c">TEXT</td><td>UNIQUE NOT NULL（≤32）</td></tr>
+    <tr><td class="c">source</td><td class="c">TEXT</td><td>builtin（Element 内置，element_name 渲染）/ custom（上传图片）</td></tr>
+    <tr><td class="c">element_name</td><td class="c">TEXT</td><td>UNIQUE NULL（内置图标 Element 组件名）</td></tr>
+    <tr><td class="c">hidden</td><td class="c">BOOL</td><td>内置软删除标记（播种不复活）</td></tr>
     <tr><td class="c">path</td><td class="c">TEXT</td><td>UNIQUE /icons/&lt;file&gt;；删除前校验引用（4003）</td></tr>
   </tbody></table>
   <p><strong>dashboard_layouts</strong>（M1）：id；user_id FK；tab（标签页名）；sort；layout(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。</p>
@@ -292,7 +296,7 @@
   <strong>short_links</strong>（M2）：id；code UNIQUE；target；hits。</p>
 
   <h3 id="dm-sys">3.11 系统与同步</h3>
-  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.* / apps.*</code> / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code> / <code>backup.*</code> / <code>sync.*</code>。<br>
+  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.* / apps.*</code> / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code> / <code>backup.*</code> / <code>sync.*</code> / <code>mysql.*</code>（P23） / <code>redis.*</code>（P25）。<br>
   <strong>sync_state</strong>（M2）：id；table_name UNIQUE；last_push_at；rows_pushed；status（idle/running/failed）；message。</p>
 </section>
 
@@ -381,7 +385,7 @@
     <tr><td>日历/待办</td><td class="c">CRUD /api/calendar/events · /api/todos</td><td>日程与待办</td><td class="c">A</td><td class="c">M2</td></tr>
     <tr><td>文件</td><td class="c">GET /api/files/list · GET download · POST upload/mkdir/rename/delete/move · GET/PUT content(M3) · POST analyze(M3)</td><td>文件管理（白名单目录）</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>下载/媒体</td><td class="c">GET /api/downloads/summary · /tasks · POST /tasks · GET /api/media/recent</td><td>qBittorrent 集成 / 最近入库</td><td class="c">A</td><td class="c">M2</td></tr>
-    <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore</td><td>键值设置 / MySQL 同步</td><td class="c">M</td><td class="c">P7/P23</td></tr>
+    <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore · POST /api/mysql/test · POST /api/redis/test</td><td>键值设置 / MySQL 同步 / Redis 连接测试</td><td class="c">M</td><td class="c">P7/P23/P25</td></tr>
     <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs · GET /api/system/info · /check · /check-update</td><td>备份 / Token / 审计 / 系统</td><td class="c">M</td><td class="c">P2~M2</td></tr>
   </tbody></table>
 </section>
@@ -421,6 +425,7 @@ data: {"type": <span class="s">"error"</span>,  "code": <span class="k">5002</sp
     <tr><td class="c">DB__TYPE</td><td class="c">sqlite</td><td>运行主库固定 SQLite（MySQL 仅作镜像目标）</td></tr>
     <tr><td class="c">SYNC__ENABLED / SYNC__INTERVAL_MIN</td><td class="c">false / 30</td><td>MySQL 定时推送开关与间隔（分钟）</td></tr>
     <tr><td class="c">SYNC__MYSQL__HOST / PORT / USER / PASSWORD / DATABASE</td><td class="c">—</td><td>MySQL 连接（也可在设置页配置，环境变量优先）</td></tr>
+    <tr><td class="c">REDIS__HOST / PORT / PASSWORD / DB</td><td class="c">—</td><td>Redis 连接（也可在设置页配置，环境变量优先）；未配置时会话/缓存走进程内存</td></tr>
     <tr><td class="c">HOST_PROC / HOST_SYS</td><td class="c">空</td><td>宿主机只读挂载路径（如 /host/proc），为空则读容器自身</td></tr>
     <tr><td class="c">DOCKER_SOCK_ENABLED</td><td class="c">false</td><td>Docker 管理模块开关</td></tr>
     <tr><td class="c">LOG_LEVEL</td><td class="c">info</td><td>日志级别</td></tr>

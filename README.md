@@ -6,10 +6,10 @@
 
 | 文档 | 内容 | 版本 |
 |---|---|---|
-| [docs/design-proposal](docs/design-proposal.html) | 总体设计方案：架构、技术选型、数据模型概览、前置问题决策表 | v0.2 |
-| [docs/feature-spec](docs/feature-spec.html) | 功能详述：18 模块 / 221 功能点，功能细节权威来源 | v1.2 |
-| [docs/api-spec](docs/api-spec.html) | 接口与数据模型详述：31 张表、90+ 端点、错误码、WS/SSE 协议 | v1.0 |
-| [docs/dev-plan](docs/dev-plan.html) | 开发计划：25 阶段 / 113 步骤，带完成状态与测试关卡 | v1.2 |
+| [docs/design-proposal](docs/design-proposal.html) | 总体设计方案：架构（含可选 MySQL/Redis 存储体系）、技术选型、i18n 与动效规范、数据模型概览、前置问题决策表 | v0.7 |
+| [docs/feature-spec](docs/feature-spec.html) | 功能详述：18 模块 / 225 功能点，功能细节权威来源 | v1.6 |
+| [docs/api-spec](docs/api-spec.html) | 接口与数据模型详述：32 张表、90+ 端点、错误码、WS/SSE 协议 | v1.2 |
+| [docs/dev-plan](docs/dev-plan.html) | 开发计划：26 阶段 / 118 步骤，带完成状态与测试关卡 | v1.3 |
 
 > Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **25/113**，P0/P1/P2/P24 完成，P7.1 设置框架提前落地）。
 

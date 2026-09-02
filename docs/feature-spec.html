@@ -132,13 +132,13 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>功能详述（Feature Spec）</h1>
-    <p class="tagline">系统全部功能的权威清单：18 个功能模块、224 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
+    <p class="tagline">系统全部功能的权威清单：18 个功能模块、225 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
     <div class="meta">
-      <span class="chip">版本 v1.5</span>
+      <span class="chip">版本 v1.6</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">关联 design-proposal v0.3</span>
       <span class="chip">18 模块</span>
-      <span class="chip">224 功能点</span>
+      <span class="chip">225 功能点</span>
       <span class="chip">v1.4 新增：传输加密（数据不明文）</span>
     </div>
   </div>
@@ -157,7 +157,7 @@
   </div>
   <div class="stats">
     <div class="stat"><b>18</b><span>功能模块</span></div>
-    <div class="stat"><b>224</b><span>功能点</span></div>
+    <div class="stat"><b>225</b><span>功能点</span></div>
     <div class="stat"><b>4</b><span>可选独立模块</span></div>
     <div class="stat"><b>3</b><span>个落地阶段</span></div>
   </div>
@@ -183,7 +183,7 @@
       <tr><td>M12</td><td><a href="#m12">下载与媒体集成 <span class="badge opt">可选</span></a></td><td>下载器/媒体库联动</td><td>6</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
       <tr><td>M13</td><td><a href="#m13">日程与提醒</a></td><td>日历待办与提醒推送</td><td>6</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td>M14</td><td><a href="#m14">开放 API 与扩展</a></td><td>Token、主题、插件预留</td><td>7</td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
-      <tr><td>M15</td><td><a href="#m15">系统设置</a></td><td>全局配置中心、日志中心</td><td>13</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td>M15</td><td><a href="#m15">系统设置</a></td><td>全局配置中心、日志中心</td><td>14</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td>M16</td><td><a href="#m16">移动端与 PWA</a></td><td>响应式与安装体验</td><td>7</td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
       <tr><td><strong>M17</strong></td><td><a href="#m17"><strong>服务器性能监控 <span class="badge core">★ 核心</span></strong></a></td><td><strong>CPU/内存/磁盘/网络/进程等整机监控</strong></td><td><strong>21</strong></td><td><span class="badge p1">M1</span><span class="badge p2">M2</span></td></tr>
       <tr><td><strong>M18</strong></td><td><a href="#m18"><strong>端口监控 <span class="badge core">★ 核心</span></strong></a></td><td><strong>端口监听、探活、变更告警与安全检查</strong></td><td><strong>12</strong></td><td><span class="badge p2">M2</span><span class="badge p3">M3</span></td></tr>
@@ -588,7 +588,7 @@
 
 <!-- ============ M15 ============ -->
 <section id="m15">
-  <h2><span class="no">M15</span>系统设置 <span class="badge p1">13 项</span></h2>
+  <h2><span class="no">M15</span>系统设置 <span class="badge p1">14 项</span></h2>
   <p>定位：全局配置中心，集中管理、即改即生效。</p>
   <table>
     <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
@@ -606,6 +606,7 @@
       <tr><td class="num">11</td><td>关于页</td><td>版本/构建时间/开源协议/项目地址</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td class="num">12</td><td>MySQL 数据同步</td><td>SQLite 为主库，定时镜像推送到 NAS MySQL：连接配置与测试、间隔可配、立即推送、每表同步状态与最近结果、失败退避重试、敏感表排除（会话/Token 不同步）、MySQL 不可达不影响本地运行、支持从 MySQL 恢复</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">13</td><td>系统日志中心</td><td>独立日志页面：登录日志/操作日志/系统事件统一列表，按类型/时间/用户筛选，支持导出；与审计日志（M01-14）同源</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">14</td><td>Redis 缓存与会话</td><td>客户机已有 Redis 仅需配置：连接配置与测试、存储模式展示（redis/内存）；登录会话清单、登出黑名单、登录限速计数、传输加密会话密钥存入 Redis（重启会话保持）；统一 CacheStore 缓存接口（监控/AI 热点数据按需接入）；未配置时自动降级进程内存，功能不受影响</td><td><span class="badge p2">M2</span></td></tr>
     </tbody>
   </table>
 </section>
