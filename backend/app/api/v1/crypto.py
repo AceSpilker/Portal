@@ -1,4 +1,5 @@
 """传输加密握手接口（dev-plan P24.1；api-spec §7）。"""
+
 from base64 import b64decode
 
 from fastapi import APIRouter, Depends

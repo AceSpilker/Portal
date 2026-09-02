@@ -327,7 +327,7 @@
     <tr><td class="c">GET/POST</td><td class="c">/api/apps/templates · /from-template</td><td>应用模板库</td><td class="c">M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/apps/{id}/restore · /purge</td><td>回收站恢复 / 彻底删除</td><td class="c">M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST/GET</td><td class="c">/api/apps/{id}/check · /history</td><td>立即探活 / 探活历史与可用率</td><td class="c">A</td><td class="c">P6/M2</td></tr>
-    <tr><td class="c">POST/GET</td><td class="c">/api/apps/upload-icon · /favicon?url=</td><td>图标上传 / favicon 抓取</td><td class="c">M</td><td class="c">P2</td></tr>
+    <tr><td class="c">POST/GET</td><td class="c">/api/apps/upload-icon · /favicon?url=</td><td>图标上传（base64 随加密信封，压方存 /icons 托管）/ favicon 抓取（失败 4004）</td><td class="c">M</td><td class="c">P2</td></tr>
   </tbody></table>
 
   <h3 id="api-env">4.3 网络环境与隧道</h3>

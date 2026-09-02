@@ -1,4 +1,5 @@
 """FastAPI 依赖：当前用户 / 管理员权限（M01-9）。"""
+
 import jwt
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

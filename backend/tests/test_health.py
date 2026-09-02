@@ -1,4 +1,5 @@
 """P0 测试关卡：健康检查 + 建表与默认设置（dev-plan P0 单元测试）。"""
+
 from pathlib import Path
 
 from fastapi.testclient import TestClient

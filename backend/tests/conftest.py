@@ -3,6 +3,7 @@
 传输加密默认关闭（现有接口测试按明文契约断言）；
 加密链路本身由 test_crypto.py 单独开启并验证。
 """
+
 import os
 import tempfile
 
@@ -20,5 +21,3 @@ def client():
     """应用级测试客户端（触发 lifespan 建表）。"""
     with TestClient(app) as c:
         yield c
-
-

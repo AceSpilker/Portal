@@ -1,9 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import LoginView from '../views/LoginView.vue'
-import DashboardView from '../views/DashboardView.vue'
+import AppLayout from '../layouts/AppLayout.vue'
+import HomeView from '../views/HomeView.vue'
+import AppsManageView from '../views/AppsManageView.vue'
 
-// P1 阶段仅两个视图，静态导入避免懒加载空窗；页面增多后再按需改回懒加载
+// 视图数量仍少，静态导入避免懒加载空窗；页面增多后再按需改回懒加载
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -15,8 +17,11 @@ const router = createRouter({
     },
     {
       path: '/',
-      name: 'dashboard',
-      component: DashboardView,
+      component: AppLayout,
+      children: [
+        { path: '', name: 'home', component: HomeView, meta: { title: '首页' } },
+        { path: 'apps', name: 'apps', component: AppsManageView, meta: { title: '应用管理' } },
+      ],
     },
   ],
 })

@@ -5,6 +5,7 @@
 中间件自身产生的错误（缺会话/解密失败/重放）以明文最小信息返回（1100/1101/1102），
 不含任何业务数据，前端据此重新握手。
 """
+
 import json
 
 from app.core.config import settings
@@ -53,9 +54,7 @@ class TransportEncryptionMiddleware:
                 envelope = json.loads(raw_body)
                 if envelope.get("enc") != 1:
                     raise ValueError("not encrypted")
-                plain_body = transport_crypto.open_envelope(
-                    aes, envelope["n"], envelope["p"], sid
-                )
+                plain_body = transport_crypto.open_envelope(aes, envelope["n"], envelope["p"], sid)
             except ValueError as exc:
                 code = 1101 if str(exc) == "replayed nonce" else 1102
                 message = "replayed request" if code == 1101 else "undecryptable request body"
@@ -71,8 +70,7 @@ class TransportEncryptionMiddleware:
             try:
                 jwt_value = transport_crypto.decrypt_str(aes, authz[4:].strip())
                 new_headers = [
-                    (k, jwt_value.encode() if k == b"authorization" else v)
-                    for k, v in new_headers
+                    (k, jwt_value.encode() if k == b"authorization" else v) for k, v in new_headers
                 ]
             except Exception:
                 await self._plain(send, 1102, "undecryptable authorization", 400)(

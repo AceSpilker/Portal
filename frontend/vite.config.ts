@@ -10,6 +10,8 @@ export default defineConfig({
     proxy: {
       '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
       '/ws': { target: 'ws://127.0.0.1:8000', ws: true },
+      // 上传图标静态托管（P2.4，豁免加密的静态资源）
+      '/icons': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     },
   },
   test: {

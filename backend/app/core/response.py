@@ -1,4 +1,5 @@
 """统一响应与业务异常（契约见 api-spec §1/§2）。"""
+
 from typing import Any
 
 from fastapi.responses import JSONResponse

@@ -4,6 +4,7 @@
 - 会话信封：AES-256-GCM（12 字节 nonce）；前端每次会话生成 AES 密钥并以公钥封装
 - 重放防护：同一会话内 nonce 去重（LRU 上限）
 """
+
 import base64
 import hashlib
 import secrets

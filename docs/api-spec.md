@@ -189,8 +189,8 @@
 | POST | /api/apps/{id}/restore · DELETE /api/apps/{id}/purge | 回收站恢复/彻底删除 | M | M2 |
 | POST | /api/apps/{id}/check | 立即探活一次 | A | P6 |
 | GET | /api/apps/{id}/history?range=24h | 探活历史/可用率 | A | M2 |
-| POST | /api/apps/upload-icon | 图标上传（压缩存 /app/data/icons） | M | P2 |
-| GET | /api/apps/favicon?url= | 抓取目标站图标 | M | P2 |
+| POST | /api/apps/upload-icon | 图标上传：`{filename, data(base64)}` 随加密信封传输（不用 multipart，保持全链路密文），压方存 /app/data/icons，经 `/icons/*` 静态托管 | M | P2 |
+| GET | /api/apps/favicon?url= | 抓取目标站图标（favicon.ico → 页面 link → 兜底源；失败 4004），落 /icons 返回路径 | M | P2 |
 
 ### 4.3 网络环境与隧道
 

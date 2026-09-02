@@ -1,4 +1,5 @@
 """密码哈希（bcrypt）与 JWT 签发/校验（dev-plan P1.2）。"""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -15,6 +16,7 @@ REFRESH_EXPIRE_DAYS = 7
 
 # ---- 密码 ----
 
+
 def hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -27,6 +29,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 # ---- JWT ----
+
 
 def _create_token(
     user_id: int, token_type: str, expires_delta: timedelta, ver: int

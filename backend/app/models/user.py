@@ -1,4 +1,5 @@
 """用户模型（M01；api-spec §3.1 users）。"""
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, String

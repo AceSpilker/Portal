@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import router from '../router'
 import { useAuthStore } from '../stores/auth'
 import {
+  currentSessionId,
   decryptBody,
   encryptBody,
   encryptHeaderValue,
@@ -41,6 +42,8 @@ request.interceptors.request.use(async (config) => {
     return config
   }
   await ensureSession()
+  // 会话 id 必须随每个请求携带（Authorization 头与请求体都按会话密钥加密，GET 无 body 时也不例外）
+  config.headers['X-Session-Id'] = currentSessionId()
   if (auth.token) {
     config.headers.Authorization = await encryptHeaderValue(`Bearer ${auth.token}`)
   }
@@ -48,9 +51,6 @@ request.interceptors.request.use(async (config) => {
     ;(config as typeof config & { _raw?: unknown })._raw = config.data
     const encrypted = await encryptBody(config.url ?? '', config.data)
     config.data = encrypted.body
-    if (encrypted.sessionId) {
-      config.headers['X-Session-Id'] = encrypted.sessionId
-    }
   }
   return config
 })

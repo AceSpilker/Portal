@@ -2,6 +2,7 @@
 
 公开访问；附带 initialized 标志供前端判断是否进入初始化向导。
 """
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession

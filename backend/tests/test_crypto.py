@@ -3,6 +3,7 @@
 用 Python cryptography 模拟前端 WebCrypto 行为（RSA-OAEP-SHA256 + AES-256-GCM）。
 依赖 test_auth 先行执行（管理员账号已初始化，最终密码为 NEW_PASS）。
 """
+
 import base64
 import functools
 import json
@@ -94,6 +95,7 @@ def test_02_encrypted_login_roundtrip(client: TestClient):
     body = resp.json()
     if body.get("enc") != 1:
         import sys as _sys
+
         print(f"[DBG] test_02 resp: {resp.text[:200]}", file=_sys.stderr)
     assert body.get("enc") == 1, "响应必须是密文信封：" + resp.text[:200]
     tokens = sess.open(body)["data"]
@@ -171,9 +173,9 @@ def test_08_full_flow_over_encryption(client: TestClient):
         # 信封解密后为统一响应体 {code, message, data}，整体返回供断言
         return sess.open(resp.json())
 
-    login = call(
-        "POST", "/api/auth/login", obj={"username": ADMIN_USER, "password": ADMIN_PASS}
-    )["data"]
+    login = call("POST", "/api/auth/login", obj={"username": ADMIN_USER, "password": ADMIN_PASS})[
+        "data"
+    ]
     assert login["user"]["username"] == ADMIN_USER
     me = call("GET", "/api/auth/me", token=login["access_token"])["data"]
     assert me["username"] == ADMIN_USER

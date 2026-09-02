@@ -1,4 +1,5 @@
 """认证与账户接口（M01 基础；dev-plan P1）。"""
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request

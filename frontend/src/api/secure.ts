@@ -73,6 +73,11 @@ export function resetSession(): void {
   booting = null
 }
 
+/** 当前会话 id（未握手时为空串）。每个非豁免请求都必须随头携带。 */
+export function currentSessionId(): string {
+  return session?.id ?? ''
+}
+
 /** 加密请求体为信封；豁免路径或无请求体时原样返回。 */
 export async function encryptBody(
   url: string,

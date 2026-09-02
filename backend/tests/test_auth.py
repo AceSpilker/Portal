@@ -3,6 +3,7 @@
 测试顺序即业务链路：未初始化 → 弱口令拒绝 → 初始化 → 重复初始化拒绝 →
 登录失败/成功 → me → refresh → 改密（旧 token 失效）→ 新密码登录 → 限速锁定。
 """
+
 from fastapi.testclient import TestClient
 
 from app.core.ratelimit import reset as reset_ratelimit
@@ -47,9 +48,7 @@ def test_04_init_creates_admin(client: TestClient):
 
 
 def test_05_init_again_rejected(client: TestClient):
-    resp = client.post(
-        "/api/auth/init", json={"username": "root", "password": ADMIN_PASS}
-    )
+    resp = client.post("/api/auth/init", json={"username": "root", "password": ADMIN_PASS})
     assert resp.json()["code"] == 1005
 
 

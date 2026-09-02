@@ -1,4 +1,5 @@
 """应用配置（环境变量对应 api-spec §6.1）。"""
+
 from pathlib import Path
 
 from pydantic import AliasChoices, Field

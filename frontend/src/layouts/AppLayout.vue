@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { isMobile, isTablet } from '../composables/useIsMobile'
 import {
@@ -10,37 +12,42 @@ import {
   HomeFilled as IconHome,
 } from '@element-plus/icons-vue'
 
-const auth = useAuthStore()
-const year = new Date().getFullYear()
-
-function logout() {
-  auth.logout()
-  window.location.href = '/login'
+interface NavItem {
+  icon: typeof IconHome
+  label: string
+  to?: string
+  tag?: string
+  disabled?: boolean
 }
 
-/** 后续阶段的占位卡片（彩色图标区分） */
-const upcoming = [
-  { icon: IconApps, title: '应用管理', desc: '磁贴与分组、多入口配置', stage: 'P2', color: '#5b5ff1', bg: 'rgba(91, 95, 241, 0.1)' },
-  { icon: IconMonitor, title: '服务器监控', desc: 'CPU / 内存 / 磁盘 / 网络', stage: 'P5', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)' },
-  { icon: IconAi, title: 'AI 助手', desc: '对话与意图导航', stage: 'M2', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
-  { icon: IconFlow, title: 'Flow 自动化', desc: '触发器 → 条件 → 动作', stage: 'M2', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
-]
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
 
-const navItems = [
-  { icon: IconHome, label: '首页', active: true },
-  { icon: IconApps, label: '应用', tag: 'P2', disabled: true },
+const navItems: NavItem[] = [
+  { icon: IconHome, label: '首页', to: '/' },
+  { icon: IconApps, label: '应用', to: '/apps' },
   { icon: IconMonitor, label: '监控', tag: 'P5', disabled: true },
   { icon: IconFlow, label: 'Flow', tag: 'M2', disabled: true },
   { icon: IconAi, label: 'AI', tag: 'M2', disabled: true },
 ]
 
-const tabs = [
-  { icon: IconHome, label: '首页', active: true },
-  { icon: IconApps, label: '应用', disabled: true },
-  { icon: IconMonitor, label: '监控', disabled: true },
-  { icon: IconFlow, label: 'Flow', disabled: true },
-  { icon: IconAi, label: 'AI', disabled: true },
-]
+const pageTitle = computed(() => (route.meta.title as string | undefined) ?? 'Portal')
+
+function isActive(item: NavItem): boolean {
+  if (!item.to) return false
+  return item.to === '/' ? route.path === '/' : route.path.startsWith(item.to)
+}
+
+function onNav(item: NavItem) {
+  if (item.disabled || !item.to || isActive(item)) return
+  router.push(item.to)
+}
+
+function logout() {
+  auth.logout()
+  window.location.href = '/login'
+}
 </script>
 
 <template>
@@ -56,7 +63,12 @@ const tabs = [
           v-for="item in navItems"
           :key="item.label"
           class="nav-item"
-          :class="{ active: item.active, disabled: item.disabled, 'icon-only': isTablet }"
+          :class="{
+            active: isActive(item),
+            disabled: item.disabled,
+            'icon-only': isTablet,
+          }"
+          @click="onNav(item)"
         >
           <el-icon :size="20"><component :is="item.icon" /></el-icon>
           <span v-if="!isTablet" class="nav-label">{{ item.label }}</span>
@@ -71,50 +83,38 @@ const tabs = [
       </div>
     </aside>
 
-    <!-- 主区 -->
+    <!-- 主区：页面内容由路由注入 -->
     <main class="main" :class="{ mobile: isMobile }">
       <header class="topbar">
-        <h2>首页</h2>
+        <h2>{{ pageTitle }}</h2>
         <div class="topbar-right">
           <span class="env">🏠 家庭内网</span>
-          <el-button class="btn-logout-mobile" circle size="small" :icon="IconLogout" @click="logout" />
+          <el-button
+            class="btn-logout-mobile"
+            circle
+            size="small"
+            :icon="IconLogout"
+            @click="logout"
+          />
         </div>
       </header>
 
-      <!-- 欢迎横幅 -->
-      <section class="hero glass fade-up">
-        <div>
-          <h1>你好，{{ auth.user?.username }} 👋</h1>
-          <p>这是 P0/P1 骨架完成后的样子——仪表盘磁贴将在 P4 阶段上线。</p>
-        </div>
-        <span class="pill">P0 · 骨架已就绪</span>
-      </section>
-
-      <!-- 占位卡片 -->
-      <section class="grid stagger">
-        <div v-for="item in upcoming" :key="item.title" class="cell glass hover-lift">
-          <span class="cell-icon" :style="{ background: item.bg, color: item.color }">
-            <el-icon :size="22"><component :is="item.icon" /></el-icon>
-          </span>
-          <b>{{ item.title }}</b>
-          <p>{{ item.desc }}</p>
-          <span class="stage">{{ item.stage }}</span>
-        </div>
-      </section>
-
-      <footer class="foot">© {{ year }} Portal · 自托管 NAS 门户</footer>
+      <div class="page">
+        <router-view />
+      </div>
     </main>
 
     <!-- 移动端底部 Tab 导航（M16-3，含安全区适配 M16-7） -->
     <nav class="tabbar">
       <div
-        v-for="tab in tabs"
-        :key="tab.label"
+        v-for="item in navItems"
+        :key="item.label"
         class="tab"
-        :class="{ active: tab.active, disabled: tab.disabled }"
+        :class="{ active: isActive(item), disabled: item.disabled }"
+        @click="onNav(item)"
       >
-        <el-icon :size="20"><component :is="tab.icon" /></el-icon>
-        <span>{{ tab.label }}</span>
+        <el-icon :size="20"><component :is="item.icon" /></el-icon>
+        <span>{{ item.label }}</span>
       </div>
     </nav>
   </div>
@@ -169,20 +169,16 @@ const tabs = [
   color: var(--p-text);
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s, color 0.2s;
+  transition:
+    background 0.2s,
+    transform 0.15s,
+    color 0.2s;
   white-space: nowrap;
 }
 .nav-item.active {
   background: linear-gradient(135deg, rgba(91, 95, 241, 0.12), rgba(139, 92, 246, 0.08));
   color: var(--p-primary);
   font-weight: 600;
-}
-.nav-item.active .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--p-primary);
-  box-shadow: 0 0 8px rgba(91, 95, 241, 0.8);
 }
 .nav-item.disabled {
   color: var(--p-muted);
@@ -256,77 +252,15 @@ const tabs = [
   border-radius: 999px;
   white-space: nowrap;
 }
-.hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: clamp(18px, 2.4vw, 30px);
-  flex-shrink: 0;
-  background:
-    linear-gradient(120deg, rgba(91, 95, 241, 0.06), rgba(6, 182, 212, 0.05)),
-    #fff;
-}
-.hero h1 {
-  margin: 0 0 6px;
-  font-size: clamp(19px, 2.2vw, 22px);
-}
-.hero p {
-  margin: 0;
-  color: var(--p-muted);
-  font-size: 13.5px;
-}
-.pill {
-  font-size: 12px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  color: var(--p-primary);
-  background: rgba(91, 95, 241, 0.08);
-  border: 1px solid rgba(91, 95, 241, 0.25);
-  white-space: nowrap;
-}
-.grid {
+/* 路由页面容器：占满剩余空间并负责滚动 */
+.page {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  align-content: start;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
-  gap: clamp(10px, 1.4vw, 14px);
-  padding: 2px;
+  display: flex;
+  flex-direction: column;
 }
-.cell {
-  padding: clamp(14px, 1.8vw, 20px);
-  position: relative;
-}
-.cell-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-}
-.cell b {
-  display: block;
-  margin-bottom: 4px;
-}
-.cell p {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--p-muted);
-}
-.stage {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  font-size: 10.5px;
-  color: var(--p-muted);
-  border: 1px solid var(--p-card-border);
-  border-radius: 999px;
-  padding: 1px 8px;
-  background: #fff;
+.page > * {
+  flex-shrink: 0;
 }
 .foot {
   flex-shrink: 0;
@@ -377,27 +311,6 @@ const tabs = [
   .topbar h2 {
     font-size: 18px;
   }
-  .hero {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 18px;
-  }
-  .grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .cell {
-    padding: 14px;
-  }
-  .foot {
-    padding-bottom: 10px;
-  }
-}
-@media (max-width: 400px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ===== 底部 Tab 导航（移动端；桌面隐藏） ===== */
@@ -431,7 +344,9 @@ const tabs = [
   min-height: 44px;
   justify-content: center;
   cursor: pointer;
-  transition: color 0.2s, transform 0.15s;
+  transition:
+    color 0.2s,
+    transform 0.15s;
 }
 .tab:active {
   transform: scale(0.92);

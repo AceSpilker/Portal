@@ -2,6 +2,8 @@
 
 连接层基于 SQLAlchemy，保持可对接 MySQL（镜像推送见 dev-plan P23）。
 """
+
+import json
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -12,6 +14,8 @@ from app.core.config import settings
 engine = create_async_engine(
     f"sqlite+aiosqlite:///{Path(settings.data_dir) / 'portal.db'}",
     echo=False,
+    # 中文等非 ASCII 字符原样入库（否则 LIKE 检索/导出可读性受影响）
+    json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
 )
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

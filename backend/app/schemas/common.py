@@ -1,4 +1,5 @@
 """Pydantic 公共模型（统一响应）。"""
+
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel

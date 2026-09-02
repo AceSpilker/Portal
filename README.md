@@ -9,9 +9,9 @@
 | [docs/design-proposal](docs/design-proposal.html) | 总体设计方案：架构、技术选型、数据模型概览、前置问题决策表 | v0.2 |
 | [docs/feature-spec](docs/feature-spec.html) | 功能详述：18 模块 / 221 功能点，功能细节权威来源 | v1.2 |
 | [docs/api-spec](docs/api-spec.html) | 接口与数据模型详述：31 张表、90+ 端点、错误码、WS/SSE 协议 | v1.0 |
-| [docs/dev-plan](docs/dev-plan.html) | 开发计划：24 阶段 / 108 步骤，带完成状态与测试关卡 | v1.1 |
+| [docs/dev-plan](docs/dev-plan.html) | 开发计划：25 阶段 / 113 步骤，带完成状态与测试关卡 | v1.2 |
 
-> Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **6/108**，P0 进行中）。
+> Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **24/113**，P0/P1/P2/P24 完成，下一步 P3 网络环境与智能解析）。
 
 ## 目录结构
 

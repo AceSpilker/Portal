@@ -1,4 +1,5 @@
 """站点键值配置（M15；api-spec §3.11 settings）。"""
+
 import json
 from typing import Any
 
