@@ -5,6 +5,7 @@ from app.models.layout import DashboardLayout
 from app.models.monitor import AlertRule, MonitorSample
 from app.models.network import NetworkProfile
 from app.models.notify import NotifyChannel, NotifyRule
+from app.models.port import PortEvent, PortMonitor
 from app.models.portal import App, AppUrl, Category, Icon
 from app.models.probe import AppStatus, Notification, ProbeEvent
 from app.models.setting import DEFAULT_SETTINGS, Setting
@@ -24,6 +25,8 @@ __all__ = [
     "MonitorSample",
     "NotifyChannel",
     "NotifyRule",
+    "PortEvent",
+    "PortMonitor",
     "NetworkProfile",
     "Notification",
     "ProbeEvent",

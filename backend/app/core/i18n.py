@@ -195,6 +195,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- 端口监控（M18/P11）----
+    "err.port_monitor_not_found": {"zh-CN": "端口监控项不存在", "en": "Port monitor not found"},
+    "err.port_import_line": {
+        "zh-CN": "导入行格式应为 host:port 或 名称|host:port",
+        "en": "Import lines must be host:port or name|host:port",
+    },
     # ---- 监控告警/证书（M17/P10）----
     "err.alert_rule_not_found": {"zh-CN": "告警规则不存在", "en": "Alert rule not found"},
     "err.cert_hosts_invalid": {

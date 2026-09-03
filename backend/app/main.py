@@ -13,6 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.monitor import cleanup_job, monitor_ws, sampler_job
+from app.api.v1.ports import ports_job
 from app.api.v1.probe import notify_ws, probe_job
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -69,6 +70,11 @@ async def lifespan(_: FastAPI):
     # 证书到期检查（P10.5/M07-6）：每 6h，dedup 按天
     _scheduler.add_job(
         certs_check_job, "interval", hours=6, id="certs_check",
+        max_instances=1, replace_existing=True,
+    )
+    # 端口探活（P11.2/M18-2）：每 10s 巡检到期监控项
+    _scheduler.add_job(
+        ports_job, "interval", seconds=10, id="port_probe",
         max_instances=1, replace_existing=True,
     )
     if not _scheduler.running:  # 测试环境会多次进入 lifespan

@@ -12,6 +12,7 @@ from app.api.v1 import (
     monitor,
     network_profiles,
     notify,
+    ports,
     probe,
     settings,
     system,
@@ -36,3 +37,4 @@ api_router.include_router(users.router, tags=["users"])
 api_router.include_router(tools.router, tags=["tools"])
 api_router.include_router(system.router, tags=["system"])
 api_router.include_router(notify.router, tags=["notify"])
+api_router.include_router(ports.router, tags=["ports"])
