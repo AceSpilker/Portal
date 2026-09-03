@@ -213,6 +213,16 @@ export default {
     cardFlowTitle: 'Flow Automation',
     cardFlowDesc: 'Trigger → Condition → Action',
     copyright: 'Self-hosted NAS Portal',
+    tabs: {
+      default: 'Home',
+      add: 'New tab',
+      rename: 'Rename',
+      delete: 'Delete tab',
+      more: 'Tab actions',
+      tabName: 'Tab name',
+      nameRequired: 'Name is required',
+      deleteConfirm: 'Delete tab "{name}" and its layout?',
+    },
     wx: {
       feels: 'feels',
       notifications: 'Recent notifications',
@@ -462,6 +472,12 @@ export default {
     latencyMs: '{n} ms',
   },
   entry: {
+    trend: 'Trend',
+    trendAvg: 'Avg {ms}ms',
+    trendMax: 'Max {ms}ms',
+    trendUp: 'Up {pct}%',
+    trendEmpty: 'No samples yet',
+
     precheckOk: 'Pre-check OK · {ms}ms',
     precheckDown: 'Pre-check failed — try alternatives',
     qr: 'QR',

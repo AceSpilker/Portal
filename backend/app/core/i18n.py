@@ -132,6 +132,12 @@ MESSAGES: dict[str, dict[str, str]] = {
     # ---- 布局 / 壁纸（M02；P4）----
     "ok.layout_saved": {"zh-CN": "布局已保存", "en": "Layout saved"},
     "v.layout_too_large": {"zh-CN": "布局数据过大", "en": "Layout payload too large"},
+    "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
+    "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
+    "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "err.tab_default_undeletable": {
+        "zh-CN": "默认标签页不可删除", "en": "Default tab cannot be deleted"
+    },
     "err.wallpaper_type": {
         "zh-CN": "壁纸类型仅支持 none/solid/gradient/image",
         "en": "Wallpaper type must be none/solid/gradient/image",

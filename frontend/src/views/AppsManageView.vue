@@ -374,14 +374,6 @@ function onSelectionChange(rows: PortalApp[]) {
 
 const batchDialog = reactive({ visible: false, moveCategory: null as number | null })
 
-function openBatch() {
-  if (!selectedIds.value.length) {
-    ElMessage.warning(t('apps.batchEmpty'))
-    return
-  }
-  batchDialog.visible = true
-}
-
 async function doBatch(op: 'enable' | 'disable' | 'recycle' | 'move') {
   try {
     const cid = op === 'move' ? batchDialog.moveCategory : null

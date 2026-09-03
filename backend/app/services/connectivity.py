@@ -11,6 +11,8 @@ import time
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
+from sqlalchemy import select
+
 PROBE_TIMEOUT = 2.0  # 单入口超时（秒）
 _CONCURRENCY = 16  # 并发探测上限
 
@@ -92,3 +94,72 @@ async def probe_apps(apps: list) -> dict:
         "probed_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "apps": rows,
     }
+
+
+# ---- 入口延迟历史（M04-14；dev-plan P15.4）----
+
+RETENTION_DAYS = 7  # 采样保留天数（趋势定位足够，防库膨胀）
+
+
+async def record_url_samples(session, results: list[dict], app_id_by_url: dict[int, int]) -> None:
+    """把入口探测结果写入 url_probe_samples（预检/矩阵/定时轮询共用）。"""
+    from datetime import datetime
+
+    from app.models.probe import UrlProbeSample
+
+    for r in results:
+        url_id = r.get("id")
+        if url_id is None:
+            continue
+        session.add(
+            UrlProbeSample(
+                url_id=url_id,
+                app_id=app_id_by_url.get(url_id, 0),
+                state=r.get("state", "unknown"),
+                latency_ms=r.get("latency_ms"),
+                checked_at=datetime.utcnow(),
+            )
+        )
+    await session.commit()
+
+
+async def probe_all_urls(session) -> int:
+    """定时任务（P15.4）：探测全部启用应用的所有入口并记录采样。返回采样条数。"""
+    from sqlalchemy.orm import selectinload
+
+    from app.models.portal import App
+
+    apps = (
+        (
+            await session.execute(
+                select(App)
+                .where(App.deleted.is_(False), App.enabled.is_(True))
+                .options(selectinload(App.urls))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    matrix = await probe_apps(apps)
+    results: list[dict] = []
+    app_id_by_url: dict[int, int] = {}
+    for row in matrix["apps"]:
+        for u in row["urls"]:
+            results.append(u)
+            app_id_by_url[u["id"]] = row["id"]
+    await record_url_samples(session, results, app_id_by_url)
+    return len(results)
+
+
+async def cleanup_url_samples(session) -> int:
+    """清理过期入口延迟采样（保留 RETENTION_DAYS 天）。"""
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import delete
+
+    from app.models.probe import UrlProbeSample
+
+    cutoff = datetime.utcnow() - timedelta(days=RETENTION_DAYS)
+    result = await session.execute(delete(UrlProbeSample).where(UrlProbeSample.checked_at < cutoff))
+    await session.commit()
+    return result.rowcount or 0

@@ -37,6 +37,23 @@ class ProbeEvent(Base):
     __table_args__ = (Index("ix_probe_events_app_created", "app_id", "created_at"),)
 
 
+class UrlProbeSample(Base):
+    """入口延迟采样（M04-14；dev-plan P15.4）：每次入口探测记录一条，供趋势图。
+
+    定时任务每 5min 全量探测一轮；点击前预检（/apps/{id}/precheck）与
+    连通性矩阵（/connectivity/matrix）的结果也写入；保留 7 天。
+    """
+
+    __tablename__ = "url_probe_samples"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    url_id: Mapped[int] = mapped_column(Integer, index=True)
+    app_id: Mapped[int] = mapped_column(Integer, index=True)  # 冗余：URL 删除后按应用清理
+    state: Mapped[str] = mapped_column(Text, default="unknown")  # up / down / unknown
+    latency_ms: Mapped[int | None] = mapped_column(Integer, default=None)
+    checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

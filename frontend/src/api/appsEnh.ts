@@ -43,6 +43,15 @@ export interface WidgetsSummary {
   docker: { running: number; stopped: number } | null
 }
 
+export interface UrlLatencyHistory {
+  url_id: number
+  range: string
+  points: Array<{ checked_at: string; state: string; latency_ms: number | null }>
+  avg_ms: number | null
+  max_ms: number | null
+  up_pct: number | null
+}
+
 export const appsEnhApi = {
   recycleBin: () => request.get<never, RecycleItem[]>('/apps/recycle-bin'),
   restore: (id: number) => request.post<never, { id: number }>(`/apps/${id}/restore`),
@@ -59,8 +68,18 @@ export const appsEnhApi = {
   precheck: (id: number) =>
     request.post<
       never,
-      { app_id: number; ok: boolean; state: string; latency_ms: number | null; alternatives: Array<{ app_id: number; name: string; health_target: string }> }
+      {
+        app_id: number
+        ok: boolean
+        state: string
+        latency_ms: number | null
+        alternatives: Array<{ app_id: number; name: string; health_target: string }>
+        urls?: Array<{ id: number; state: string; latency_ms: number | null }>
+      }
     >(`/apps/${id}/precheck`),
+  // 入口延迟历史（P15.4/M04-14）
+  urlLatency: (urlId: number, range = '24h') =>
+    request.get<never, UrlLatencyHistory>(`/apps/urls/${urlId}/latency`, { params: { range } }),
   weather: () => request.get<never, WeatherInfo | null>('/widgets/weather'),
   summary: () => request.get<never, WidgetsSummary>('/widgets/summary'),
 }

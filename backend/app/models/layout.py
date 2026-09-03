@@ -20,5 +20,7 @@ class DashboardLayout(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     tab: Mapped[str] = mapped_column(String(32), default="default")
-    sort: Mapped[int] = mapped_column(Integer, default=0)  # M2 多标签页排序预留
+    # M02-5 标签页显示名（default 空名 = 用 i18n 文案）
+    title: Mapped[str] = mapped_column(String(64), default="")
+    sort: Mapped[int] = mapped_column(Integer, default=0)  # M2 多标签页排序
     layout: Mapped[dict] = mapped_column(JSON, default=dict)

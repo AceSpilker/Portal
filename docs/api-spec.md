@@ -84,7 +84,9 @@
 
 **icons**（M1 增强，v2 统一实体）：id；name UNIQUE NOT NULL（≤32）；source（builtin/custom）；element_name UNIQUE NULL（内置渲染用）；path UNIQUE NULL（覆盖图/自定义图）；hidden BOOL（内置软删，播种不复活）。全部图标可改名/换图/删除；删除前校验 apps/categories 引用（被引用返回 4003）。
 
-**dashboard_layouts**（M1）：id；user_id FK；tab TEXT（标签页名）；sort INT；layout TEXT(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。
+**dashboard_layouts**（M1）：id；user_id FK；tab TEXT（标签页名）；title TEXT ''（M02-5 标签页显示名，default 空名=用 i18n）；sort INT；layout TEXT(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。
+
+**url_probe_samples**（M2/P15.4）：id；url_id（app_urls FK 语义）；app_id（冗余索引）；state TEXT（up/down/unknown）；latency_ms INT NULL；checked_at TIMESTAMP 索引。来源：预检（precheck）/连通性矩阵/定时轮询（每 5min），保留 7 天。
 
 ### 3.3 网络环境与访问解析
 
@@ -150,7 +152,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
 **sync_state**（M2）：id；table_name TEXT UNIQUE；last_push_at NULL；rows_pushed INT 0；status TEXT（idle/running/failed）；message TEXT ''。
 
@@ -204,8 +206,14 @@
 | GET/POST | /api/apps/{id}/urls · PUT/DELETE /api/app-urls/{id} | 访问入口 CRUD | M | P2 |
 | GET | /api/apps/{id}/resolve?env=auto \| {pid} | 智能解析：{recommended, alternatives[]} | A | P3 |
 | GET/POST | /api/apps/export · /api/apps/import | JSON 导出/导入 | M | P2 |
-| GET | /api/apps/templates · POST /api/apps/from-template | 应用模板库 | M | M2 |
+| GET | /api/apps/templates · POST /api/apps/from-template | 应用模板库（{host} 占位实例化） | M | M2 |
+| GET | /api/apps/recycle-bin | 回收站列表（软删应用） | M | M2 |
 | POST | /api/apps/{id}/restore · DELETE /api/apps/{id}/purge | 回收站恢复/彻底删除 | M | M2 |
+| POST | /api/apps/batch | 批量操作 {ids, op: enable/disable/recycle/move, category_id?}，≤100 条，写审计 | M | M2 |
+| POST | /api/apps/{id}/precheck | 点击前预检（1s 快速探测，不通回退备选）；响应含 urls[]（逐入口探测结果，写入延迟历史） | A | M2 |
+| GET | /api/apps/urls/{url_id}/latency?range=6h\|24h\|7d | 入口延迟历史（M04-14）：{points[], avg_ms, max_ms, up_pct} | A | M2 |
+| GET | /api/widgets/weather | 天气小组件（wttr.in 代理，home.weather_city） | A | M2 |
+| GET | /api/widgets/summary | 首页小组件聚合（最近通知/Flow 执行/容器计数） | A | M2 |
 | POST | /api/apps/{id}/check | 立即探活一次 | A | P6 |
 | GET | /api/probe/status | 全部应用当前状态（state/latency/message，首页磁贴首屏） | A | P6 |
 | GET | /api/apps/{id}/history?range=24h | 探活历史/可用率 | A | M2 |
@@ -324,6 +332,8 @@
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
 | GET/PUT | /api/me/layouts | 当前用户仪表盘布局（tab 维度整份读写） | A | P4 |
+| GET/POST | /api/me/tabs | 标签页清单 / 新建（M02-5，≤20 个） | A | M2 |
+| PUT/DELETE | /api/me/tabs · /api/me/tabs/{tab} | 标签页批量改标题/排序 / 删除（default 不可删） | A | M2 |
 | GET/PUT | /api/settings | 键值批量读写 | A读 M写 | P7 |
 | GET/PUT | /api/settings/sync | MySQL 同步配置与连接测试 | M | P23 |
 | POST | /api/mysql/test | MySQL 连接测试（按当前配置即时校验） | M | P23 |

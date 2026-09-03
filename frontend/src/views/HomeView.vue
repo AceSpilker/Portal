@@ -11,11 +11,14 @@ import HomeWidgets from '../components/HomeWidgets.vue'
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { VueDraggable } from 'vue-draggable-plus'
 import {
   CaretBottom as IconCollapse,
   CaretRight as IconExpand,
+  Delete as IconTabDelete,
+  Edit as IconTabEdit,
+  MoreFilled as IconTabMore,
   Plus as IconPlus,
   Rank as IconDrag,
   Star as IconStar,
@@ -24,6 +27,7 @@ import {
 import { portalApi } from '../api/portal'
 import type { Category, PortalApp } from '../api/portal'
 import { layoutApi } from '../api/dashboard'
+import type { TabItem } from '../api/dashboard'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { useProbeStore } from '../stores/probe'
@@ -56,6 +60,83 @@ const layout = ref<DashboardLayoutData>({ ...DEFAULT_LAYOUT })
 const sections = ref<{ key: string; title: string; collapsed: boolean; apps: PortalApp[] }[]>([])
 const collapsedDraft = ref<Record<string, boolean>>({})
 
+// ---- 多标签页（P15.2/M02-5）：每标签页一份独立布局 ----
+const tabs = ref<TabItem[]>([])
+const activeTab = ref(localStorage.getItem('portal.homeTab') || 'default')
+
+function tabLabel(tb: TabItem): string {
+  return tb.tab === 'default' && !tb.title ? t('home.tabs.default') : tb.title
+}
+
+async function loadTabs() {
+  tabs.value = await layoutApi.getMyTabs()
+  if (!tabs.value.some((x) => x.tab === activeTab.value)) {
+    activeTab.value = 'default'
+  }
+}
+
+async function switchTab(tab: string) {
+  if (tab === activeTab.value) return
+  activeTab.value = tab
+  localStorage.setItem('portal.homeTab', tab)
+  await load()
+}
+
+async function addTab() {
+  try {
+    const { value } = await ElMessageBox.prompt(t('home.tabs.tabName'), t('home.tabs.add'), {
+      inputPattern: /\S+/,
+      inputErrorMessage: t('home.tabs.nameRequired'),
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+    })
+    const created = await layoutApi.createTab(value.trim())
+    tabs.value.push(created)
+    await switchTab(created.tab)
+  } catch {
+    /* 取消 */
+  }
+}
+
+async function renameTab(tb: TabItem) {
+  try {
+    const { value } = await ElMessageBox.prompt(t('home.tabs.tabName'), t('home.tabs.rename'), {
+      inputValue: tb.title,
+      inputPattern: /\S+/,
+      inputErrorMessage: t('home.tabs.nameRequired'),
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+    })
+    tb.title = value.trim()
+    await layoutApi.updateTabs(tabs.value.map((x) => ({ ...x })))
+  } catch {
+    /* 取消 */
+  }
+}
+
+async function removeTab(tb: TabItem) {
+  try {
+    await ElMessageBox.confirm(t('home.tabs.deleteConfirm', { name: tabLabel(tb) }), t('common.confirm'), {
+      type: 'warning',
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+    })
+  } catch {
+    return
+  }
+  try {
+    await layoutApi.deleteTab(tb.tab)
+    tabs.value = tabs.value.filter((x) => x.tab !== tb.tab)
+    if (activeTab.value === tb.tab) {
+      activeTab.value = 'default'
+      localStorage.setItem('portal.homeTab', 'default')
+    }
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
 function rebuildSections() {
   layout.value.order = syncOrder(layout.value.order, apps.value)
   sections.value = buildSections(apps.value, categories.value, layout.value)
@@ -72,7 +153,7 @@ async function load() {
     ])
     apps.value = appList
     categories.value = catList
-    const mine = layouts.find((l) => l.tab === 'default')
+    const mine = layouts.find((l) => l.tab === activeTab.value)
     layout.value = parseLayout(mine?.layout)
     rebuildSections()
   } catch (e) {
@@ -83,7 +164,9 @@ async function load() {
 }
 
 function persistLayout() {
-  layoutApi.saveMyLayout('default', { ...layout.value }).catch((e) => ElMessage.error((e as Error).message))
+  layoutApi
+    .saveMyLayout(activeTab.value, { ...layout.value })
+    .catch((e) => ElMessage.error((e as Error).message))
 }
 
 // ---- 打开方式（P4.1）----
@@ -165,7 +248,12 @@ const greetingKey = computed(() => {
   return 'home.greetEvening'
 })
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    await loadTabs()
+  } catch {
+    /* 标签页加载失败不阻塞首页 */
+  }
   load()
   clockTimer = window.setInterval(() => (now.value = new Date()), 1_000)
 })
@@ -190,6 +278,39 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
         </div>
       </div>
     </section>
+
+    <!-- 多标签页（P15.2/M02-5）：切换独立布局 -->
+    <div v-if="tabs.length" class="tabs-bar">
+      <button
+        v-for="tb in tabs"
+        :key="tb.tab"
+        type="button"
+        class="tab-item"
+        :class="{ active: tb.tab === activeTab }"
+        @click="switchTab(tb.tab)"
+      >
+        <span class="tab-title">{{ tabLabel(tb) }}</span>
+        <el-dropdown
+          v-if="tb.tab !== 'default'"
+          class="tab-menu"
+          trigger="click"
+          @command="(cmd: string) => (cmd === 'rename' ? renameTab(tb) : removeTab(tb))"
+        >
+          <span class="tab-menu-btn" :title="t('home.tabs.more')" @click.stop>
+            <el-icon :size="12"><IconTabMore /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="rename" :icon="IconTabEdit">{{ t('home.tabs.rename') }}</el-dropdown-item>
+              <el-dropdown-item command="delete" :icon="IconTabDelete">{{ t('home.tabs.delete') }}</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </button>
+      <button type="button" class="tab-add" :title="t('home.tabs.add')" @click="addTab">
+        <el-icon :size="13"><IconPlus /></el-icon>
+      </button>
+    </div>
 
     <!-- 区块列表：收藏区置顶 + 分组区块，支持区块拖拽排序 -->
     <VueDraggable
@@ -286,6 +407,62 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   gap: clamp(10px, 1.4vw, 16px);
   overflow-y: auto;
   padding-bottom: 4px;
+}
+/* 多标签页栏（P15.2） */
+.tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--p-card);
+  color: var(--p-text-muted, inherit);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-item:hover {
+  color: var(--p-primary);
+}
+.tab-item.active {
+  background: color-mix(in srgb, var(--p-primary) 14%, var(--p-card));
+  color: var(--p-primary);
+  font-weight: 600;
+}
+.tab-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+.tab-item:hover .tab-menu-btn,
+.tab-item.active .tab-menu-btn {
+  opacity: 1;
+}
+.tab-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px dashed var(--p-border, rgba(128, 128, 128, 0.4));
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.tab-add:hover {
+  color: var(--p-primary);
+  border-color: var(--p-primary);
 }
 .hero {
   display: flex;

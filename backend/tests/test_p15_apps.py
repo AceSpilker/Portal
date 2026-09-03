@@ -162,3 +162,63 @@ def test_05_widgets_summary(client: TestClient):
     # docker 未启用 → None（前端隐藏）
     assert data["docker"] in (None, {"running": int, "stopped": int})
 
+
+
+def test_06_dashboard_tabs_crud(client: TestClient):
+    """多标签页（15.2/M02-5）：新建/重命名排序/删除；默认页不可删；布局按 tab 隔离。"""
+    # 初始（可能已有 default 布局行）→ 清单非空且含 default
+    tabs = client.get("/api/me/tabs", headers=_admin(client)).json()["data"]
+    assert any(x["tab"] == "default" for x in tabs)
+    # 新建
+    created = client.post("/api/me/tabs", json={"title": "媒体"}, headers=_admin(client)).json()["data"]
+    assert created["title"] == "媒体" and created["tab"] != "default"
+    tid = created["tab"]
+    # 空标题 422
+    assert client.post("/api/me/tabs", json={"title": "  "}, headers=_admin(client)).status_code == 422
+    # 布局按 tab 隔离保存
+    put = client.put("/api/me/layouts", json={"tab": tid, "layout": {"order": [], "sizes": {}, "collapsed": {}}}, headers=_admin(client))
+    assert put.status_code == 200
+    layouts = client.get("/api/me/layouts", headers=_admin(client)).json()["data"]
+    assert any(l["tab"] == tid for l in layouts)
+    # 重命名 + 排序（default 沉底）
+    upd = client.put(
+        "/api/me/tabs",
+        json={"items": [{"tab": tid, "title": "开发", "sort": 0}, {"tab": "default", "title": "常用", "sort": 1}]},
+        headers=_admin(client),
+    )
+    assert upd.status_code == 200
+    tabs = client.get("/api/me/tabs", headers=_admin(client)).json()["data"]
+    by_tab = {x["tab"]: x for x in tabs}
+    assert by_tab[tid]["title"] == "开发" and by_tab["default"]["title"] == "常用"
+    assert by_tab[tid]["sort"] < by_tab["default"]["sort"]
+    # 不存在的 tab 404
+    assert client.put("/api/me/tabs", json={"items": [{"tab": "nope123", "title": "x", "sort": 0}]}, headers=_admin(client)).status_code == 404
+    # default 不可删
+    assert client.delete("/api/me/tabs/default", headers=_admin(client)).status_code == 422
+    # 删除新建的 tab
+    assert client.delete(f"/api/me/tabs/{tid}", headers=_admin(client)).status_code == 200
+    assert client.delete(f"/api/me/tabs/{tid}", headers=_admin(client)).status_code == 404
+
+
+def test_07_url_latency_history(client: TestClient):
+    """入口延迟曲线（15.4/M04-14）：预检写入采样 → 历史端点返回点列与统计。"""
+    app_id = client.post(
+        "/api/apps",
+        json={"name": "延迟曲线应用"},
+        headers=_admin(client),
+    ).json()["data"]["id"]
+    url_id = client.post(
+        f"/api/apps/{app_id}/urls",
+        json={"access_type": "lan", "url": "127.0.0.1:1", "label": "内网"},
+        headers=_admin(client),
+    ).json()["data"]["id"]
+    # 预检（会逐入口探测并落采样；127.0.0.1:1 必不通）
+    pre = client.post(f"/api/apps/{app_id}/precheck", headers=_admin(client)).json()["data"]
+    assert any(u["id"] == url_id for u in pre["urls"])
+    hist = client.get(f"/api/apps/urls/{url_id}/latency?range=24h", headers=_admin(client)).json()["data"]
+    assert hist["url_id"] == url_id and len(hist["points"]) >= 1
+    assert hist["points"][0]["state"] in ("up", "down", "unknown")
+    assert hist["avg_ms"] is None or isinstance(hist["avg_ms"], int)
+    # 非法区间 422
+    assert client.get(f"/api/apps/urls/{url_id}/latency?range=bad", headers=_admin(client)).status_code == 422
+    client.delete(f"/api/apps/{app_id}/purge", headers=_admin(client))

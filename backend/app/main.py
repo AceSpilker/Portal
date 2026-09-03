@@ -34,6 +34,22 @@ async def alerts_evaluate_job() -> None:
         await evaluate_alerts(session)
 
 
+async def urls_probe_job() -> None:
+    """入口延迟轮询（P15.4/M04-14）：每 5min 探测全部入口并记录采样。"""
+    from app.services.connectivity import probe_all_urls
+
+    async with SessionLocal() as session:
+        await probe_all_urls(session)
+
+
+async def urls_probe_cleanup_job() -> None:
+    """入口延迟采样清理（P15.4）：每小时清一次过期数据。"""
+    from app.services.connectivity import cleanup_url_samples
+
+    async with SessionLocal() as session:
+        await cleanup_url_samples(session)
+
+
 async def certs_check_job() -> None:
     """证书到期检查（P10.5）：每 6h 对 monitor.cert_hosts 做分级提醒。"""
     async with SessionLocal() as session:
@@ -72,6 +88,15 @@ async def lifespan(_: FastAPI):
     # 证书到期检查（P10.5/M07-6）：每 6h，dedup 按天
     _scheduler.add_job(
         certs_check_job, "interval", hours=6, id="certs_check",
+        max_instances=1, replace_existing=True,
+    )
+    # 入口延迟历史（P15.4/M04-14）：5min 轮询 + 每小时清理
+    _scheduler.add_job(
+        urls_probe_job, "interval", seconds=300, id="url_probe",
+        max_instances=1, replace_existing=True,
+    )
+    _scheduler.add_job(
+        urls_probe_cleanup_job, "interval", hours=1, id="url_probe_cleanup",
         max_instances=1, replace_existing=True,
     )
     # Flow cron 触发器（P14.1/M06-4）：恢复启用中的 cron Flow

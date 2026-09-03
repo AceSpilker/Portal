@@ -1,10 +1,16 @@
 import request from './request'
 
-/** 首页仪表盘布局（M02-2；api-spec §3.2 dashboard_layouts / §4.13）。 */
+/** 首页仪表盘布局（M02-2/M02-5；api-spec §3.2 dashboard_layouts / §4.13）。 */
 export interface LayoutItem {
   tab: string
   sort: number
   layout: Record<string, unknown>
+}
+
+export interface TabItem {
+  tab: string
+  title: string
+  sort: number
 }
 
 export const layoutApi = {
@@ -14,4 +20,9 @@ export const layoutApi = {
       tab,
       layout,
     }),
+  // 多标签页（P15.2/M02-5）
+  getMyTabs: () => request.get<never, TabItem[]>('/me/tabs'),
+  createTab: (title: string) => request.post<never, TabItem>('/me/tabs', { title }),
+  updateTabs: (items: TabItem[]) => request.put<never, TabItem[]>('/me/tabs', { items }),
+  deleteTab: (tab: string) => request.delete<never, { tab: string }>(`/me/tabs/${tab}`),
 }

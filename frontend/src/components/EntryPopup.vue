@@ -7,17 +7,23 @@
  * - 点击普通入口直接打开（按应用 open_mode）；点击 ssh 入口转本地转发命令视图，
  *   生成 `ssh -L` 命令一键复制。
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { CopyDocument as IconCopy } from '@element-plus/icons-vue'
+import { CopyDocument as IconCopy, TrendCharts as IconTrend } from '@element-plus/icons-vue'
 import { networkApi } from '../api/network'
 import type { ResolveResult } from '../api/network'
 import type { AppUrl, PortalApp } from '../api/portal'
 import { useEnvStore } from '../stores/env'
 import { buildSshCommand, parseJump, suggestLocalPort } from '../utils/ssh'
-import { appsEnhApi, type PrecheckResult } from '../api/appsEnh'
+import { appsEnhApi, type PrecheckResult, type UrlLatencyHistory } from '../api/appsEnh'
 import QRCode from 'qrcode'
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const props = defineProps<{ app: PortalApp | null }>()
 const emit = defineEmits<{ choose: [app: PortalApp, url: string] }>()
@@ -36,6 +42,76 @@ const step = ref<'list' | 'ssh'>('list')
 const sshUrl = ref<AppUrl | null>(null)
 const sshInner = ref<AppUrl | null>(null)
 const localPort = ref(18000)
+
+// ---- 入口延迟曲线（M04-14；P15.4）----
+const trendUrl = ref<AppUrl | null>(null)
+const trendData = ref<UrlLatencyHistory | null>(null)
+const trendLoading = ref(false)
+let trendChart: echarts.ECharts | null = null
+
+async function toggleTrend(url: AppUrl) {
+  if (trendUrl.value?.id === url.id) {
+    closeTrend()
+    return
+  }
+  trendUrl.value = url
+  trendData.value = null
+  trendLoading.value = true
+  try {
+    trendData.value = await appsEnhApi.urlLatency(url.id, '24h')
+  } catch {
+    trendData.value = null
+  } finally {
+    trendLoading.value = false
+  }
+  await nextTick()
+  renderTrend()
+}
+
+function closeTrend() {
+  trendUrl.value = null
+  trendData.value = null
+  trendChart?.dispose()
+  trendChart = null
+}
+
+function renderTrend() {
+  const el = document.getElementById('entry-trend-chart')
+  if (!el || !trendData.value) return
+  if (!trendChart) trendChart = echarts.init(el)
+  const pts = trendData.value.points
+  trendChart.setOption({
+    grid: { left: 42, right: 12, top: 12, bottom: 24 },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: unknown) => {
+        const arr = params as Array<{ axisValue: string; value: number | null }>
+        const p = arr[0]
+        return `${p.axisValue}<br/>${p.value === null ? '-' : `${p.value} ms`}`
+      },
+    },
+    xAxis: {
+      type: 'category',
+      data: pts.map((x) => x.checked_at.slice(11, 16)),
+      axisLabel: { fontSize: 10 },
+    },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: '{value}ms' } },
+    series: [
+      {
+        type: 'line',
+        data: pts.map((x) => (x.state === 'up' ? x.latency_ms : null)),
+        connectNulls: false,
+        symbolSize: 4,
+        smooth: true,
+      },
+    ],
+  })
+}
+
+onBeforeUnmount(() => {
+  trendChart?.dispose()
+  trendChart = null
+})
 
 const entryRows = computed<AppUrl[]>(() => {
   if (!resolved.value) return []
@@ -169,11 +245,37 @@ function backToList() {
         <span v-if="i === 0 && precheck" class="precheck-tag" :class="precheck.ok ? 'ok' : 'bad'">
           {{ precheck.ok ? t('entry.precheckOk', { ms: precheck.latency_ms ?? '-' }) : t('entry.precheckDown') }}
         </span>
-        <el-button link size="small" class="qr-btn" @click.stop="showQr(u)">
-          {{ t('entry.qr') }}
-        </el-button>
+        <span class="entry-ops">
+          <el-button link size="small" class="qr-btn" @click.stop="showQr(u)">
+            {{ t('entry.qr') }}
+          </el-button>
+          <el-button
+            link
+            size="small"
+            class="qr-btn"
+            :class="{ on: trendUrl?.id === u.id }"
+            :icon="IconTrend"
+            @click.stop="toggleTrend(u)"
+          >
+            {{ t('entry.trend') }}
+          </el-button>
+        </span>
       </button>
       <p v-if="!loading && !entryRows.length" class="entry-empty">{{ t('apps.noEntry') }}</p>
+
+      <!-- 延迟趋势（M04-14；P15.4） -->
+      <div v-if="trendUrl" v-loading="trendLoading" class="trend-box" @click.stop>
+        <div class="trend-head">
+          <span class="trend-title">{{ trendUrl.url }}</span>
+          <span v-if="trendData" class="trend-stats">
+            {{ t('entry.trendAvg', { ms: trendData.avg_ms ?? '-' }) }}
+            · {{ t('entry.trendMax', { ms: trendData.max_ms ?? '-' }) }}
+            · {{ t('entry.trendUp', { pct: trendData.up_pct ?? '-' }) }}
+          </span>
+          <span v-else-if="!trendLoading" class="trend-stats">{{ t('entry.trendEmpty') }}</span>
+        </div>
+        <div id="entry-trend-chart" class="trend-chart" />
+      </div>
     </div>
 
     <!-- SSH 本地转发命令（M04-15） -->
@@ -241,6 +343,42 @@ function backToList() {
 }
 .qr-btn {
   flex-shrink: 0;
+}
+.entry-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-end;
+}
+.qr-btn.on {
+  color: var(--p-primary);
+}
+.trend-box {
+  border: 1px solid var(--p-card-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--p-card);
+}
+.trend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.trend-title {
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  word-break: break-all;
+}
+.trend-stats {
+  font-size: 11.5px;
+  color: var(--p-muted);
+}
+.trend-chart {
+  width: 100%;
+  height: 150px;
 }
 .mono {
   font-family: ui-monospace, monospace;

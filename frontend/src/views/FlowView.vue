@@ -6,7 +6,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus, Sort } from '@element-plus/icons-vue'
-import { flowApi, type FlowAction, type FlowBody, type FlowItem, type FlowRunItem, type FlowTrigger } from '../api/flow'
+import { flowApi, type FlowAction, type FlowBody, type FlowItem, type FlowRunItem } from '../api/flow'
 
 const { t } = useI18n()
 

@@ -212,6 +212,16 @@ export default {
     cardFlowTitle: 'Flow 自动化',
     cardFlowDesc: '触发器 → 条件 → 动作',
     copyright: '自托管 NAS 门户',
+    tabs: {
+      default: '常用',
+      add: '新建标签页',
+      rename: '重命名',
+      delete: '删除标签页',
+      more: '标签页操作',
+      tabName: '标签页名称',
+      nameRequired: '名称不能为空',
+      deleteConfirm: '删除标签页「{name}」及其布局？',
+    },
     wx: {
       feels: '体感',
       notifications: '最近通知',
@@ -460,6 +470,12 @@ export default {
     latencyMs: '{n} ms',
   },
   entry: {
+    trend: '趋势',
+    trendAvg: '均值 {ms}ms',
+    trendMax: '峰值 {ms}ms',
+    trendUp: '连通 {pct}%',
+    trendEmpty: '暂无采样数据',
+
     precheckOk: '预检通过 · {ms}ms',
     precheckDown: '预检不通，可选备选入口',
     qr: '二维码',

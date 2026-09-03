@@ -178,7 +178,7 @@ async def connectivity_matrix(
     session: AsyncSession = Depends(get_session),
 ):
     """全应用×全入口连通性矩阵（M04-13；api-spec §4.3：A 读 M 执行 → 探测仅管理员）。"""
-    from app.services.connectivity import probe_apps
+    from app.services.connectivity import probe_apps, record_url_samples
 
     rows = (
         (
@@ -192,4 +192,9 @@ async def connectivity_matrix(
         .scalars()
         .all()
     )
-    return ok(await probe_apps(list(rows)))
+    matrix = await probe_apps(list(rows))
+    # M04-14（P15.4）：矩阵探测结果同写入入口延迟历史
+    results = [u for row in matrix["apps"] for u in row["urls"]]
+    url_app = {u.id: a.id for a in rows for u in a.urls}
+    await record_url_samples(session, results, url_app)
+    return ok(matrix)

@@ -42,6 +42,8 @@ async def init_db() -> None:
             # P7.4/P7.5：用户备注、应用可见性授权用户
             "ALTER TABLE users ADD COLUMN remark TEXT DEFAULT ''",
             "ALTER TABLE apps ADD COLUMN visible_users TEXT DEFAULT '[]'",
+            # P15.2：仪表盘多标签页标题
+            "ALTER TABLE dashboard_layouts ADD COLUMN title VARCHAR(64) DEFAULT ''",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

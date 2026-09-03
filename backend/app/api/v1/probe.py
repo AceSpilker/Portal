@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
 from app.core.i18n import t
-from app.core.response import CODE_NOT_FOUND, BizError, ok
+from app.core.response import CODE_NOT_FOUND, CODE_VALIDATION, BizError, ok
 from app.core.security import decode_token
 from app.db.session import SessionLocal, get_session
 from app.models.portal import App
@@ -222,7 +222,14 @@ async def precheck_app(
     if app is None or app.deleted:
         raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
 
+    from app.services.connectivity import parse_host_port, probe_tcp
     from app.services.probe import probe_once
+
+    async def _fast_tcp(parsed: tuple[str, int]) -> tuple[str, int | None]:
+        try:
+            return await asyncio.wait_for(probe_tcp(*parsed, timeout=1.0), timeout=1.2)
+        except (asyncio.TimeoutError, OSError):
+            return "down", None
 
     async def _fast_probe(target_app: App) -> tuple[str, int | None]:
         try:
@@ -238,7 +245,29 @@ async def precheck_app(
         "state": state,
         "latency_ms": latency,
         "alternatives": [],
+        # M04-14（P15.4）：逐入口快速探测并写入延迟历史
+        "urls": [],
     }
+    await session.refresh(app, ["urls"])
+    from app.services.connectivity import record_url_samples
+
+    url_results = []
+    for u in app.urls:
+        parsed = parse_host_port(u.url)
+        if parsed is None:
+            u_state, u_latency = "unknown", None
+        else:
+            u_state, u_latency = await _fast_tcp(parsed)
+        url_results.append(
+            {"id": u.id, "access_type": u.access_type, "url": u.url,
+             "label": u.label, "state": u_state, "latency_ms": u_latency}
+        )
+        result["urls"].append(
+            {"id": u.id, "state": u_state, "latency_ms": u_latency}
+        )
+    await record_url_samples(
+        session, url_results, {u.id: app.id for u in app.urls}
+    )
     if state == "down":
         # 回退备选：其他启用中的同健康类型应用入口提示（同 host:port 的其他应用）
         others = (
@@ -256,3 +285,50 @@ async def precheck_app(
             for o in others[:5]
         ]
     return ok(result)
+
+
+@router.get("/apps/urls/{url_id}/latency")
+async def url_latency_history(
+    url_id: int,
+    range_: str = Query("24h", alias="range"),
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """入口延迟历史（M04-14；dev-plan P15.4）：url_probe_samples 趋势点。"""
+    from datetime import datetime, timedelta
+
+    from app.models.probe import UrlProbeSample
+
+    ranges = {"6h": 6 * 3600, "24h": 24 * 3600, "7d": 7 * 86400}
+    if range_ not in ranges:
+        raise BizError(CODE_VALIDATION, t("err.invalid_metric_or_range"), 422)
+    start = datetime.utcnow() - timedelta(seconds=ranges[range_])
+    rows = (
+        (
+            await session.execute(
+                select(UrlProbeSample)
+                .where(UrlProbeSample.url_id == url_id, UrlProbeSample.checked_at >= start)
+                .order_by(UrlProbeSample.checked_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    lats = [r.latency_ms for r in rows if r.state == "up" and r.latency_ms is not None]
+    return ok(
+        {
+            "url_id": url_id,
+            "range": range_,
+            "points": [
+                {
+                    "checked_at": r.checked_at.isoformat() + "Z",
+                    "state": r.state,
+                    "latency_ms": r.latency_ms,
+                }
+                for r in rows
+            ],
+            "avg_ms": round(sum(lats) / len(lats)) if lats else None,
+            "max_ms": max(lats) if lats else None,
+            "up_pct": round(len(lats) / len(rows) * 100, 1) if rows else None,
+        }
+    )
