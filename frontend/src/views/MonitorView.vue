@@ -567,10 +567,11 @@ onMounted(loadHistory)
         <MonitorChart :option="gpuOption" height="230px" />
       </section>
 
-      <!-- 温度（M17-11；无传感器整卡隐藏） -->
-      <section v-if="hasTemps" class="glass chart-card">
+      <!-- 温度（M17-11；无传感器时显示提示，NAS/Linux 有 hwmon 自动出数据） -->
+      <section class="glass chart-card">
         <h3>{{ t('monitor.tempTitle') }}</h3>
-        <div class="disk-list">
+        <p v-if="!hasTemps" class="empty">{{ t('monitor.noTempSensor') }}</p>
+        <div v-else class="disk-list">
           <div v-for="s in temps" :key="s.name" class="disk-row">
             <div class="disk-head">
               <span class="mount">{{ s.name }}</span>

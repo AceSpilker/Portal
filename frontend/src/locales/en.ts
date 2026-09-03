@@ -77,6 +77,7 @@ export default {
     read: 'Read',
     write: 'Write',
     resetIntervals: 'Reset to defaults',
+    noTempSensor: 'No temperature sensors detected (on Windows, run LibreHardwareMonitor; native on Linux NAS)',
     noSensor: 'No temperature sensors detected',
     pushSettings: 'Push intervals',
     seconds: 's',

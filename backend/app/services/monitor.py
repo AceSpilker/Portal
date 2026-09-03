@@ -143,6 +143,9 @@ def collect_temps() -> list[dict]:
             return hwmon
     if system == "Linux":
         return _psutil_temps()
+    if system == "Windows":
+        # 真实温度需依赖 LibreHardwareMonitor 运行（WMI 发布）；无则空列表自动隐藏
+        return list(_win_temps_cache)
     return []
 
 
@@ -260,6 +263,7 @@ sample_io_calc = IoRateCalculator()
 # 子进程查询不能阻塞事件循环，由 lifespan 每 5s 刷新缓存，采集端同步读缓存。
 _gpu_cache: list[dict] = []
 _mac_temps_cache: list[dict] = []
+_win_temps_cache: list[dict] = []
 
 
 def _gpu_query_sync() -> list[dict]:
@@ -323,10 +327,12 @@ def _gpu_query_sync() -> list[dict]:
 
 async def refresh_gpu_cache() -> None:
     """子进程在 Windows Selector 事件循环不可用（NotImplementedError），放入线程池执行。"""
-    global _gpu_cache, _mac_temps_cache
+    global _gpu_cache, _mac_temps_cache, _win_temps_cache
     _gpu_cache = await asyncio.to_thread(_gpu_query_sync)
     if platform.system() == "Darwin":
         _mac_temps_cache = await asyncio.to_thread(_mac_temps_query_sync)
+    if platform.system() == "Windows":
+        _win_temps_cache = await asyncio.to_thread(_win_temps_query_sync)
 
 
 def _mac_temps_query_sync() -> list[dict]:
@@ -349,6 +355,49 @@ def _mac_temps_query_sync() -> list[dict]:
     if not m:
         return []
     return [{"name": "CPU", "current": round(float(m.group(1)), 1), "high": None, "critical": None}]
+
+
+def _win_temps_query_sync() -> list[dict]:
+    """Windows 温度尽力而为：LibreHardwareMonitor 运行时经 WMI 发布传感器（免费开源）。
+
+    未运行 LHM 或主板不支持 → 空列表，前端温度卡片自动隐藏。
+    """
+    import subprocess
+
+    cmd = (
+        "Get-CimInstance -Namespace root/LibreHardwareMonitor -ClassName Sensor "
+        "-Filter \"SensorType='Temperature'\" | "
+        "Select-Object Name,Value | ConvertTo-Json -Compress"
+    )
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", cmd],
+            capture_output=True, timeout=4,
+        ).stdout.decode("utf-8", "ignore")
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return []
+    out = out.strip()
+    if not out:
+        return []
+    import json as _json
+
+    try:
+        items = _json.loads(out)
+    except ValueError:
+        return []
+    if isinstance(items, dict):
+        items = [items]
+    sensors = []
+    for it in items:
+        try:
+            value = round(float(it["Value"]), 1)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if value <= 0 or value > 150:
+            continue
+        name = str(it.get("Name") or "Sensor").strip()
+        sensors.append({"name": name, "current": value, "high": None, "critical": None})
+    return sensors
 
 
 def collect_gpu() -> list[dict]:

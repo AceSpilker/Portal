@@ -76,6 +76,7 @@ export default {
     read: '读取',
     write: '写入',
     resetIntervals: '恢复默认',
+    noTempSensor: '未检测到温度传感器（Windows 可运行 LibreHardwareMonitor 后自动读取；NAS Linux 原生支持）',
     noSensor: '未检测到温度传感器',
     pushSettings: '推送间隔',
     seconds: '秒',
