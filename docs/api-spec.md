@@ -205,6 +205,7 @@
 | GET | /api/apps/templates · POST /api/apps/from-template | 应用模板库 | M | M2 |
 | POST | /api/apps/{id}/restore · DELETE /api/apps/{id}/purge | 回收站恢复/彻底删除 | M | M2 |
 | POST | /api/apps/{id}/check | 立即探活一次 | A | P6 |
+| GET | /api/probe/status | 全部应用当前状态（state/latency/message，首页磁贴首屏） | A | P6 |
 | GET | /api/apps/{id}/history?range=24h | 探活历史/可用率 | A | M2 |
 | GET/POST/PUT/DELETE | /api/icons（/{id}） | 自定义图标库管理：列表（A 读）/ 新增 / 编辑（改名/换图）/ 删除（M，被引用 4003） | M 写 A 读 | P2 增强 |
 | POST | /api/apps/upload-icon | 图标上传：`{filename, data(base64)}` 随加密信封传输（不用 multipart，保持全链路密文），压方存 /app/data/icons，经 `/icons/*` 静态托管 | M | P2 |
@@ -280,7 +281,7 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| GET | /api/notifications?level=&unread= | 站内通知 | A | M2 |
+| GET | /api/notifications?level=&unread= | 站内通知（P6.4 最小集已落地：探活下线/恢复通知；列表/已读） | A | P6 最小 / P9 完整 |
 | PUT | /api/notifications/read-all · /{id}/read | 已读 | A | M2 |
 | GET/POST/PUT/DELETE | /api/notify-channels… | 渠道 CRUD | M | M2 |
 | POST | /api/notify-channels/{id}/test | 测试发送 | M | M2 |
