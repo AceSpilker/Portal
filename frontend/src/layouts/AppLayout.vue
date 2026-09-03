@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { useEnvStore } from '../stores/env'
 import { useProbeStore } from '../stores/probe'
+import { dockerApi } from '../api/docker'
 import { useMediaQuery } from '@vueuse/core'
 import CommandPalette from '../components/CommandPalette.vue'
 import NotificationCenter from '../components/NotificationCenter.vue'
@@ -13,6 +14,7 @@ import {
   Grid as IconApps,
   Monitor as IconMonitor,
   Connection as IconConnection,
+  Box as IconDocker,
   MagicStick as IconAi,
   Suitcase as IconTools,
   Setting as IconSetting,
@@ -38,12 +40,18 @@ const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 const envStore = useEnvStore()
 const probeStore = useProbeStore()
+const dockerEnabled = ref(false)
 const paletteVisible = ref(false)
 // 窗口 <1080px 时侧栏折叠为图标栏（桌面窄窗口行为，非移动端适配）
 const isRail = useMediaQuery('(max-width: 1079px)')
 
 onMounted(() => {
   settingsStore.load()
+  // Docker 管理为可选模块（P12）：仅启用且管理员时显示导航
+  dockerApi
+    .status()
+    .then((s) => (dockerEnabled.value = s.enabled))
+    .catch(() => (dockerEnabled.value = false))
   // 网络环境自动识别 + 档案列表（顶栏切换器，M04-8/9）
   envStore.load()
   // 应用探活状态订阅（P6.3，登录用户均可）
@@ -76,6 +84,9 @@ const navItems = computed<NavItem[]>(() => [
   { icon: IconApps, label: t('nav.apps'), to: '/apps' },
   { icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' },
   { icon: IconConnection, label: t('nav.ports'), to: '/ports' },
+  ...(auth.isAdmin && dockerEnabled.value
+    ? [{ icon: IconDocker, label: t('nav.docker'), to: '/docker' }]
+    : []),
   { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
   { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },
