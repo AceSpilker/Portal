@@ -281,7 +281,7 @@
   <strong>flow_runs</strong>（M2）：id；flow_id FK；trigger；status（running/success/failed）；steps_log(JSON)（每步输入输出）；started_at；finished_at；duration_ms。</p>
 
   <h3 id="dm-notify">3.8 通知</h3>
-  <p><strong>notifications</strong>（M2）：id；title；body；level（info/warn/error）；source（probe/metric/port/flow/system）；is_read；dedup_key（聚合去重）。<br>
+  <p><strong>notifications</strong>（M2；P6.4 已建表写入探活通知）：id；title；body；level（info/warn/error）；source（probe/metric/port/flow/system）；is_read；dedup_key（聚合去重）。<br>
   <strong>notify_channels</strong>（M2）：id；type（bark/telegram/smtp/webhook/wecom/dingtalk/feishu/ntfy）；name；config(JSON)（敏感回传脱敏）；enabled。<br>
   <strong>notify_rules</strong>（M2）：id；event（app_down/app_up/metric_alert/port_down/port_up/flow_failed/system）；channel_ids(JSON)；enabled；quiet_start/quiet_end。</p>
 
@@ -323,7 +323,14 @@
     <tr><td class="c">PUT</td><td class="c">/api/auth/password</td><td>修改密码（其他会话失效）</td><td class="c">A</td><td class="c">P1</td></tr>
     <tr><td class="c">GET/DEL</td><td class="c">/api/auth/sessions · /{id}</td><td>会话列表 / 踢出</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/auth/totp/{setup,enable,disable}</td><td>两步验证</td><td class="c">A</td><td class="c">M2</td></tr>
-    <tr><td class="c">CRUD</td><td class="c">/api/users…</td><td>用户管理（增删改/重置密码/禁用）</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/users?keyword=&amp;page=</td><td>用户列表（分页/搜索，不回传密码哈希）</td><td class="c">M</td><td class="c">M2</td></tr>
+      <tr><td class="c">POST</td><td class="c">/api/users</td><td>新增用户 {username,password,role,remark}</td><td class="c">M</td><td class="c">M2</td></tr>
+      <tr><td class="c">PUT</td><td class="c">/api/users/{id}</td><td>编辑 {role,remark}</td><td class="c">M</td><td class="c">M2</td></tr>
+      <tr><td class="c">PUT</td><td class="c">/api/users/{id}/status</td><td>启用/禁用（禁用即全端失效）</td><td class="c">M</td><td class="c">M2</td></tr>
+      <tr><td class="c">PUT</td><td class="c">/api/users/{id}/password</td><td>管理员重置密码（该用户全部会话失效）</td><td class="c">M</td><td class="c">M2</td></tr>
+      <tr><td class="c">POST</td><td class="c">/api/users/{id}/kick</td><td>强制下线（token_version++）</td><td class="c">M</td><td class="c">M2</td></tr>
+      <tr><td class="c">GET</td><td class="c">/api/public/apps</td><td>访客首页：visibility=public 应用（需 guest.enabled）</td><td class="c">P</td><td class="c">M2</td></tr>
+      <tr><td colspan="5">边界规则：不物理删除用户（仅禁用）；不能对自己禁用/降级/踢出；至少保留 1 个启用 admin（4003）；username 唯一（4002）；全部操作写 audit_logs</td></tr>
   </tbody></table>
 
   <h3 id="api-apps">4.2 分类与应用</h3>
@@ -338,6 +345,8 @@
     <tr><td class="c">GET/POST</td><td class="c">/api/apps/templates · /from-template</td><td>应用模板库</td><td class="c">M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/apps/{id}/restore · /purge</td><td>回收站恢复 / 彻底删除</td><td class="c">M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST/GET</td><td class="c">/api/apps/{id}/check · /history</td><td>立即探活 / 探活历史与可用率</td><td class="c">A</td><td class="c">P6/M2</td></tr>
+      <tr><td class="c">GET</td><td class="c">/api/probe/status</td><td>全部应用当前状态（state/latency/message，首页磁贴首屏）</td><td class="c">A</td><td class="c">P6</td></tr>
+      <tr><td class="c">GET</td><td class="c">/api/public/apps</td><td>访客首页（visibility=public；需 guest.enabled）</td><td class="c">P</td><td class="c">M2</td></tr>
     <tr><td class="c">POST/GET</td><td class="c">/api/apps/upload-icon · /favicon?url=</td><td>图标上传（base64 随加密信封，压方存 /icons 托管）/ favicon 抓取（失败 4004）</td><td class="c">M</td><td class="c">P2</td></tr>
   </tbody></table>
 
@@ -382,14 +391,14 @@
     <tr><td>Flow</td><td class="c">CRUD /api/flows · POST /{id}/run · /dry-run · GET /{id}/runs</td><td>Flow CRUD / 执行 / 试运行 / 历史</td><td class="c">A读 M写</td><td class="c">M2</td></tr>
     <tr><td>Flow Webhook</td><td class="c">POST /api/hooks/flow/{token}</td><td>Webhook 触发入口</td><td class="c">P(token)</td><td class="c">M2</td></tr>
     <tr><td>AI</td><td class="c">CRUD /api/ai/providers · POST /api/ai/chat(SSE) · CRUD /api/ai/conversations · POST /api/ai/generate/app-draft</td><td>Provider/流式对话/会话/生成草稿</td><td class="c">A/M</td><td class="c">M2</td></tr>
-    <tr><td>通知</td><td class="c">GET /api/notifications · PUT read-all · CRUD /api/notify-channels · /{id}/test · GET/PUT /api/notify-rules</td><td>站内通知 / 渠道 / 路由规则</td><td class="c">A/M</td><td class="c">M2</td></tr>
+    <tr><td>通知</td><td class="c">GET /api/notifications · PUT read-all · CRUD /api/notify-channels · /{id}/test · GET/PUT /api/notify-rules</td><td>站内通知 / 渠道 / 路由规则（GET 与已读的探活最小集 P6.4 已落地）</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>工具箱</td><td class="c">POST /api/tools/wol · /ping · /port-check · GET /api/tools/qr · POST /codec · /timestamp · /passgen · /api-test · CRUD /api/tools/wol-targets · /short-links</td><td>小工具集</td><td class="c">A</td><td class="c">P7/M2</td></tr>
     <tr><td>日历/待办</td><td class="c">CRUD /api/calendar/events · /api/todos</td><td>日程与待办</td><td class="c">A</td><td class="c">M2</td></tr>
     <tr><td>文件</td><td class="c">GET /api/files/list · GET download · POST upload/mkdir/rename/delete/move · GET/PUT content(M3) · POST analyze(M3)</td><td>文件管理（白名单目录）</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>下载/媒体</td><td class="c">GET /api/downloads/summary · /tasks · POST /tasks · GET /api/media/recent</td><td>qBittorrent 集成 / 最近入库</td><td class="c">A</td><td class="c">M2</td></tr>
     <tr><td>仪表盘布局</td><td class="c">GET/PUT /api/me/layouts</td><td>当前用户仪表盘布局（tab 维度整份读写）</td><td class="c">A</td><td class="c">P4</td></tr>
     <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore · POST /api/mysql/test · POST /api/redis/test</td><td>键值设置 / MySQL 同步 / Redis 连接测试</td><td class="c">M</td><td class="c">P7/P23/P25</td></tr>
-    <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs · GET /api/system/info · /check · /check-update</td><td>备份 / Token / 审计 / 系统</td><td class="c">M</td><td class="c">P2~M2</td></tr>
+    <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs · GET /api/system/info · /health-report · GET /api/system/update/check · POST /api/system/update/apply · GET /api/system/update/status</td><td>备份 / Token / 审计 / 系统</td><td class="c">M</td><td class="c">P2~M2</td></tr>
   </tbody></table>
 </section>
 

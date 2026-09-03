@@ -109,16 +109,19 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>开发计划与技术清单</h1>
-    <p class="tagline">把全部业务功能拆解为 25 个开发阶段、113 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
+    <p class="tagline">把全部业务功能拆解为 26 个开发阶段、120 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
+      <p style="margin-top:10px;font-size:13.5px;color:#c7d6ff">
+        <strong>v1.4</strong>：桌面 Web 专用，移除移动端适配（4.8 作废）；<strong>v1.5</strong>：补齐用户管理与权限设计——新增 7.4 用户管理、7.5 应用可见性与访客模式，P17.1 收窄；<strong>v1.5b</strong>：新增 17.5 在线更新与自升级（Gitee Releases：检查/一键更新/回滚）；监控接口权限对齐权限矩阵（A 任意登录用户）。
+      </p>
     <div class="meta">
-      <span class="chip">版本 v1.3</span>
+      <span class="chip">版本 v1.5</span>
       <span class="chip">日期 2026-09-01</span>
-      <span class="chip">关联 feature-spec v1.4</span>
+      <span class="chip">关联 feature-spec v1.6</span>
       <span class="chip">25 阶段</span>
       <span class="chip">113 步骤</span>
-      <span class="chip">进度 41 / 118</span>
+      <span class="chip">进度 50 / 120</span>
       <span class="chip">v1.2 新增：P24 传输加密（已完成）</span>
-      <span class="chip">v1.3 新增：P25 Redis 缓存与会话</span>
+      <span class="chip">v1.4/v1.5：桌面 Web 专用 · 新增 7.4 用户管理 · 7.5 可见性与访客 · 17.5 在线更新</span>
     </div>
   </div>
 </header>
@@ -126,7 +129,7 @@
 <!-- ============ 文档说明 ============ -->
 <section id="intro">
   <h2><span class="no">00</span>文档说明</h2>
-  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.4 的 223 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
+  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.4 的 220 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
   <div class="legend">
     <b>状态图例：</b>
     <span class="st open">⬜ 未开始</span>
@@ -135,7 +138,7 @@
     <span class="st block">⛔ 阻塞</span>
   </div>
   <div class="stats">
-    <div class="stat"><b>25</b><span>开发阶段</span></div>
+    <div class="stat"><b>26</b><span>开发阶段</span></div>
     <div class="stat"><b>113</b><span>开发步骤</span></div>
     <div class="stat"><b>3</b><span>里程碑（M1/M2/M3）</span></div>
     <div class="stat"><b>2×25</b><span>测试关卡（单测+业务）</span></div>
@@ -242,9 +245,9 @@
       <tr><td class="num">P2</td><td><a href="#p2">应用、分组与入口管理</a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st done">✅ 已完成</span></td></tr>
       <tr><td class="num">P3</td><td><a href="#p3">网络环境与智能解析 <span class="badge core">★</span></a></td><td><span class="badge m1">M1</span></td><td>8</td><td><span class="st doing">🔄 8/8（待真实双环境验收）</span></td></tr>
       <tr><td class="num">P4</td><td><a href="#p4">首页仪表盘</a></td><td><span class="badge m1">M1</span></td><td>8</td><td><span class="st done">✅ 已完成（8/8）</span></td></tr>
-      <tr><td class="num">P5</td><td><a href="#p5">服务器性能监控基础 <span class="badge core">★</span></a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
-      <tr><td class="num">P6</td><td><a href="#p6">应用探活与状态点</a></td><td><span class="badge m1">M1</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
-      <tr><td class="num">P7</td><td><a href="#p7">设置中心与工具箱</a></td><td><span class="badge m1">M1</span></td><td>3</td><td><span class="st doing">🔄 进行中</span></td></tr>
+      <tr><td class="num">P5</td><td><a href="#p5">服务器性能监控基础 <span class="badge core">★</span></a></td><td><span class="badge m1">M1</span></td><td>6</td><td><span class="st done">✅ 已完成（6/6）</span></td></tr>
+      <tr><td class="num">P6</td><td><a href="#p6">应用探活与状态点</a></td><td><span class="badge m1">M1</span></td><td>4</td><td><span class="st done">✅ 已完成（4/4）</span></td></tr>
+      <tr><td class="num">P7</td><td><a href="#p7">设置中心与工具箱</a></td><td><span class="badge m1">M1</span></td><td>5</td><td><span class="st doing">🔄 进行中</span></td></tr>
       <tr><td class="num">P8</td><td><a href="#p8">Docker 交付与 M1 集成验收</a></td><td><span class="badge m1">M1</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P9</td><td><a href="#p9">通知中心</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P10</td><td><a href="#p10">监控增强与阈值告警 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
@@ -349,50 +352,52 @@
       <tr><td class="num">4.5</td><td>收藏置顶</td><td>收藏标记、搜索与首页优先</td><td>M02-9</td><td><span class="st done">✅</span></td></tr>
       <tr><td class="num">4.6</td><td>主题系统</td><td>暗色（跟随系统/手动）、主题色、自定义壁纸</td><td>M02-18~20</td><td><span class="st done">✅</span></td></tr>
       <tr><td class="num">4.7</td><td>时钟小组件</td><td>时钟 + 时段问候</td><td>M02-10</td><td><span class="st done">✅</span></td></tr>
-      <tr><td class="num">4.8</td><td>移动端适配</td><td>磁贴单列、底部导航、触控目标 ≥44px</td><td>M02-21、M16-1/3/6</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">4.8</td><td><s>移动端适配</s></td><td>v1.4 移除：系统定位桌面 Web 专用</td><td>M02-21、M16-1/3/6</td><td><span class="st open">➖ 移除</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>布局序列化/反序列化；搜索过滤与排序；主题状态切换逻辑。</li></ul></div>
   <div class="gate"><b>业务功能测试关卡：</b><ul><li>拖拽后刷新布局保持；Ctrl+K 搜"Jellyfin"回车新开标签；切暗色全页生效；窗口缩到手机宽度磁贴单列、底部导航可用。</li></ul></div>
   <div class="goal">退出标准：首页无控制台报错，交互流畅，布局持久化正确。</div>
 
-  <h3 id="p5">P5 · 服务器性能监控基础 <span class="badge core">★ 最高优先级</span> <span class="st open">未开始</span></h3>
+  <h3 id="p5">P5 · 服务器性能监控基础 <span class="badge core">★ 最高优先级</span> <span class="st done">已完成（6/6）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">5.1</td><td>采集服务</td><td>psutil 指向宿主 <code>/proc</code>、<code>/sys</code>（挂载方案），docker stats 兜底开关；系统信息/CPU 每核/内存/磁盘分区/网卡流量</td><td>M17-1~5</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">5.2</td><td>采样入库与清理</td><td>每分钟采样 monitor_samples，保留天数可配自动清理</td><td>M17-7</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">5.3</td><td>实时接口与推送</td><td>实时概览接口 + <code>/ws/monitor</code> 秒级推送</td><td>M17-8</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">5.4</td><td>历史查询</td><td>按区间聚合（24h/7d/30d）历史接口</td><td>M17-6</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">5.5</td><td>监控页</td><td>系统信息卡 + CPU/内存/磁盘/网络 ECharts 图表一屏</td><td>M17-1~6/9</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">5.6</td><td>首页速览组件</td><td>NAS 资源速览环形图，点击进监控页</td><td>M02-12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">5.1</td><td>采集服务</td><td>psutil 指向宿主 <code>/proc</code>、<code>/sys</code>（挂载方案），docker stats 兜底开关；系统信息/CPU 每核/内存/磁盘分区/网卡流量</td><td>M17-1~5</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">5.2</td><td>采样入库与清理</td><td>每分钟采样 monitor_samples，保留天数可配自动清理</td><td>M17-7</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">5.3</td><td>实时接口与推送</td><td>实时概览接口 + <code>/ws/monitor</code> 秒级推送</td><td>M17-8</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">5.4</td><td>历史查询</td><td>按区间聚合（24h/7d/30d）历史接口</td><td>M17-6</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">5.5</td><td>监控页</td><td>系统信息卡 + CPU/内存/磁盘/网络 ECharts 图表一屏</td><td>M17-1~6/9</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">5.6</td><td>首页速览组件</td><td>NAS 资源速览环形图，点击进监控页</td><td>M02-12</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>采样数据结构与单位换算；清理任务只删过期；历史聚合空区间/超长区间边界。</li></ul></div>
   <div class="gate"><b>业务功能测试关卡：</b><ul><li>监控页秒级自动刷新；跑 stress 压测 CPU 曲线明显上扬后回落；重启容器监控历史不丢（数据卷持久化）。</li></ul></div>
   <div class="goal">退出标准：NAS 实机连续运行 24h 采样无中断、库体积符合预期。</div>
 
-  <h3 id="p6">P6 · 应用探活与状态点 <span class="st open">未开始</span></h3>
+  <h3 id="p6">P6 · 应用探活与状态点 <span class="st done">已完成（4/4）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">6.1</td><td>探活服务</td><td>HTTP 状态码/TCP/关键字三种探测 + APScheduler 注册</td><td>M07-1</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">6.2</td><td>状态落库</td><td>app_status 最新状态 + 翻转事件记录</td><td>M07-2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">6.1</td><td>探活服务</td><td>HTTP 状态码/TCP/关键字三种探测 + APScheduler 注册</td><td>M07-1</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">6.2</td><td>状态落库</td><td>app_status 最新状态 + 翻转事件记录</td><td>M07-2</td><td><span class="st done">✅</span></td></tr>
       <tr><td class="num">6.3</td><td>实时状态点</td><td><code>/ws/notify</code> 推送 + 首页磁贴状态点即时变色 + 延迟提示</td><td>M07-2</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">6.4</td><td>离线/恢复通知</td><td>状态变化产生站内通知（通知渠道后续接入）</td><td>M07-5</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">6.4</td><td>离线/恢复通知</td><td>状态变化产生站内通知（通知渠道后续接入）</td><td>M07-5</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>三种探测判定（命中/超时/重定向/关键字）；状态翻转去抖（避免抖动误报）。</li></ul></div>
   <div class="gate"><b>业务功能测试关卡：</b><ul><li><code>docker stop</code> 某服务 → 磁贴变红 + 收到站内通知 → <code>start</code> 后恢复绿色。</li></ul></div>
   <div class="goal">退出标准：探活用例全绿；真实停启容器验证链路完整。</div>
 
-  <h3 id="p7">P7 · 设置中心与工具箱 <span class="st open">未开始</span></h3>
+  <h3 id="p7">P7 · 设置中心与工具箱 <span class="st doing">进行中（2/5）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
       <tr><td class="num">7.1</td><td>设置框架</td><td>settings 键值接口 + 设置页路由框架</td><td>M15</td><td><span class="st done">✅</span></td></tr>
       <tr><td class="num">7.2</td><td>基础设置页</td><td>常规（站点名/Logo/语言/时区）、外观、关于</td><td>M15-1/3/11</td><td><span class="st open">⬜</span></td></tr>
       <tr><td class="num">7.3</td><td>工具箱速达</td><td>工具箱页 + WoL/Ping 端口测试/二维码/编解码/时间戳/密码生成器（纯前端三工具已落地）</td><td>M10-1/3/5/7/8/10</td><td><span class="st doing">🔄</span></td></tr>
+      <tr><td class="num">7.4</td><td>用户管理</td><td>设置 → 用户管理：列表(分页/搜索)/新增/编辑(角色/备注)/禁用启用/重置密码/强制下线；边界规则(不能操作自己、至少保留 1 个启用管理员、不物理删除)；全操作写审计</td><td>M01-11</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">7.5</td><td>应用可见性与访客模式</td><td>visibility 扩展 all/users/admin/public（visible_users 授权编辑器）；首页/命令面板/搜索按角色过滤；设置键 guest.enabled + GET /api/public/apps 访客首页</td><td>M01-10、M03-10</td><td><span class="st open">⬜</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>设置键值校验与默认值；WoL 魔术包构造；Base64/时间戳转换函数。</li></ul></div>
@@ -533,9 +538,10 @@
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">17.1</td><td>账号安全</td><td>TOTP 两步验证、会话/设备管理、访客模式、用户管理、审计页</td><td>M01-7/8/10/11/14</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">17.1</td><td>账号安全</td><td>TOTP 两步验证、会话/设备管理（user_sessions + /api/auth/sessions）、审计页（筛选/导出）——用户管理与访客模式已提前至 7.4/7.5</td><td>M01-7/8/14</td><td><span class="st open">⬜</span></td></tr>
       <tr><td class="num">17.2</td><td>开放能力</td><td>API Token 管理、开放 API 鉴权、自定义 CSS、恢复出厂</td><td>M14-1/2/4/6/7</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">17.3</td><td>系统完善</td><td>注册开关/安全策略/自动备份/版本更新检查/健康自检完整版</td><td>M15-2/5~10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">17.3</td><td>系统完善</td><td>注册开关/安全策略/自动备份/健康自检完整版（版本更新检查拆至 17.5）</td><td>M15-2/5~10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">17.5</td><td>在线更新与自升级</td><td>Gitee Releases 版本检查(定时+手动)与更新日志推送；源码部署一键更新(自动备份→checkout→依赖→重启→自检，失败回滚)；Docker 部署提示+复制更新命令(sock 挂载时一键)；设置键 update.repo/channel/auto_check/auto_apply</td><td>M15-9</td><td><span class="st open">⬜</span></td></tr>
       <tr><td class="num">17.4</td><td>PWA</td><td>manifest + service worker + 图标启动屏</td><td>M16-2/4</td><td><span class="st open">⬜</span></td></tr>
     </tbody>
   </table>
@@ -662,7 +668,9 @@
 <section id="rules">
   <h2><span class="no">05</span>执行约定</h2>
   <ol>
-    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；</li>
+    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；当前排期：P6 探活 ✅ → <strong>P7.4 用户管理 → P7.5 可见性与访客模式</strong>（多用户 NAS 基础管理，提前至 M1）→ P7.3 工具箱收尾 → P8 M1 验收；</li>
+    <li><strong>契约同步</strong>：新增/修改接口、数据表、枚举、WebSocket 事件 → 同步 api-spec 对应小节（含权限列与阶段列）；</li>
+    <li><strong>文档三处同步</strong>：完成步骤时，步骤状态/阶段看板/规模总览进度数字三处必须一致；</li>
     <li><strong>状态即真相</strong>：本文件的步骤状态就是开发进度，完成一步改一步，不写"记忆里的进度"；</li>
     <li><strong>阶段门禁</strong>：每阶段"单元测试关卡 + 业务功能测试关卡"全部通过，阶段才能标 ✅；未通过则停在 🔄 并记录阻塞原因；</li>
     <li><strong>日志联动</strong>：每关闭一个阶段，在 <code>logs/</code> 写验收日志（测试结果、发现的问题、覆盖率数据）；</li>

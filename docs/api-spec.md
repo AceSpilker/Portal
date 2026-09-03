@@ -148,7 +148,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
 **sync_state**（M2）：id；table_name TEXT UNIQUE；last_push_at NULL；rows_pushed INT 0；status TEXT（idle/running/failed）；message TEXT ''。
 
@@ -324,7 +324,10 @@
 | POST | /api/backup/factory-reset | 恢复出厂（需密码二次确认） | M | M2 |
 | GET/POST/DELETE | /api/tokens… | API Token 管理 | M | M2 |
 | GET | /api/audit-logs?action=&range= | 审计日志 | M | M2 |
-| GET | /api/system/info · /check · /check-update | 系统信息/健康自检/更新检查 | M | P8/M2 |
+| GET | /api/system/info · /health-report | 系统信息 / 健康自检报告 | M | P8/M2 |
+| GET | /api/system/update/check | 立即检查更新：调 Gitee Releases API（settings update.repo 可配）对比本地版本，返回 {current, latest, changelog, has_update}；结果写站内通知 | M | M2 |
+| POST | /api/system/update/apply | 执行在线更新（源码部署路径）：自动备份 → fetch/checkout 新版本 → 依赖安装 → 重启自检，失败自动回滚；期间前端轮询 /api/health 等待恢复 | M | M2 |
+| GET | /api/system/update/status | 更新进度与最近一次结果（idle/checking/applying/ok/failed） | M | M2 |
 
 ## 5. 实时协议（WebSocket / SSE）
 

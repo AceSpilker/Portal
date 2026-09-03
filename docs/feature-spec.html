@@ -132,7 +132,7 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>功能详述（Feature Spec）</h1>
-    <p class="tagline">系统全部功能的权威清单：18 个功能模块、225 个功能点，逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
+    <p class="tagline">系统全部功能的权威清单：18 个功能模块、220 个功能点（v1.6 移除移动端适配 5 点），逐一说明用途、交互规则与落地阶段。总体架构与技术选型见《总体设计方案》。</p>
     <div class="meta">
       <span class="chip">版本 v1.6</span>
       <span class="chip">日期 2026-09-01</span>
@@ -140,6 +140,7 @@
       <span class="chip">18 模块</span>
       <span class="chip">225 功能点</span>
       <span class="chip">v1.4 新增：传输加密（数据不明文）</span>
+      <span class="chip">v1.6 变更：桌面 Web 专用 · 新增用户管理/可见性/访客设计</span>
     </div>
   </div>
 </header>
@@ -157,7 +158,7 @@
   </div>
   <div class="stats">
     <div class="stat"><b>18</b><span>功能模块</span></div>
-    <div class="stat"><b>225</b><span>功能点</span></div>
+    <div class="stat"><b>220</b><span>功能点</span></div>
     <div class="stat"><b>4</b><span>可选独立模块</span></div>
     <div class="stat"><b>3</b><span>个落地阶段</span></div>
   </div>
@@ -207,8 +208,8 @@
       <tr><td class="num">7</td><td>TOTP 两步验证</td><td>绑定扫码（otpauth 二维码）+ 恢复码；可全局强制开启</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">8</td><td>会话/设备管理</td><td>查看当前登录设备列表（IP/时间/UA），可单个踢出</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">9</td><td>角色权限</td><td>admin（全部）/ user（首页 + 个人偏好），见权限矩阵</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td class="num">10</td><td>访客模式</td><td>开启后免登录可看首页，仅展示"公开"标记的应用</td><td><span class="badge p2">M2</span></td></tr>
-      <tr><td class="num">11</td><td>用户管理</td><td>管理员增删用户、重置密码、禁用账号</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>访客模式</td><td>guest.enabled + 免认证 GET /api/public/apps，仅展示 visibility=public 应用</td><td><span class="badge p2">M2（dev-plan 7.5）</span></td></tr>
+      <tr><td class="num">11</td><td>用户管理</td><td>设置 → 用户管理：列表（分页/搜索）/新增/编辑（角色/备注）/禁用启用/重置密码（全端失效）/强制下线；边界：不物理删除、不能操作自己、至少保留 1 个启用 admin；写审计</td><td><span class="badge p2">M2（dev-plan 7.4）</span></td></tr>
       <tr><td class="num">12</td><td>OIDC / LDAP 登录</td><td>对接公司单点登录 / 企业 LDAP，账号自动映射</td><td><span class="badge p3">M3</span></td></tr>
       <tr><td class="num">13</td><td>Passkey 免密登录</td><td>WebAuthn 指纹/Face ID 登录（可选）</td><td><span class="badge p3">M3</span></td></tr>
       <tr><td class="num">14</td><td>审计日志</td><td>记录登录、配置变更、容器操作、Flow 执行，可筛选导出</td><td><span class="badge p2">M2</span></td></tr>
@@ -244,7 +245,7 @@
       <tr><td class="num">18</td><td>暗色模式</td><td>跟随系统 / 手动切换，全部页面适配</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td class="num">19</td><td>主题色自定义</td><td>内置若干主题色 + 自定义色值，全站联动</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td class="num">20</td><td>自定义壁纸</td><td>上传图片 / 渐变 / 纯色，可设模糊与遮罩透明度</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td class="num">21</td><td>移动端自适应</td><td>磁贴单列、导航折叠为底部栏，与 PC 布局互不影响</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">21</td><td><s>移动端自适应</s></td><td>v1.6 移除（系统定位桌面 Web 专用）</td><td><span class="badge p1">—</span></td></tr>
     </tbody>
   </table>
 </section>
@@ -265,7 +266,7 @@
       <tr><td class="num">7</td><td>内置图标库</td><td>预置 Jellyfin/qBittorrent/Home Assistant 等常见服务图标（本地文件，不依赖外网 CDN）</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">8</td><td>探活状态点</td><td>磁贴右上角绿/红/灰点 + hover 显示延迟与最近检查时间</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td class="num">9</td><td>打开方式</td><td>新标签页（默认）/ 当前页 / iframe 内嵌弹窗</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td class="num">10</td><td>可见性</td><td>所有人可见 / 仅管理员 / 仅指定用户</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">10</td><td>可见性</td><td>四级：所有人 / 指定用户（visible_users）/ 仅管理员 / 公开（含访客）</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">11</td><td>备注与文档链接</td><td>应用可附备注（如默认账号提示）和 Wiki 链接，详情浮层展示</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">12</td><td>回收站</td><td>删除应用进回收站，30 天内可恢复</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">13</td><td>导入/导出</td><td>JSON 全量导入导出（应用 + 分组 + 入口）</td><td><span class="badge p1">M1</span></td></tr>
@@ -601,7 +602,7 @@
       <tr><td class="num">6</td><td>通知设置</td><td>渠道与通知规则（详见 M09）</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">7</td><td>安全设置</td><td>密码策略/会话有效期/强制 TOTP/失败锁定阈值</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">8</td><td>自动备份</td><td>定时导出全量 JSON 到指定目录（数据卷内），保留 N 份</td><td><span class="badge p2">M2</span></td></tr>
-      <tr><td class="num">9</td><td>版本更新检查</td><td>对比 GitHub Release 提示新版本与更新日志</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">9</td><td>版本更新检查与在线更新</td><td>Gitee Releases 数据源（仓库可配）：定时+手动检查；一键在线更新（源码：备份→checkout→依赖→重启→自检，失败回滚）；Docker 提示+更新命令；默认不静默更新</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">10</td><td>健康自检</td><td>检查数据卷可写/外网连通/AI 连通/探活服务状态，输出体检报告</td><td><span class="badge p2">M2</span></td></tr>
       <tr><td class="num">11</td><td>关于页</td><td>版本/构建时间/开源协议/项目地址</td><td><span class="badge p1">M1</span></td></tr>
       <tr><td class="num">12</td><td>MySQL 数据同步</td><td>SQLite 为主库，定时镜像推送到 NAS MySQL：连接配置与测试、间隔可配、立即推送、每表同步状态与最近结果、失败退避重试、敏感表排除（会话/Token 不同步）、MySQL 不可达不影响本地运行、支持从 MySQL 恢复</td><td><span class="badge p2">M2</span></td></tr>
@@ -613,18 +614,14 @@
 
 <!-- ============ M16 ============ -->
 <section id="m16">
-  <h2><span class="no">M16</span>移动端与 PWA <span class="badge p1">7 项</span></h2>
-  <p>定位：手机上的体验不能是"能看"，要"好用"。</p>
+  <h2><span class="no">M16</span>桌面 PWA <span class="badge p1">2 项</span></h2>
+  <p>定位：<strong>系统为桌面 Web 专用</strong>，不做移动端适配；保留桌面浏览器可安装（PWA）与暗色跟随。</p>
   <table>
     <thead><tr><th>#</th><th style="width:22%">功能点</th><th>说明</th><th style="width:8%">阶段</th></tr></thead>
     <tbody>
-      <tr><td class="num">1</td><td>全站响应式</td><td>所有页面适配窄屏，触控目标 ≥ 44px</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td class="num">2</td><td>PWA 可安装</td><td>manifest + service worker，浏览器"添加到主屏幕"像原生 App</td><td><span class="badge p2">M2</span></td></tr>
-      <tr><td class="num">3</td><td>移动端底部导航</td><td>首页/应用/AI/更多 的底部 Tab</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td class="num">4</td><td>主屏图标与启动屏</td><td>自定义图标与启动画面</td><td><span class="badge p2">M2</span></td></tr>
-      <tr><td class="num">5</td><td>移动端专属布局</td><td>手机上独立的小组件排列方案（与 PC 互不影响）</td><td><span class="badge p3">M3</span></td></tr>
-      <tr><td class="num">6</td><td>暗色跟随系统</td><td>系统切暗色自动跟随</td><td><span class="badge p1">M1</span></td></tr>
-      <tr><td class="num">7</td><td>安全区与手势适配</td><td>底部 Tab/页面留白适配刘海屏与手势条（<code>env(safe-area-inset-*)</code>）；移动端点击缩放反馈</td><td><span class="badge p1">M1</span></td></tr>
+      <tr><td class="num">2</td><td>PWA 可安装</td><td>manifest + service worker，桌面浏览器安装为应用</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td class="num">4</td><td>图标与启动屏</td><td>自定义图标</td><td><span class="badge p2">M2</span></td></tr>
+      <tr><td colspan="4">v1.6 移除：1 全站响应式、3 移动端底部导航、5 移动专属布局、7 安全区与手势适配（桌面 Web 专用）；6 暗色跟随系统移入 M02-18（已实现）</td></tr>
     </tbody>
   </table>
 </section>
@@ -638,7 +635,7 @@
       <tr><td>查看首页 / 打开应用</td><td>✓ 全部</td><td>✓ 按应用可见性</td><td>仅"公开"应用</td></tr>
       <tr><td>管理 应用/分组/入口</td><td>✓</td><td>✗</td><td>✗</td></tr>
       <tr><td>环境档案管理</td><td>✓</td><td>✗（可手动切换自己的环境）</td><td>✗</td></tr>
-      <tr><td>查看监控</td><td>✓ 全部</td><td>✓ 基础资源图</td><td>✗</td></tr>
+      <tr><td>查看监控</td><td>✓ 全部</td><td>✓ 基础资源图（进程/Docker/告警仅 admin）</td><td>✗</td></tr>
       <tr><td>Docker 操作</td><td>✓</td><td>✗</td><td>✗</td></tr>
       <tr><td>Flow</td><td>创建/编辑/执行</td><td>仅可手动触发被允许的 Flow</td><td>✗</td></tr>
       <tr><td>AI 对话</td><td>✓</td><td>✓（可限额）</td><td>✗</td></tr>
@@ -743,7 +740,7 @@
   <div class="callout">💡 说明：本项目的所有文档产出均提供 <strong>MD + HTML 双版本</strong>；工作过程记录见项目根目录 <code>logs/</code> 文件夹。</div>
 </section>
 
-<footer>Portal · 功能详述 v1.5 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · 功能详述 v1.6 · 2026-09-03 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 
