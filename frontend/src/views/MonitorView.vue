@@ -239,8 +239,15 @@ const historyOption = computed(() => {
   let series
   if (metric.value === 'cpu') {
     const pts = h.points ?? []
-    // 总使用率（粗线）+ 每核（细线，M17-2）
-    const coreCount = pts[0]?.cores?.length ?? 0
+    // 总使用率（粗线）+ 每核（细线，M17-2）；核数从最新样本取——
+    // cpu_cores 是后加列，早期样本没有该字段（画图时留断口）
+    let coreCount = 0
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (pts[i]?.cores?.length) {
+        coreCount = pts[i].cores!.length
+        break
+      }
+    }
     series = [
       mk(pts.map((p) => p.cpu), t('monitor.cpuTotal')),
       ...Array.from({ length: coreCount }, (_, i) =>
