@@ -184,9 +184,9 @@ async def update_user(
     if user is None:
         raise BizError(CODE_FORBIDDEN, t("err.user_not_found"), 404)
     if user.id == admin.id and body.role != "admin":
-        raise BizError(CODE_FORBIDDEN, t("err.user_self_action", action="修改自己的角色"), 403)
+        raise BizError(CODE_FORBIDDEN, t("err.user_self_action", action=t("u.action.change_role")), 403)
     if user.role == "admin" and body.role != "admin":
-        await _guard_keep_admin(session, user, "降级")
+        await _guard_keep_admin(session, user, t("u.action.demote"))
     user.role = body.role
     user.remark = body.remark
     await session.commit()
@@ -206,14 +206,14 @@ async def set_user_status(
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    _guard_not_self(admin, user_id, "禁用自己")
+    _guard_not_self(admin, user_id, t("u.action.disable"))
     user = await session.get(User, user_id)
     if user is None:
         raise BizError(CODE_FORBIDDEN, t("err.user_not_found"), 404)
     if body.enabled:
         user.is_active = True
     else:
-        await _guard_keep_admin(session, user, "禁用")
+        await _guard_keep_admin(session, user, t("u.action.disable"))
         user.is_active = False
         user.token_version += 1  # 禁用即全部会话失效
     await session.commit()
@@ -255,7 +255,7 @@ async def kick_user(
     admin: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    _guard_not_self(admin, user_id, "踢出自己")
+    _guard_not_self(admin, user_id, t("u.action.kick"))
     user = await session.get(User, user_id)
     if user is None:
         raise BizError(CODE_FORBIDDEN, t("err.user_not_found"), 404)

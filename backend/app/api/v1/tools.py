@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
+from app.core.i18n import t
 from app.core.response import CODE_VALIDATION, BizError, ok
 from app.db.session import get_session
 from app.models.tools import WolTarget
@@ -44,7 +45,7 @@ async def wol_send(
     try:
         sent = send_wol(body.mac, body.port)
     except ValueError:
-        raise BizError(CODE_VALIDATION, "MAC 地址格式不正确", 422)
+        raise BizError(CODE_VALIDATION, t("v.mac_invalid"), 422)
     return ok({"sent_bytes": sent})
 
 
@@ -78,11 +79,11 @@ async def wol_targets_create(
     try:
         mac = normalize_mac(body.mac)
     except ValueError:
-        raise BizError(CODE_VALIDATION, "MAC 地址格式不正确", 422)
-    t = WolTarget(name=body.name, mac=mac, note=body.note)
-    session.add(t)
+        raise BizError(CODE_VALIDATION, t("v.mac_invalid"), 422)
+    target = WolTarget(name=body.name, mac=mac, note=body.note)
+    session.add(target)
     await session.commit()
-    return ok({"id": t.id, "name": t.name, "mac": t.mac, "note": t.note})
+    return ok({"id": target.id, "name": target.name, "mac": target.mac, "note": target.note})
 
 
 @router.delete("/tools/wol-targets/{target_id}")

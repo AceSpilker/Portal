@@ -152,6 +152,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "需至少保留一个启用中的管理员，无法{action}",
         "en": "At least one enabled admin must remain, cannot {action}",
     },
+    "u.action.disable": {"zh-CN": "禁用", "en": "disable"},
+    "u.action.kick": {"zh-CN": "踢出", "en": "kick"},
+    "u.action.demote": {"zh-CN": "降级", "en": "demote"},
+    "u.action.change_role": {"zh-CN": "修改自己的角色", "en": "change your own role"},
     "ok.user_password_reset": {
         "zh-CN": "密码已重置，该用户需重新登录",
         "en": "Password reset; the user must sign in again",
@@ -190,6 +194,11 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.prefer_duplicated": {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
+    },
+    # ---- 工具箱（M10）----
+    "v.mac_invalid": {
+        "zh-CN": "MAC 地址格式不正确",
+        "en": "Invalid MAC address",
     },
     # ---- 校验格式化（response.py）----
     "v.prefix": {"zh-CN": "参数校验失败：", "en": "Validation failed: "},
