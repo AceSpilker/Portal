@@ -133,11 +133,11 @@ function backToList() {
 </script>
 
 <template>
-  <el-dialog
+  <el-dialog append-to-body
     v-model="visible"
     :title="step === 'ssh' ? t('entry.sshTitle') : t('entry.pickTitle')"
     width="520px"
-    append-to-body
+
   >
     <!-- 入口二维码（M04-17；P15.4） -->
     <div v-if="qrShow" class="qr-box">

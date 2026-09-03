@@ -537,11 +537,11 @@ async function onTab(name: string | number) {
           </div>
         </div>
 
-        <el-dialog
+        <el-dialog append-to-body
           v-model="alertDialog"
           :title="alertEditing ? t('notify.alert.editRule') : t('notify.alert.addRule')"
           width="460px"
-          append-to-body
+
         >
           <el-form label-width="110px">
             <el-form-item :label="t('notify.fld.name')">
@@ -625,11 +625,11 @@ async function onTab(name: string | number) {
     </el-tabs>
 
     <!-- 渠道编辑对话框 -->
-    <el-dialog
+    <el-dialog append-to-body
       v-model="dialog"
       :title="editing ? t('notify.editChannel') : t('notify.addChannel')"
       width="460px"
-      append-to-body
+
     >
       <el-form label-width="110px">
         <el-form-item :label="t('notify.colType')">

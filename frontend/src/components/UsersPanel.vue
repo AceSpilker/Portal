@@ -175,11 +175,11 @@ onMounted(load)
       </el-table-column>
     </el-table>
 
-    <el-dialog
+    <el-dialog append-to-body
       v-model="dialog"
       :title="editing ? t('users.editTitle', { name: editing.username }) : t('users.addTitle')"
       width="420px"
-      append-to-body
+      
     >
       <el-form label-width="90px">
         <el-form-item :label="t('users.username')">

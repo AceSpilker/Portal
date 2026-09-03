@@ -236,10 +236,10 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
     </section>
 
     <!-- 编排对话框 -->
-    <el-dialog v-model="dialog" :title="editing ? t('flow.edit') : t('flow.add')" width="640px" top="4vh">
+    <el-dialog append-to-body v-model="dialog" :title="editing ? t('flow.edit') : t('flow.add')" width="640px" top="4vh">
       <el-form label-width="100px">
         <el-form-item :label="t('flow.fld.name')"><el-input v-model="form.name" maxlength="60" /></el-form-item>
-        <el-form-item :label="t('ports.fld.name')">
+        <el-form-item :label="t('apps.fieldDesc')">
           <el-input v-model="form.description" :placeholder="t('flow.descPh')" />
         </el-form-item>
         <el-form-item :label="t('flow.trigger')">
@@ -320,7 +320,7 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
     </el-dialog>
 
     <!-- 运行历史 -->
-    <el-dialog v-model="historyDialog" :title="t('flow.historyTitle', { name: historyFlow })" width="680px">
+    <el-dialog append-to-body v-model="historyDialog" :title="t('flow.historyTitle', { name: historyFlow })" width="680px">
       <div v-if="!history.length" class="muted">{{ t('flow.noRuns') }}</div>
       <div v-for="r in history" :key="r.id" class="run-card">
         <div class="run-head">

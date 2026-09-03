@@ -506,11 +506,11 @@ function saveMonitor() {
 
 
         <!-- 新增/编辑自定义图标 -->
-        <el-dialog
+        <el-dialog append-to-body
           v-model="iconDialog"
           :title="iconForm.id ? t('settings.iconDialogEditTitle') : t('settings.iconDialogTitle')"
           width="420px"
-          append-to-body
+          
         >
           <div class="icon-dialog-body">
             <div class="icon-dialog-preview">

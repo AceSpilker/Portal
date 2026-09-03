@@ -113,15 +113,17 @@ body {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 .fade-up {
-  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* fill-mode 用 backwards:动画结束即释放 transform,
+     避免 fixed 遮罩/弹窗被限死在内容区内(P15 全局弹窗修复) */
+  animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 .stagger > * {
-  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 .stagger > *:nth-child(1) { animation-delay: 0.05s; }
 .stagger > *:nth-child(2) { animation-delay: 0.12s; }

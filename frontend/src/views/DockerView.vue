@@ -148,7 +148,7 @@ async function openDetail(c: DockerContainer) {
     </section>
 
     <!-- 日志对话框（尾部 + 轮询滚动） -->
-    <el-dialog v-model="logDialog" :title="t('docker.logsTitle', { name: logName })" width="760px" @close="closeLogs">
+    <el-dialog append-to-body v-model="logDialog" :title="t('docker.logsTitle', { name: logName })" width="760px" @close="closeLogs">
       <pre ref="logBox" class="log-view">{{ logText || t('docker.logsEmpty') }}</pre>
       <template #footer>
         <el-button size="small" :loading="logLoading" @click="refreshLogs">{{ t('docker.logsRefresh') }}</el-button>
@@ -156,7 +156,7 @@ async function openDetail(c: DockerContainer) {
     </el-dialog>
 
     <!-- 详情对话框 -->
-    <el-dialog v-model="detailDialog" :title="t('docker.detailTitle', { name: detail?.name ?? '' })" width="680px">
+    <el-dialog append-to-body v-model="detailDialog" :title="t('docker.detailTitle', { name: detail?.name ?? '' })" width="680px">
       <template v-if="detail">
         <h4>{{ t('docker.colImage') }}</h4>
         <p class="mono">{{ detail.image }}</p>

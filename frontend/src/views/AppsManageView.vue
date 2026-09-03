@@ -755,10 +755,11 @@ async function doExport() {
     <!-- 应用编辑抽屉 -->
     <el-drawer
       v-model="drawer"
+      append-to-body
       :title="draft.id ? t('apps.editApp') : t('apps.createApp')"
       size="620px"
       destroy-on-close
-      append-to-body
+      
     >
       <div class="drawer-body">
         <el-form label-position="top">

@@ -339,7 +339,7 @@ onMounted(async () => {
     </section>
 
     <!-- Provider 设置对话框 -->
-    <el-dialog v-model="providerDialog" :title="t('ai.providerSettings')" width="620px">
+    <el-dialog append-to-body v-model="providerDialog" :title="t('ai.providerSettings')" width="620px">
       <div class="prov-params">
         <span>{{ t('ai.contextRounds') }}</span>
         <el-input-number v-model="contextRounds" :min="0" :max="20" size="small" />
@@ -385,7 +385,7 @@ onMounted(async () => {
     </el-dialog>
 
     <!-- 应用草稿 -->
-    <el-dialog v-model="draftDialog" :title="t('ai.draft.title')" width="520px">
+    <el-dialog append-to-body v-model="draftDialog" :title="t('ai.draft.title')" width="520px">
       <p class="muted">{{ t('ai.draft.hint') }}</p>
       <el-input v-model="draftDesc" type="textarea" :rows="4" :placeholder="t('ai.draft.ph')" />
       <div v-if="draft" class="draft-box">
