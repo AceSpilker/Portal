@@ -90,7 +90,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
     :show-close="false"
     append-to-body
     class="palette-dialog"
-    @keydown="onKeydown"
   >
     <div class="palette">
       <div class="palette-input-row">
@@ -173,7 +172,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
   text-align: left;
 }
 .palette-item.active {
-  background: rgba(91, 95, 241, 0.1);
+  background: color-mix(in srgb, var(--p-primary) 10%, transparent);
 }
 .pi-name {
   font-weight: 600;
