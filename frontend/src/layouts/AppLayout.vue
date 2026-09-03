@@ -222,6 +222,11 @@ function logout() {
   width: 68px;
   padding: 14px 10px;
 }
+.logo-img {
+  max-width: 100%;
+  max-height: 44px;
+  object-fit: contain;
+}
 .logo {
   font-size: 22px;
   padding: 4px 10px 18px;

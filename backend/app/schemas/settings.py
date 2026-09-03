@@ -9,6 +9,8 @@ from app.core.i18n import t
 # 可写键白名单 → 每键校验器（防止任意键写入）
 WRITABLE_KEYS: set[str] = {
     "general.site_name",
+    "general.logo",
+    "general.timezone",
     "general.language",
     "appearance.theme_color",
     "appearance.dark_mode",

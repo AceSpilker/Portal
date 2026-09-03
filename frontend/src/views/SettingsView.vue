@@ -35,6 +35,20 @@ const saving = ref(false)
 
 // ---- 常规设置 ----
 const siteName = ref('')
+const logoUrl = ref('')
+const timezone = ref('system')
+const TIMEZONES = [
+  'UTC',
+  'Asia/Shanghai',
+  'Asia/Hong_Kong',
+  'Asia/Taipei',
+  'Asia/Tokyo',
+  'Asia/Singapore',
+  'Europe/London',
+  'Europe/Berlin',
+  'America/New_York',
+  'America/Los_Angeles',
+]
 const langDraft = ref<AppLocale>(getLocale())
 const aboutVersion = ref('')
 
@@ -101,6 +115,8 @@ const iconFileInput = ref<HTMLInputElement>()
 onMounted(async () => {
   await Promise.all([settingsStore.load(true), iconLibrary.load(true)])
   siteName.value = settingsStore.siteName
+  logoUrl.value = (settingsStore.map['general.logo'] as string) || ''
+  timezone.value = (settingsStore.map['general.timezone'] as string) || 'system'
   tagOptions.value = [...settingsStore.tagOptions]
   favDraft.value = [...settingsStore.iconFavorites]
   const map = settingsStore.map
@@ -254,7 +270,14 @@ function saveGeneral() {
     ElMessage.warning(t('settings.warnSiteName'))
     return
   }
-  save({ 'general.site_name': siteName.value.trim() }, t('settings.generalSaved'))
+  save(
+    {
+      'general.site_name': siteName.value.trim(),
+      'general.logo': logoUrl.value.trim(),
+      'general.timezone': timezone.value,
+    },
+    t('settings.generalSaved'),
+  )
 }
 
 function saveTags() {
@@ -331,7 +354,16 @@ function saveMonitor() {
           <p>{{ t('settings.generalDesc') }}</p>
         </header>
         <el-form label-position="top" class="panel-body">
-          <el-form-item :label="t('settings.siteName')" style="max-width: 360px">
+                  <el-form-item label="Logo URL">
+          <el-input v-model="logoUrl" placeholder="https://…/logo.png（留空显示站点名）" clearable />
+        </el-form-item>
+        <el-form-item :label="t('settings.timezone')">
+          <el-select v-model="timezone" style="max-width: 320px">
+            <el-option :label="t('settings.followSystem')" value="system" />
+            <el-option v-for="tz in TIMEZONES" :key="tz" :label="tz" :value="tz" />
+          </el-select>
+        </el-form-item>
+<el-form-item :label="t('settings.siteName')" style="max-width: 360px">
             <el-input v-model="siteName" maxlength="64" placeholder="Portal" />
           </el-form-item>
           <el-form-item :label="t('settings.language')" style="max-width: 360px">

@@ -13,6 +13,7 @@ from app.api.v1 import (
     network_profiles,
     probe,
     settings,
+    tools,
     users,
 )
 
@@ -30,3 +31,4 @@ api_router.include_router(network_profiles.router, tags=["network"])
 api_router.include_router(monitor.router, tags=["monitor"])
 api_router.include_router(probe.router, tags=["probe"])
 api_router.include_router(users.router, tags=["users"])
+api_router.include_router(tools.router, tags=["tools"])

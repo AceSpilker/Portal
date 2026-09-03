@@ -7,22 +7,24 @@
  * 才需要服务端校时，属另一个话题。
  */
 
-/** 时：分：秒，两位补零（09:26:45）。 */
-export function formatClockTime(d: Date, locale = 'zh-CN'): string {
+/** 时：分：秒，两位补零（09:26:45）；timeZone='system' 表示跟随浏览器时区。 */
+export function formatClockTime(d: Date, locale = 'zh-CN', timeZone?: string): string {
   return d.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
+    ...(timeZone && timeZone !== 'system' ? { timeZone } : {}),
   })
 }
 
 /** 年月日 + 星期（2026年9月3日星期四 / Thursday, September 3, 2026）。 */
-export function formatClockDate(d: Date, locale = 'zh-CN'): string {
+export function formatClockDate(d: Date, locale = 'zh-CN', timeZone?: string): string {
   return d.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
+    ...(timeZone && timeZone !== 'system' ? { timeZone } : {}),
   })
 }

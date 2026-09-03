@@ -24,6 +24,7 @@ import { portalApi } from '../api/portal'
 import type { Category, PortalApp } from '../api/portal'
 import { layoutApi } from '../api/dashboard'
 import { useAuthStore } from '../stores/auth'
+import { useSettingsStore } from '../stores/settings'
 import { useProbeStore } from '../stores/probe'
 import { useOpenApp } from '../composables/useOpenApp'
 import AppIcon from '../components/AppIcon.vue'
@@ -40,6 +41,7 @@ import { formatClockDate, formatClockTime } from '../utils/clock'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
+const settingsStore = useSettingsStore()
 const probeStore = useProbeStore()
 const { openApp } = useOpenApp()
 
@@ -147,8 +149,11 @@ function dotTitle(appId: number): string {
 // 本地时钟每秒自跳，不走后端接口：网络往返只会让显示滞后于真实时间
 const now = ref(new Date())
 let clockTimer: number | undefined
-const clockText = computed(() => formatClockTime(now.value, locale.value))
-const dateText = computed(() => formatClockDate(now.value, locale.value))
+const siteTz = computed(
+      () => (settingsStore.map['general.timezone'] as string) || 'system',
+    )
+    const clockText = computed(() => formatClockTime(now.value, locale.value, siteTz.value === 'system' ? undefined : siteTz.value))
+const dateText = computed(() => formatClockDate(now.value, locale.value, siteTz.value === 'system' ? undefined : siteTz.value))
 const greetingKey = computed(() => {
   const h = now.value.getHours()
   if (h < 5) return 'home.greetNight'

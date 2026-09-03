@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import QRCode from 'qrcode'
+import { toolsApi } from '../api/tools'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
@@ -78,11 +80,79 @@ function genPassword() {
   if (!pwdOutput.value) ElMessage.warning(t('tools.pwdNeedOptions'))
 }
 
+// ---- 网络唤醒 WoL（M10-1）----
+const wolMac = ref('')
+const wolSending = ref(false)
+const wolTargets = ref<{ id: number; name: string; mac: string; note: string }[]>([])
+
+async function loadWolTargets() {
+  try {
+    wolTargets.value = await toolsApi.wolTargets.list()
+  } catch {
+    wolTargets.value = []
+  }
+}
+
+async function sendWol(mac?: string, name?: string) {
+  const target = mac ?? wolMac.value
+  if (!target) return
+  wolSending.value = true
+  try {
+    await toolsApi.wol(target)
+    ElMessage.success(t('tools.wolSent', { name: name || target }))
+    wolMac.value = ''
+    await loadWolTargets()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    wolSending.value = false
+  }
+}
+
+// ---- Ping / 端口测试（M10-3）----
+const pingHost = ref('')
+const pingPort = ref(80)
+const pingResult = ref<{ ok: boolean; latency_ms: number | null } | null>(null)
+const pingLoading = ref(false)
+
+async function runPortCheck() {
+  pingLoading.value = true
+  pingResult.value = null
+  try {
+    pingResult.value = await toolsApi.portCheck(pingHost.value, pingPort.value)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    pingLoading.value = false
+  }
+}
+
+// ---- 二维码生成（M10-5）----
+const qrText = ref('')
+const qrDataUrl = ref('')
+
+async function genQr() {
+  if (!qrText.value) {
+    qrDataUrl.value = ''
+    return
+  }
+  qrDataUrl.value = await QRCode.toDataURL(qrText.value, { width: 220, margin: 1 })
+}
+
+function downloadQr() {
+  if (!qrDataUrl.value) return
+  const a = document.createElement('a')
+  a.href = qrDataUrl.value
+  a.download = 'qrcode.png'
+  a.click()
+}
+
 const copyText = async (text: string) => {
   if (!text) return
   await navigator.clipboard.writeText(text)
   ElMessage.success(t('tools.copied'))
 }
+onMounted(loadWolTargets)
 </script>
 
 <template>
@@ -149,6 +219,71 @@ const copyText = async (text: string) => {
         <el-button link type="primary" @click="copyText(pwdOutput)">{{ t('tools.copy') }}</el-button>
       </div>
     </section>
+    <!-- 网络唤醒（M10-1） -->
+    <section class="tool glass">
+      <h3>{{ t('tools.wolTitle') }}</h3>
+      <div class="tool-row">
+        <el-input
+          v-model="wolMac"
+          :placeholder="t('tools.wolPh')"
+          style="flex: 1"
+          clearable
+        />
+        <el-button type="primary" class="btn-gradient" :loading="wolSending" @click="sendWol()">
+          {{ t('tools.wolSend') }}
+        </el-button>
+      </div>
+      <div v-if="wolTargets.length" class="wol-targets">
+        <div v-for="tg in wolTargets" :key="tg.id" class="wol-row">
+          <span class="wol-name">{{ tg.name }}</span>
+          <code class="wol-mac">{{ tg.mac }}</code>
+          <el-button link size="small" type="primary" @click="sendWol(tg.mac, tg.name)">
+            {{ t('tools.wolSend') }}
+          </el-button>
+          <el-button
+            link
+            size="small"
+            type="danger"
+            @click="async () => { await toolsApi.wolTargets.remove(tg.id); await loadWolTargets() }"
+          >✕</el-button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ping / 端口测试（M10-3） -->
+    <section class="tool glass">
+      <h3>{{ t('tools.pingTitle') }}</h3>
+      <div class="tool-row">
+        <el-input v-model="pingHost" :placeholder="t('tools.pingHostPh')" style="flex: 1" />
+        <el-input-number v-model="pingPort" :min="1" :max="65535" style="width: 130px" />
+        <el-button type="primary" :loading="pingLoading" @click="runPortCheck">
+          {{ t('tools.pingRun') }}
+        </el-button>
+      </div>
+      <div v-if="pingResult" class="tool-output">
+        <span :class="pingResult.ok ? 'ping-ok' : 'ping-fail'">
+          {{ pingResult.ok ? t('tools.pingOk', { ms: pingResult.latency_ms }) : t('tools.pingFail') }}
+        </span>
+      </div>
+    </section>
+
+    <!-- 二维码生成（M10-5） -->
+    <section class="tool glass">
+      <h3>{{ t('tools.qrTitle') }}</h3>
+      <div class="tool-row">
+        <el-input
+          v-model="qrText"
+          :placeholder="t('tools.qrPh')"
+          style="flex: 1"
+          @change="genQr"
+        />
+        <el-button type="primary" @click="genQr">{{ t('tools.qrGen') }}</el-button>
+      </div>
+      <div v-if="qrDataUrl" class="qr-box">
+        <img :src="qrDataUrl" alt="QR" width="180" height="180" />
+        <el-button link type="primary" @click="downloadQr">{{ t('tools.qrDownload') }}</el-button>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -166,6 +301,46 @@ const copyText = async (text: string) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.wol-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wol-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+.wol-name {
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 120px;
+}
+.wol-mac {
+  font-size: 12px;
+  color: var(--p-muted);
+  flex: 1;
+}
+.ping-ok {
+  color: var(--el-color-success, #22c55e);
+  font-weight: 600;
+}
+.ping-fail {
+  color: var(--el-color-danger, #ef4444);
+  font-weight: 600;
+}
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.qr-box img {
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
 }
 .tool h3 {
   margin: 0;

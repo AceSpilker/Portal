@@ -7,6 +7,7 @@ from app.models.network import NetworkProfile
 from app.models.portal import App, AppUrl, Category, Icon
 from app.models.probe import AppStatus, Notification, ProbeEvent
 from app.models.setting import DEFAULT_SETTINGS, Setting
+from app.models.tools import WolTarget
 from app.models.user import User
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "Notification",
     "ProbeEvent",
     "Setting",
+    "WolTarget",
     "User",
 ]

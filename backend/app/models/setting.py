@@ -11,6 +11,8 @@ from app.models.base import Base, TimestampMixin
 # 默认设置（键名分组约定：general.* / appearance.* / apps.* / ai.* / sync.* / ...）
 DEFAULT_SETTINGS: dict[str, str] = {
     "general.site_name": json.dumps("Portal", ensure_ascii=False),
+    "general.logo": json.dumps(""),
+    "general.timezone": json.dumps("system"),
     "general.language": json.dumps("zh-CN"),
     "appearance.theme_color": json.dumps("#4f6ef7"),
     "appearance.dark_mode": json.dumps("auto"),
