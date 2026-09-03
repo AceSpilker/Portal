@@ -35,7 +35,6 @@ import {
   syncOrder,
   type DashboardLayoutData,
 } from '../utils/layout'
-import { isMobile } from '../composables/useIsMobile'
 import { formatClockDate, formatClockTime } from '../utils/clock'
 
 const { t, locale } = useI18n()
@@ -180,7 +179,6 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
       v-model="sections"
       handle=".sec-handle"
       class="sections"
-      :disabled="isMobile"
       @end="onSectionsDragEnd"
     >
       <section v-for="sec in sections" :key="sec.key" class="section glass">

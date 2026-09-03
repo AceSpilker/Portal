@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { useEnvStore } from '../stores/env'
-import { isMobile, isTablet } from '../composables/useIsMobile'
+import { useMediaQuery } from '@vueuse/core'
 import CommandPalette from '../components/CommandPalette.vue'
 import {
   Grid as IconApps,
@@ -35,6 +35,8 @@ const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 const envStore = useEnvStore()
 const paletteVisible = ref(false)
+// 窗口 <1080px 时侧栏折叠为图标栏（桌面窄窗口行为，非移动端适配）
+const isRail = useMediaQuery('(max-width: 1079px)')
 
 onMounted(() => {
   settingsStore.load()
@@ -99,12 +101,12 @@ function logout() {
 </script>
 
 <template>
-  <div class="shell" :class="{ mobile: isMobile }">
-    <!-- 桌面/平板侧边导航（平板为图标栏；移动端隐藏，改用底部 Tab） -->
-    <aside class="side glass" :class="{ rail: isTablet }">
+  <div class="shell">
+    <!-- 侧边导航（窗口较窄时折叠为图标栏） -->
+    <aside class="side glass" :class="{ rail: isRail }">
       <div class="logo">
-        <span v-if="!isTablet" class="brand-text">{{ brand }}</span>
-        <span v-else class="brand-dot" />
+        <span class="brand-text">{{ brand }}</span>
+        
       </div>
       <nav class="nav">
         <div
@@ -114,25 +116,25 @@ function logout() {
           :class="{
             active: isActive(item),
             disabled: item.disabled,
-            'icon-only': isTablet,
+            'icon-only': isRail,
           }"
           @click="onNav(item)"
         >
           <el-icon :size="20"><component :is="item.icon" /></el-icon>
-          <span v-if="!isTablet" class="nav-label">{{ item.label }}</span>
-          <span v-if="item.tag && !isTablet" class="tag">{{ item.tag }}</span>
+          <span class="nav-label">{{ item.label }}</span>
+          <span v-if="item.tag" class="tag">{{ item.tag }}</span>
         </div>
       </nav>
       <div class="side-foot">
-        <span v-if="!isTablet" class="user">{{ auth.user?.username }}</span>
-        <el-tooltip :content="t('nav.logout')" placement="top" :disabled="isTablet">
+        <span class="user">{{ auth.user?.username }}</span>
+        <el-tooltip :content="t('nav.logout')" placement="top" :disabled="false">
           <el-button circle size="small" :icon="IconLogout" @click="logout" />
         </el-tooltip>
       </div>
     </aside>
 
     <!-- 主区：页面内容由路由注入 -->
-    <main class="main" :class="{ mobile: isMobile }">
+    <main class="main">
       <header class="topbar">
         <h2>{{ pageTitle }}</h2>
         <div class="topbar-right">
@@ -172,13 +174,6 @@ function logout() {
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <el-button
-            class="btn-logout-mobile"
-            circle
-            size="small"
-            :icon="IconLogout"
-            @click="logout"
-          />
         </div>
       </header>
 
@@ -194,20 +189,6 @@ function logout() {
 
     <!-- 全局命令面板（M02-6） -->
     <CommandPalette v-model="paletteVisible" />
-
-    <!-- 移动端底部 Tab 导航（M16-3，含安全区适配 M16-7） -->
-    <nav class="tabbar">
-      <div
-        v-for="item in navItems"
-        :key="item.label"
-        class="tab"
-        :class="{ active: isActive(item), disabled: item.disabled }"
-        @click="onNav(item)"
-      >
-        <el-icon :size="20"><component :is="item.icon" /></el-icon>
-        <span>{{ item.label }}</span>
-      </div>
-    </nav>
   </div>
 </template>
 
@@ -331,9 +312,6 @@ function logout() {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.btn-logout-mobile {
-  display: none;
 }
 .palette-trigger {
   display: inline-flex;
@@ -474,75 +452,5 @@ function logout() {
   }
 }
 
-/* ===== 移动端适配（M16 / <768px）===== */
-@media (max-width: 767px) {
-  .side {
-    display: none;
-  }
-  .tabbar {
-    display: flex;
-  }
-  .btn-logout-mobile {
-    display: inline-flex;
-  }
-  /* 移动端：快捷键提示无意义，隐藏 kbd 徽标仅留搜索图标；环境名收窄 */
-  .palette-kbd {
-    display: none;
-  }
-  .env-name {
-    max-width: 110px;
-  }
-  .shell {
-    padding: 12px 12px calc(78px + env(safe-area-inset-bottom));
-  }
-  .topbar h2 {
-    font-size: 18px;
-  }
-}
 
-/* ===== 底部 Tab 导航（移动端；桌面隐藏） ===== */
-@media (min-width: 768px) {
-  .tabbar {
-    display: none;
-  }
-}
-.tabbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  justify-content: space-around;
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  background: var(--p-tabbar-bg, rgba(255, 255, 255, 0.92));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--p-card-border);
-  box-shadow: 0 -8px 30px rgba(23, 43, 99, 0.06);
-  z-index: 30;
-}
-.tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--p-muted);
-  min-width: 58px;
-  min-height: 44px;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    color 0.2s,
-    transform 0.15s;
-}
-.tab:active {
-  transform: scale(0.92);
-}
-.tab.active {
-  color: var(--p-primary);
-  font-weight: 600;
-}
-.tab.disabled {
-  opacity: 0.38;
-}
 </style>

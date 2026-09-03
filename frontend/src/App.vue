@@ -8,7 +8,6 @@ import i18n from './locales'
 import { useTheme } from './composables/useTheme'
 import { useOpenApp } from './composables/useOpenApp'
 import EntryPopup from './components/EntryPopup.vue'
-import { isMobile } from './composables/useIsMobile'
 
 // Element Plus 组件内置文案跟随语言切换
 const elLocale = computed(() => (i18n.global.locale.value === 'en' ? enLocale : zhCn))
@@ -34,7 +33,7 @@ const { popupApp, popupVisible, iframeApp, iframeVisible, onChooseEntry } = useO
     <el-dialog
       v-model="iframeVisible"
       :title="iframeApp?.name"
-      :width="isMobile ? '96%' : '78%'"
+      width="78%"
       destroy-on-close
       append-to-body
     >

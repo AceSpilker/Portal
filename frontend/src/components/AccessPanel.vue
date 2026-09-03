@@ -7,7 +7,6 @@ import { Delete as IconDelete, Edit as IconEdit, Plus as IconPlus } from '@eleme
 import { networkApi } from '../api/network'
 import type { MatrixResult, NetworkProfile } from '../api/network'
 import type { AccessType } from '../api/portal'
-import { isMobile } from '../composables/useIsMobile'
 
 const { t } = useI18n()
 
@@ -263,7 +262,7 @@ onMounted(loadProfiles)
     <el-dialog
       v-model="dialog"
       :title="form.id ? t('env.profileName') : t('common.add')"
-      :width="isMobile ? '94%' : '480px'"
+      width="480px"
       append-to-body
     >
       <el-form label-position="top">

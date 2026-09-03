@@ -22,7 +22,6 @@ import type { IconItem } from '../api/icons'
 import { getHealth } from '../api/health'
 import { setLocale, getLocale } from '../locales'
 import type { AppLocale } from '../locales'
-import { isMobile } from '../composables/useIsMobile'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -457,7 +456,7 @@ function saveMonitor() {
         <el-dialog
           v-model="iconDialog"
           :title="iconForm.id ? t('settings.iconDialogEditTitle') : t('settings.iconDialogTitle')"
-          :width="isMobile ? '94%' : '420px'"
+          width="420px"
           append-to-body
         >
           <div class="icon-dialog-body">

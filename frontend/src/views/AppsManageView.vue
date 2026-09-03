@@ -25,7 +25,6 @@ import IconPicker from '../components/IconPicker.vue'
 import EntryPopup from '../components/EntryPopup.vue'
 import type { IconPick } from '../components/IconPicker.vue'
 import { makeExportFilename } from '../utils/export'
-import { isMobile } from '../composables/useIsMobile'
 
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
@@ -599,7 +598,7 @@ async function doExport() {
     <el-drawer
       v-model="drawer"
       :title="draft.id ? t('apps.editApp') : t('apps.createApp')"
-      :size="isMobile ? '100%' : '620px'"
+      size="620px"
       destroy-on-close
       append-to-body
     >
@@ -744,7 +743,7 @@ async function doExport() {
     </el-drawer>
 
     <!-- 分组管理弹窗 -->
-    <el-dialog v-model="catDialog" :title="t('apps.catDialogTitle')" :width="isMobile ? '94%' : '560px'" append-to-body>
+    <el-dialog v-model="catDialog" :title="t('apps.catDialogTitle')" width="560px" append-to-body>
       <div class="cat-list">
         <div v-for="c in categories" :key="c.id" class="cat-row">
           <span class="cat-icon">

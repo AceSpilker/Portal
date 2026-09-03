@@ -16,7 +16,6 @@ import type { ResolveResult } from '../api/network'
 import type { AppUrl, PortalApp } from '../api/portal'
 import { useEnvStore } from '../stores/env'
 import { buildSshCommand, parseJump, suggestLocalPort } from '../utils/ssh'
-import { isMobile } from '../composables/useIsMobile'
 
 const props = defineProps<{ app: PortalApp | null }>()
 const emit = defineEmits<{ choose: [app: PortalApp, url: string] }>()
@@ -116,7 +115,7 @@ function backToList() {
   <el-dialog
     v-model="visible"
     :title="step === 'ssh' ? t('entry.sshTitle') : t('entry.pickTitle')"
-    :width="isMobile ? '94%' : '520px'"
+    width="520px"
     append-to-body
   >
     <!-- 入口列表（M04-12） -->

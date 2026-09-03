@@ -12,7 +12,6 @@ import type { PortalApp } from '../api/portal'
 import { searchApps } from '../utils/search'
 import AppIcon from './AppIcon.vue'
 import { useOpenApp } from '../composables/useOpenApp'
-import { isMobile } from '../composables/useIsMobile'
 
 const visible = defineModel<boolean>({ required: true })
 const { t } = useI18n()
@@ -86,7 +85,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
 <template>
   <el-dialog
     v-model="visible"
-    :width="isMobile ? '92%' : '520px'"
+    width="520px"
     :show-close="false"
     append-to-body
     class="palette-dialog"
