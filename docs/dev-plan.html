@@ -119,7 +119,7 @@
       <span class="chip">关联 feature-spec v1.6</span>
       <span class="chip">26 阶段</span>
       <span class="chip">120 步骤</span>
-      <span class="chip">进度 71 / 120</span>
+      <span class="chip">进度 74 / 120</span>
       <span class="chip">v1.2 新增：P24 传输加密（已完成）</span>
       <span class="chip">v1.4/v1.5：桌面 Web 专用 · 新增 7.4 用户管理 · 7.5 可见性与访客 · 17.5 在线更新</span>
     </div>
@@ -252,7 +252,7 @@
       <tr><td class="num">P9</td><td><a href="#p9">通知中心</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st doing">🔄 3/3（待渠道真机收包）</span></td></tr>
       <tr><td class="num">P10</td><td><a href="#p10">监控增强与阈值告警 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st doing">🔄 5/5（外部渠道待真机）</span></td></tr>
       <tr><td class="num">P11</td><td><a href="#p11">端口监控 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st doing">🔄 5/5（Flow 联动待 P14）</span></td></tr>
-      <tr><td class="num">P12</td><td><a href="#p12">Docker 容器管理基础</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P12</td><td><a href="#p12">Docker 容器管理基础</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st done">✅ 已完成（3/3）</span></td></tr>
       <tr><td class="num">P13</td><td><a href="#p13">AI 助手</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P14</td><td><a href="#p14">Flow 自动化（表单版）</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P15</td><td><a href="#p15">应用与仪表盘增强</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
@@ -464,13 +464,13 @@
   <div class="gate"><b>业务功能测试关卡：</b><ul><li>起临时 HTTP 服务 → 看板显示"通" → kill 进程 → 收到断开告警；输入已知端口能查到占用进程。</li></ul></div>
   <div class="goal">退出标准：端口从异常到告警送达 &lt; 1 个探测周期。</div>
 
-  <h3 id="p12">P12 · Docker 容器管理基础 <span class="st open">未开始</span></h3>
+  <h3 id="p12">P12 · Docker 容器管理基础 <span class="st done">已完成（3/3）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">12.1</td><td>接入与列表</td><td>docker.sock 开关式接入、容器列表（状态/镜像/占用）</td><td>M08-1</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">12.2</td><td>生命周期操作</td><td>启动/停止/重启 + 确认弹窗 + 审计日志</td><td>M08-2</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">12.3</td><td>日志与详情</td><td>尾部日志 + 实时滚动 + 详情（端口/卷/环境变量脱敏）</td><td>M08-3/4</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">12.1</td><td>接入与列表</td><td>docker.sock 开关式接入、容器列表（状态/镜像/占用）</td><td>M08-1</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">12.2</td><td>生命周期操作</td><td>启动/停止/重启 + 确认弹窗 + 审计日志</td><td>M08-2</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">12.3</td><td>日志与详情</td><td>尾部日志 + 实时滚动 + 详情（端口/卷/环境变量脱敏）</td><td>M08-3/4</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>Docker SDK 封装 mock；敏感环境变量脱敏；操作审计写入。</li></ul></div>
