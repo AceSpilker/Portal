@@ -115,6 +115,83 @@ export const monitorApi = {
     request.get<never, MonitorHistory>('/monitor/history', {
       params: { metric, range },
     }),
+  /** 进程 Top 榜（M17-12；P10.1，管理员）。 */
+  processes: (sort: 'cpu' | 'mem' = 'cpu', q = '', limit = 20) =>
+    request.get<never, ProcRow[]>('/monitor/processes', { params: { sort, q, limit } }),
+  /** 按容器资源占用（M17-13；P10.2，无 docker.sock 返回空数组）。 */
+  dockerStats: () => request.get<never, DockerStat[]>('/monitor/docker-stats'),
+  /** 证书到期即时检查（P10.5）。 */
+  certs: () => request.get<never, CertInfo[]>('/monitor/certs'),
+  /** 证书监控域名保存（M）。 */
+  saveCertHosts: (hosts: string[]) => request.put<never, string[]>('/monitor/certs/hosts', { hosts }),
+  /** 阈值告警规则 CRUD（M17-14/15；P10.3，管理员）。 */
+  alertRules: () => request.get<never, AlertRule[]>('/alerts/rules'),
+  createAlertRule: (body: AlertRuleBody) => request.post<never, AlertRule>('/alerts/rules', body),
+  updateAlertRule: (id: number, body: AlertRuleBody) => request.put<never, AlertRule>(`/alerts/rules/${id}`, body),
+  deleteAlertRule: (id: number) => request.delete(`/alerts/rules/${id}`),
+  testAlertRule: (id: number) =>
+    request.post<never, { current: number | null; threshold: number; op: string; violated: boolean | null }>(
+      `/alerts/rules/${id}/test`,
+    ),
+  /** 告警事件历史（与站内通知同源 source=metric）。 */
+  alertEvents: (range = '7d', level = '') =>
+    request.get<never, AlertEvent[]>('/alerts/events', { params: { range, level } }),
+}
+
+export interface ProcRow {
+  pid: number
+  name: string
+  username: string
+  cpu_percent: number
+  mem_percent: number
+  mem_mb: number
+}
+
+export interface DockerStat {
+  id: string
+  name: string
+  image: string
+  state: string
+  cpu_percent: number
+  mem_used_mb: number
+  mem_limit_mb: number
+  mem_percent: number
+  net_rx_mb: number
+  net_tx_mb: number
+}
+
+export interface CertInfo {
+  host: string
+  days_left?: number
+  not_after?: string
+  level?: 'ok' | 'info' | 'warn' | 'error'
+  error?: string
+}
+
+export type AlertMetric = 'cpu' | 'mem' | 'disk' | 'disk_io' | 'temp'
+
+export interface AlertRule {
+  id: number
+  name: string
+  metric: AlertMetric
+  target: string | null
+  op: '>' | '<'
+  threshold: number
+  duration_min: number
+  level: 'warn' | 'error'
+  enabled: boolean
+  last_fired_at: string | null
+}
+
+export type AlertRuleBody = Omit<AlertRule, 'id' | 'last_fired_at'>
+
+export interface AlertEvent {
+  id: number
+  title: string
+  body: string
+  level: 'info' | 'warn' | 'error'
+  is_read: boolean
+  created_at: string
 }
 
 type HistoryMetricParam = 'cpu' | 'mem' | 'net' | 'disk' | 'temp' | 'io' | 'gpu'

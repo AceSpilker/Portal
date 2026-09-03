@@ -17,6 +17,10 @@ import { probeApi } from '../api/probe'
 import { useProbeStore } from '../stores/probe'
 import { useAuthStore } from '../stores/auth'
 import MonitorChart from '../components/MonitorChart.vue'
+import ProcessTop from '../components/ProcessTop.vue'
+import DockerStatsCard from '../components/DockerStatsCard.vue'
+import AvailabilityCard from '../components/AvailabilityCard.vue'
+import CertCard from '../components/CertCard.vue'
 import {
   formatBytes,
   formatRate,
@@ -655,6 +659,15 @@ onMounted(async () => {
         <p v-if="!appStatusRows.length" class="empty">{{ t('monitor.noData') }}</p>
       </div>
     </section>
+
+    <!-- P10.1 进程 Top 榜（M17-12，管理员） -->
+    <ProcessTop v-if="auth.isAdmin" class="fade-up" />
+    <!-- P10.2 Docker 资源占用（M17-13，无 socket 自动隐藏） -->
+    <DockerStatsCard class="fade-up" />
+    <!-- P10.4 可用性分析（M07-3/4） -->
+    <AvailabilityCard class="fade-up" />
+    <!-- P10.5 域名证书（M07-6，未配置域名时自动隐藏） -->
+    <CertCard class="fade-up" />
 
     <!-- 历史曲线（M17-6） -->
     <section class="glass history fade-up" v-loading="historyLoading">
