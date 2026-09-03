@@ -68,6 +68,10 @@ const ioBlock = ref<MonitorOverview['io']>(null)
 const gpuBlock = ref<MonitorOverview['gpu']>([])
 const temps = ref<MonitorOverview['temps']>([])
 const hasTemps = computed(() => temps.value.length > 0)
+const firstGpuUtil = computed(() => {
+  const u = gpuBlock.value[0]?.util
+  return typeof u === 'number' ? u : null
+})
 const hasGpu = computed(() => gpuBlock.value.length > 0)
 
 const rt = reactive({
@@ -75,6 +79,7 @@ const rt = reactive({
   mem: { ts: [] as string[], pct: [] as number[] },
   net: { ts: [] as string[], rx: [] as number[], tx: [] as number[] },
   io: { ts: [] as string[], read: [] as number[], write: [] as number[] },
+  gpu: { ts: [] as string[], perGpu: [] as number[][] },
 })
 const WINDOW_MAX = 150 // 5 分钟 @2s
 
@@ -132,6 +137,16 @@ function applyBlock(o: MonitorOverview, block: Block) {
     }
   } else if (block === 'gpu') {
     gpuBlock.value = o.gpu
+    if (o.gpu.length) {
+      pushWin(rt.gpu, label)
+      o.gpu.forEach((g, i) => {
+        const v = Number(g.util.toFixed(1))
+        if (rt.gpu.perGpu[i]) rt.gpu.perGpu[i].push(v)
+        else rt.gpu.perGpu[i] = [v]
+      })
+      if (rt.gpu.perGpu.length > o.gpu.length) rt.gpu.perGpu.length = o.gpu.length
+      for (const s of rt.gpu.perGpu) if (s.length > WINDOW_MAX) s.shift()
+    }
   } else if (block === 'temp') {
     temps.value = o.temps
   }
@@ -265,6 +280,24 @@ const netOption = computed(() => ({
     { name: t('monitor.down'), type: 'line', data: [...rt.net.rx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
     { name: t('monitor.up'), type: 'line', data: [...rt.net.tx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
   ],
+}))
+
+const gpuOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: axisTooltip(pct),
+  legend: { top: 4, type: 'scroll', textStyle: axisLabel },
+  grid,
+  xAxis: { type: 'category', data: [...rt.gpu.ts], axisLabel, splitLine },
+  yAxis: { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } },
+  series: gpuBlock.value.map((g, i) => ({
+    name: g.name || `GPU${i + 1}`,
+    type: 'line',
+    data: [...(rt.gpu.perGpu[i] ?? [])],
+    smooth: true,
+    showSymbol: false,
+    lineWidth: 2,
+    areaStyle: { opacity: 0.12 },
+  })),
 }))
 
 const ioOption = computed(() => ({
@@ -521,19 +554,17 @@ onMounted(loadHistory)
 
       <!-- GPU（尽力而为：nvidia-smi / Windows GPU Engine 计数器；无数据整卡隐藏） -->
       <section v-if="hasGpu" class="glass chart-card">
-        <h3>GPU</h3>
-        <div class="disk-list">
-          <div v-for="g in gpuBlock" :key="g.name" class="disk-row">
-            <div class="disk-head">
-              <span class="mount">{{ g.name }}</span>
-              <span class="usage" v-if="g.mem_used !== null && g.mem_total">
-                {{ formatBytes(g.mem_used) }} / {{ formatBytes(g.mem_total) }}
-              </span>
-              <span class="pct">{{ g.util.toFixed(0) }}%</span>
-            </div>
-            <el-progress :percentage="Math.round(g.util)" :show-text="false" :stroke-width="8" />
-          </div>
-        </div>
+        <h3>
+          GPU
+          <b class="now">{{ firstGpuUtil !== null ? `${firstGpuUtil.toFixed(1)}%` : '-' }}</b>
+          <small
+            v-if="gpuBlock[0]?.mem_used !== null && gpuBlock[0]?.mem_total"
+            class="sub"
+          >
+            {{ formatBytes(gpuBlock[0].mem_used) }} / {{ formatBytes(gpuBlock[0].mem_total) }}
+          </small>
+        </h3>
+        <MonitorChart :option="gpuOption" height="230px" />
       </section>
 
       <!-- 温度（M17-11；无传感器整卡隐藏） -->
