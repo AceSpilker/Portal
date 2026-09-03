@@ -24,6 +24,7 @@ from app.core.response import CODE_VALIDATION, BizError, fail, format_validation
 from app.core.scheduler import scheduler as _scheduler
 from app.db.session import SessionLocal, init_db
 from app.services.alerts import check_certs_and_notify, evaluate_alerts
+from app.services.flow_svc import restore_cron_jobs as flow_restore
 from app.services.monitor import prime_cpu_counters, refresh_gpu_cache, setup_host_sources
 
 
@@ -73,6 +74,8 @@ async def lifespan(_: FastAPI):
         certs_check_job, "interval", hours=6, id="certs_check",
         max_instances=1, replace_existing=True,
     )
+    # Flow cron 触发器（P14.1/M06-4）：恢复启用中的 cron Flow
+    await flow_restore(_scheduler)
     # 端口探活（P11.2/M18-2）：每 10s 巡检到期监控项
     _scheduler.add_job(
         ports_job, "interval", seconds=10, id="port_probe",

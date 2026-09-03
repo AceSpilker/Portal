@@ -225,7 +225,7 @@ async function saveProvider() {
   try {
     if (provEditing.value) await aiApi.updateProvider(provEditing.value.id, { ...provForm, enabled: true })
     else await aiApi.createProvider({ ...provForm, enabled: true })
-    ElMessage.success(t('notify.saved'))
+    ElMessage.success(t('ai.prov.saved'))
     provDialog.value = false
     providers.value = await aiApi.providers()
   } catch (e) {

@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
   Download as IconExport,
+  Delete as IconPurge,
+  Files as IconTemplate,
   Plus as IconPlus,
   Setting as IconSetting,
   Upload as IconImport,
 } from '@element-plus/icons-vue'
 import { portalApi } from '../api/portal'
+import { appsEnhApi, type AppTemplate, type RecycleItem } from '../api/appsEnh'
 import { usersApi } from '../api/users'
 import type {
   AccessType,
@@ -310,6 +313,88 @@ async function removeApp(app: PortalApp) {
   }
 }
 
+// ============ P15.1 回收站 / 模板库 / 批量操作 ============
+const recycleDialog = ref(false)
+const recycleRows = ref<RecycleItem[]>([])
+const tplDialog = ref(false)
+const tplRows = ref<AppTemplate[]>([])
+const tplHost = ref('')
+const selectedIds = ref<number[]>([])
+
+async function openRecycle() {
+  recycleRows.value = await appsEnhApi.recycleBin()
+  recycleDialog.value = true
+}
+
+async function restoreOne(r: RecycleItem) {
+  await appsEnhApi.restore(r.id)
+  ElMessage.success(t('apps.restored', { name: r.name }))
+  recycleRows.value = recycleRows.value.filter((x) => x.id !== r.id)
+  await loadApps()
+}
+
+async function purgeOne(r: RecycleItem) {
+  const ok = await ElMessageBox.confirm(t('apps.confirmPurge', { name: r.name }), t('common.confirm'), {
+    type: 'warning',
+  }).then(
+    () => true,
+    () => false,
+  )
+  if (!ok) return
+  await appsEnhApi.purge(r.id)
+  ElMessage.success(t('apps.purged'))
+  recycleRows.value = recycleRows.value.filter((x) => x.id !== r.id)
+  await loadApps()
+}
+
+function openTemplates() {
+  tplHost.value = ''
+  appsEnhApi.templates().then((t) => (tplRows.value = t))
+  tplDialog.value = true
+}
+
+async function useTemplate(tpl: AppTemplate) {
+  if (!tplHost.value.trim()) {
+    ElMessage.warning(t('apps.warnHost'))
+    return
+  }
+  try {
+    const r = await appsEnhApi.fromTemplate(tpl.key, tplHost.value.trim())
+    ElMessage.success(t('apps.tplCreated', { name: r.name }))
+    tplDialog.value = false
+    await loadApps()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+function onSelectionChange(rows: PortalApp[]) {
+  selectedIds.value = rows.map((r) => r.id)
+}
+
+const batchDialog = reactive({ visible: false, moveCategory: null as number | null })
+
+function openBatch() {
+  if (!selectedIds.value.length) {
+    ElMessage.warning(t('apps.batchEmpty'))
+    return
+  }
+  batchDialog.visible = true
+}
+
+async function doBatch(op: 'enable' | 'disable' | 'recycle' | 'move') {
+  try {
+    const cid = op === 'move' ? batchDialog.moveCategory : null
+    const r = await appsEnhApi.batch(selectedIds.value, op, cid)
+    ElMessage.success(t('apps.batchDone', { count: r.count }))
+    batchDialog.visible = false
+    selectedIds.value = []
+    await loadApps()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
 // ============ 图标（URL / 上传 / Emoji + favicon 抓取）============
 const faviconSource = ref('')
 const userOptions = ref<{ id: number; username: string }[]>([])
@@ -538,10 +623,56 @@ async function doExport() {
         <el-button :icon="IconSetting" @click="openCatCreate()">{{ t('apps.catManage') }}</el-button>
         <el-button :icon="IconImport" @click="importInput?.click()">{{ t('apps.import') }}</el-button>
         <el-button :icon="IconExport" @click="doExport">{{ t('apps.export') }}</el-button>
+        <el-button :icon="IconTemplate" @click="openTemplates">{{ t('apps.templates') }}</el-button>
+        <el-button :icon="IconPurge" @click="openRecycle">{{ t('apps.recycle') }}</el-button>
         <el-button type="primary" class="btn-gradient" :icon="IconPlus" @click="openCreate">
           {{ t('apps.createApp') }}
         </el-button>
-      </template>
+        <!-- 回收站（P15.1） -->
+  <el-dialog v-model="recycleDialog" :title="t('apps.recycle')" width="480px" append-to-body>
+    <p v-if="!recycleRows.length" class="empty">{{ t('apps.recycleEmpty') }}</p>
+    <div v-for="r in recycleRows" :key="r.id" class="recycle-row">
+      <div class="rc-main">
+        <span class="rc-name">{{ r.name }}</span>
+        <span class="rc-time">{{ r.deleted_at ? new Date(r.deleted_at).toLocaleString() : '' }}</span>
+      </div>
+      <div class="rc-ops">
+        <el-button size="small" type="primary" @click="restoreOne(r)">{{ t('apps.restoreBtn') }}</el-button>
+        <el-button size="small" type="danger" @click="purgeOne(r)">{{ t('apps.purgeBtn') }}</el-button>
+      </div>
+    </div>
+  </el-dialog>
+
+  <!-- 模板库（P15.1） -->
+  <el-dialog v-model="tplDialog" :title="t('apps.templates')" width="560px" append-to-body>
+    <el-form label-width="110px">
+      <el-form-item :label="t('apps.tplHostLabel')">
+        <el-input v-model="tplHost" placeholder="192.168.1.50" />
+      </el-form-item>
+    </el-form>
+    <div class="tpl-grid">
+      <div v-for="tp in tplRows" :key="tp.key" class="tpl-card" @click="useTemplate(tp)">
+        <span class="tpl-icon">{{ tp.icon }}</span>
+        <div class="tpl-info">
+          <div class="tpl-name">{{ tp.name }}</div>
+          <div class="tpl-desc">{{ tp.description }}</div>
+        </div>
+      </div>
+    </div>
+  </el-dialog>
+
+  <!-- 批量移动分组（P15.1） -->
+  <el-dialog v-model="batchDialog.visible" :title="t('apps.batchMove')" width="380px" append-to-body>
+    <el-select v-model="batchDialog.moveCategory" style="width: 100%" clearable>
+      <el-option :label="t('apps.uncategorized')" :value="0" />
+      <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+    </el-select>
+    <template #footer>
+      <el-button @click="batchDialog.visible = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" class="btn-gradient" @click="doBatch('move')">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+</template>
       <input
         ref="importInput"
         type="file"
@@ -551,9 +682,19 @@ async function doExport() {
       />
     </section>
 
+    <!-- 批量操作条（P15.1） -->
+    <section v-if="isAdmin && selectedIds.length" class="glass batch-bar">
+      <span>{{ t('apps.selectedCount', { count: selectedIds.length }) }}</span>
+      <el-button size="small" @click="doBatch('enable')">{{ t('flow.op.start') }}</el-button>
+      <el-button size="small" @click="doBatch('disable')">{{ t('flow.op.stop') }}</el-button>
+      <el-button size="small" type="danger" @click="doBatch('recycle')">{{ t('apps.recycle') }}</el-button>
+      <el-button size="small" @click="batchDialog.visible = true">{{ t('apps.batchMove') }}</el-button>
+    </section>
+
     <!-- 应用列表 -->
     <section class="table-card glass">
-      <el-table :data="filtered" v-loading="loading" style="width: 100%">
+      <el-table :data="filtered" v-loading="loading" style="width: 100%" @selection-change="onSelectionChange">
+        <el-table-column v-if="isAdmin" type="selection" width="42" />
         <el-table-column :label="t('apps.thIcon')" width="72" align="center">
           <template #default="{ row }">
             <div class="app-icon">
@@ -840,6 +981,63 @@ async function doExport() {
 </template>
 
 <style scoped>
+.recycle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.08);
+  margin-bottom: 6px;
+}
+.rc-main {
+  display: flex;
+  flex-direction: column;
+}
+.rc-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.rc-time {
+  font-size: 11.5px;
+  color: var(--p-muted);
+}
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.tpl-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  cursor: pointer;
+}
+.tpl-card:hover {
+  border-color: var(--el-color-primary);
+}
+.tpl-icon {
+  font-size: 22px;
+}
+.tpl-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.tpl-desc {
+  font-size: 11.5px;
+  color: var(--p-muted);
+}
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
 .apps-page {
   flex: 1;
   min-height: 0;

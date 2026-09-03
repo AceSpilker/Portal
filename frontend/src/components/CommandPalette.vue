@@ -12,6 +12,7 @@ import type { PortalApp } from '../api/portal'
 import { searchApps } from '../utils/search'
 import AppIcon from './AppIcon.vue'
 import { useOpenApp } from '../composables/useOpenApp'
+import { settingsApi } from '../api/settings'
 
 const visible = defineModel<boolean>({ required: true })
 const { t } = useI18n()
@@ -59,9 +60,29 @@ function onKeydown(ev: KeyboardEvent) {
     move(-1)
   } else if (ev.key === 'Enter') {
     ev.preventDefault()
-    choose(results.value[active.value])
+    void tryShortcut(query.value).then((handled) => {
+      if (!handled) choose(results.value[active.value])
+    })
   } else if (ev.key === 'Escape') {
     visible.value = false
+  }
+}
+
+/** 快捷搜索语法（M02-7；P15.3）：`kw 剩余词` → 打开 shortcuts URL（{q} 替换） */
+async function tryShortcut(q: string): Promise<boolean> {
+  const m = q.trim().match(/^(\S+)\s+(.+)$/)
+  if (!m) return false
+  try {
+    const map = (await settingsApi.getSettings())['home.search_shortcuts'] as
+      | Array<{ keyword: string; url: string }>
+      | undefined
+    const hit = (map ?? []).find((s) => s.keyword === m[1])
+    if (!hit) return false
+    window.open(hit.url.replace('{q}', encodeURIComponent(m[2])), '_blank')
+    visible.value = false
+    return true
+  } catch {
+    return false
   }
 }
 

@@ -183,6 +183,7 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
       <div class="hero-side">
         <!-- NAS 资源速览（M02-12；P5.6，仅管理员） -->
         <NasOverview v-if="auth.isAdmin" class="nas-widget" />
+        <HomeWidgets class="fade-up" />
         <div class="clock" :title="dateText">
           <span class="clock-time">{{ clockText }}</span>
           <span class="clock-date">{{ dateText }}</span>

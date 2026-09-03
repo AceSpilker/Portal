@@ -6,13 +6,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Document, InfoFilled, VideoPlay, VideoPause, RefreshRight } from '@element-plus/icons-vue'
+import { Document, InfoFilled, VideoPlay, VideoPause, RefreshRight } from '@element-plus/icons-vue'
 import { dockerApi, type DockerContainer, type DockerDetail } from '../api/docker'
 
 const { t } = useI18n()
 const rows = ref<DockerContainer[]>([])
 const loading = ref(false)
-let timer: number | undefined
 
 const sorted = computed(() =>
   [...rows.value].sort((a, b) => (a.state === 'running' ? 0 : 1) - (b.state === 'running' ? 0 : 1)),
@@ -37,8 +36,6 @@ function stateTag(s: string): 'success' | 'info' | 'danger' | 'warning' {
 }
 
 async function doOp(c: DockerContainer, op: 'start' | 'stop' | 'restart') {
-  const label = t(`ports.state.${'up'}`) // 占位避免未用告警；实际文案用 op 标签
-  void label
   const ok = await ElMessageBox.confirm(t('docker.confirmOp', { name: c.name, op: t(`docker.op.${op}`) }), t('common.confirm'), {
     type: 'warning',
   }).then(

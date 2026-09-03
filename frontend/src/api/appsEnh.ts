@@ -9,6 +9,14 @@ export interface RecycleItem {
   deleted_at: string | null
 }
 
+export interface PrecheckResult {
+  app_id: number
+  ok: boolean
+  state: string
+  latency_ms: number | null
+  alternatives: Array<{ app_id: number; name: string; health_target: string }>
+}
+
 export interface AppTemplate {
   key: string
   name: string

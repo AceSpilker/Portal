@@ -7,8 +7,10 @@ import { Delete as IconDelete, Edit as IconEdit, Plus as IconPlus } from '@eleme
 import { networkApi } from '../api/network'
 import type { MatrixResult, NetworkProfile } from '../api/network'
 import type { AccessType } from '../api/portal'
+import { useEnvStore } from '../stores/env'
 
 const { t } = useI18n()
+const envStore = useEnvStore()
 
 const ACCESS_TYPES: AccessType[] = ['domain', 'lan', 'ssh', 'vpn', 'custom']
 
@@ -166,6 +168,12 @@ onMounted(loadProfiles)
 
 <template>
   <div class="access-body">
+    <!-- 环境探测调试（M04-18；P15.4）：当前来源 IP 与命中档案 -->
+    <section class="glass" style="padding: 10px 14px; border-radius: 10px; font-size: 12.5px">
+      <strong>{{ t('env.debugTitle') }}</strong>：
+      {{ t('env.debugIp', { ip: envStore.clientIp }) }} ·
+      {{ t('env.debugHit', { name: envStore.effective?.name ?? t('env.autoNone') }) }}
+    </section>
     <!-- 环境档案管理 -->
     <section>
       <header class="sec-head">

@@ -16,6 +16,8 @@ import type { ResolveResult } from '../api/network'
 import type { AppUrl, PortalApp } from '../api/portal'
 import { useEnvStore } from '../stores/env'
 import { buildSshCommand, parseJump, suggestLocalPort } from '../utils/ssh'
+import { appsEnhApi, type PrecheckResult } from '../api/appsEnh'
+import QRCode from 'qrcode'
 
 const props = defineProps<{ app: PortalApp | null }>()
 const emit = defineEmits<{ choose: [app: PortalApp, url: string] }>()
@@ -26,6 +28,10 @@ const envStore = useEnvStore()
 
 const loading = ref(false)
 const resolved = ref<ResolveResult | null>(null)
+const precheck = ref<PrecheckResult | null>(null)
+const qrText = ref('')
+const qrShow = ref(false)
+const qrDataUrl = ref('')
 const step = ref<'list' | 'ssh'>('list')
 const sshUrl = ref<AppUrl | null>(null)
 const sshInner = ref<AppUrl | null>(null)
@@ -53,6 +59,11 @@ watch(visible, async (open) => {
   loading.value = true
   try {
     resolved.value = await networkApi.resolveApp(props.app.id, 'auto')
+    // 点击前预检（M04-11；P15.4）：推荐入口 1s 快速探测
+    appsEnhApi
+      .precheck(props.app.id)
+      .then((r) => (precheck.value = r))
+      .catch(() => (precheck.value = null))
   } catch (e) {
     ElMessage.error((e as Error).message)
     visible.value = false
@@ -60,6 +71,16 @@ watch(visible, async (open) => {
     loading.value = false
   }
 })
+
+async function showQr(url: AppUrl) {
+  try {
+    qrDataUrl.value = await QRCode.toDataURL(url.url, { width: 180, margin: 1 })
+    qrText.value = url.url
+    qrShow.value = true
+  } catch {
+    ElMessage.error(t('entry.qrFail'))
+  }
+}
 
 function openUrl(url: AppUrl) {
   if (!props.app) return
@@ -118,6 +139,12 @@ function backToList() {
     width="520px"
     append-to-body
   >
+    <!-- 入口二维码（M04-17；P15.4） -->
+    <div v-if="qrShow" class="qr-box">
+      <img :src="qrDataUrl" alt="QR" />
+      <div class="qr-url mono">{{ qrText }}</div>
+    </div>
+
     <!-- 入口列表（M04-12） -->
     <div v-if="step === 'list'" v-loading="loading" class="entry-list">
       <p class="entry-desc">{{ t('entry.pickDesc', { name: app?.name ?? '' }) }}</p>
@@ -139,6 +166,12 @@ function backToList() {
           <template v-if="fitProfiles(u).length">{{ t('entry.fitEnv') }}：{{ fitProfiles(u).join('、') }}</template>
           <template v-else>{{ t('entry.fitNone') }}</template>
         </span>
+        <span v-if="i === 0 && precheck" class="precheck-tag" :class="precheck.ok ? 'ok' : 'bad'">
+          {{ precheck.ok ? t('entry.precheckOk', { ms: precheck.latency_ms ?? '-' }) : t('entry.precheckDown') }}
+        </span>
+        <el-button link size="small" class="qr-btn" @click.stop="showQr(u)">
+          {{ t('entry.qr') }}
+        </el-button>
       </button>
       <p v-if="!loading && !entryRows.length" class="entry-empty">{{ t('apps.noEntry') }}</p>
     </div>
@@ -179,6 +212,40 @@ function backToList() {
   </el-dialog>
 </template>
 
+<style scoped>
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.qr-box img {
+  border-radius: 8px;
+}
+.qr-url {
+  color: var(--p-muted);
+  font-size: 12px;
+  word-break: break-all;
+  text-align: center;
+}
+.precheck-tag {
+  font-size: 11.5px;
+  margin-left: 6px;
+}
+.precheck-tag.ok {
+  color: var(--el-color-success);
+}
+.precheck-tag.bad {
+  color: var(--el-color-danger);
+}
+.qr-btn {
+  flex-shrink: 0;
+}
+.mono {
+  font-family: ui-monospace, monospace;
+}
+</style>
 <style scoped>
 .entry-list {
   display: flex;
