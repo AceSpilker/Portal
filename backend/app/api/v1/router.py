@@ -5,6 +5,7 @@ from app.api.v1 import (
     auth,
     categories,
     crypto,
+    docker,
     health,
     icons,
     layouts,
@@ -38,3 +39,4 @@ api_router.include_router(tools.router, tags=["tools"])
 api_router.include_router(system.router, tags=["system"])
 api_router.include_router(notify.router, tags=["notify"])
 api_router.include_router(ports.router, tags=["ports"])
+api_router.include_router(docker.router, tags=["docker"])

@@ -195,6 +195,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- Docker 管理（M08/P12，可选模块）----
+    "err.docker_disabled": {
+        "zh-CN": "Docker 管理未启用（需开启 DOCKER_SOCK_ENABLED 并挂载 sock）",
+        "en": "Docker management is disabled (enable DOCKER_SOCK_ENABLED and mount the sock)",
+    },
+    "err.docker_not_found": {"zh-CN": "容器不存在", "en": "Container not found"},
+    "err.docker_bad_op": {"zh-CN": "不支持的操作", "en": "Unsupported operation"},
     # ---- 端口监控（M18/P11）----
     "err.port_monitor_not_found": {"zh-CN": "端口监控项不存在", "en": "Port monitor not found"},
     "err.port_import_line": {
