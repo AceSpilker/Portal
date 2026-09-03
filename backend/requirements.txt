@@ -7,7 +7,9 @@ pydantic>=2.7
 pydantic-settings>=2.3
 bcrypt>=4.1
 PyJWT>=2.8
-cryptography>=42.0
+# cryptography<45：49/50 的 manylinux aarch64 wheel 加载 _rust 扩展即 SIGILL
+# （部分 Apple Silicon 虚拟化环境，P8 冒烟实测 50.0.1/49.x 崩、44.0.2 正常）
+cryptography>=42.0,<45
 python-multipart>=0.0.9
 httpx>=0.27
 Pillow>=10.2
