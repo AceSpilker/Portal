@@ -60,15 +60,19 @@ async def monitor_ws(websocket: WebSocket) -> None:
         while True:
             data = collect_overview(monitor.ws_net_calc)
             await websocket.send_json({"type": "monitor", "data": data})
-            await asyncio.sleep(2)
+            # 推送间隔可配（monitor.push_interval，每次循环读取即时生效）
+            async with SessionLocal() as session:
+                push_interval = await monitor.read_push_interval(session)
+            await asyncio.sleep(max(1, push_interval))
     except (WebSocketDisconnect, RuntimeError):
         return
 
 
 async def sampler_job() -> None:
-    """APScheduler 分钟采样任务（P5.2）。"""
+    """采样任务（P5.2）：每 10s 醒来一次，达到 monitor.sample_interval 才落一行。"""
     async with SessionLocal() as session:
-        await monitor.sample_once(session)
+        if await monitor.should_sample(session):
+            await monitor.sample_once(session)
 
 
 async def cleanup_job() -> None:

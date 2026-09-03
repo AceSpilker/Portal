@@ -140,6 +140,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "壁纸模糊/遮罩取值超出范围",
         "en": "Wallpaper blur/mask value out of range",
     },
+    "err.monitor_range": {
+        "zh-CN": "监控设置取值超出允许范围",
+        "en": "Monitor setting value out of allowed range",
+    },
     # ---- 校验（schemas 校验器）----
     "v.category_empty": {"zh-CN": "分组名不能为空", "en": "Group name must not be empty"},
     "v.app_name_empty": {"zh-CN": "应用名不能为空", "en": "App name must not be empty"},

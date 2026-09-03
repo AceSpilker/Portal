@@ -20,7 +20,7 @@ from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
 from app.db.session import init_db
-from app.services.monitor import prime_cpu_counters, setup_host_sources
+from app.services.monitor import prime_cpu_counters, refresh_gpu_cache, setup_host_sources
 
 _scheduler = AsyncIOScheduler(timezone="UTC")
 
@@ -32,11 +32,16 @@ async def lifespan(_: FastAPI):
     setup_host_sources()
     prime_cpu_counters()
     _scheduler.add_job(
-        sampler_job, "interval", seconds=60, id="monitor_sample",
+        sampler_job, "interval", seconds=10, id="monitor_sample",
         max_instances=1, replace_existing=True,
     )
     _scheduler.add_job(
         cleanup_job, "interval", hours=1, id="monitor_cleanup",
+        max_instances=1, replace_existing=True,
+    )
+    # GPU 缓存刷新（nvidia-smi 子进程查询不能阻塞推送循环）
+    _scheduler.add_job(
+        refresh_gpu_cache, "interval", seconds=5, id="monitor_gpu",
         max_instances=1, replace_existing=True,
     )
     if not _scheduler.running:  # 测试环境会多次进入 lifespan

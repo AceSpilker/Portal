@@ -20,6 +20,10 @@ WRITABLE_KEYS: set[str] = {
     "apps.icon_favorites",
     "sync.enabled",
     "sync.interval_min",
+    # 监控（P5）：采样/推送间隔与保留天数
+    "monitor.retention_days",
+    "monitor.sample_interval",
+    "monitor.push_interval",
 }
 
 
@@ -66,4 +70,16 @@ class SettingsUpdate(BaseModel):
                 limit = 20 if key.endswith("blur") else 90
                 if not isinstance(value, int) or not 0 <= value <= limit:
                     raise ValueError(t("err.wallpaper_range"))
+            if key == "monitor.retention_days" and (
+                not isinstance(value, int) or not 1 <= value <= 365
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "monitor.sample_interval" and (
+                not isinstance(value, int) or not 10 <= value <= 3600
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "monitor.push_interval" and (
+                not isinstance(value, int) or not 1 <= value <= 60
+            ):
+                raise ValueError(t("err.monitor_range"))
         return v

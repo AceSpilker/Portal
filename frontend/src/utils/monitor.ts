@@ -42,6 +42,6 @@ export function buildMonitorWsUrl(token: string): string {
   return `${proto}://${location.host}/ws/monitor?token=${encodeURIComponent(token)}`
 }
 
-export type HistoryMetric = 'cpu' | 'mem' | 'net' | 'disk'
+export type HistoryMetric = 'cpu' | 'mem' | 'net' | 'disk' | 'temp' | 'io' | 'gpu'
 export type HistoryRange = '24h' | '7d' | '30d'
 export const HISTORY_RANGES: HistoryRange[] = ['24h', '7d', '30d']

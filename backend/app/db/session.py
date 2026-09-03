@@ -37,6 +37,8 @@ async def init_db() -> None:
             "ALTER TABLE categories ADD COLUMN icon_type VARCHAR(16)",
             # P5.5：monitor_samples 补每核使用率列（历史每核曲线）
             "ALTER TABLE monitor_samples ADD COLUMN cpu_cores TEXT",
+            # P5 增强：GPU 采集列（io 列建表即有）
+            "ALTER TABLE monitor_samples ADD COLUMN gpu TEXT",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

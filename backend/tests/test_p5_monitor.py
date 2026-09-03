@@ -27,6 +27,10 @@ from app.services.monitor import (
     cleanup_expired,
     collect_cpu,
     collect_mem,
+    collect_temps,
+    read_int_setting,
+    sample_once,
+    should_sample,
 )
 
 ADMIN_USER = "admin"
@@ -173,7 +177,7 @@ def test_04b_net_rate_short_interval_keeps_last():
 # ============ 历史聚合（M17-6；P5.4）============
 
 
-def _row(cpu, mem_used, nets, disks, minutes_ago, cores=None):
+def _row(cpu, mem_used, nets, disks, minutes_ago, cores=None, temps=None):
     return MonitorSample(
         ts=datetime.utcnow() - timedelta(minutes=minutes_ago),
         cpu=cpu,
@@ -181,6 +185,7 @@ def _row(cpu, mem_used, nets, disks, minutes_ago, cores=None):
         mem=json.dumps({"total": 1000, "used": mem_used}),
         nets=json.dumps(nets),
         disks=json.dumps(disks),
+        temps=json.dumps(temps) if temps else None,
     )
 
 
@@ -311,3 +316,76 @@ def test_09_ws_requires_admin_token(client: TestClient):
         msg = ws.receive_json()
         assert msg["type"] == "monitor"
         assert "cpu" in msg["data"] and "mem" in msg["data"]
+
+
+# ============ 温度采集（M17-11）============
+
+
+def test_10_collect_temps_shape():
+    """温度采集返回列表；元素结构固定（本机无传感器时为空列表，同样合法）。"""
+    temps = collect_temps()
+    assert isinstance(temps, list)
+    for t in temps:
+        assert set(t) >= {"name", "current", "high", "critical"}
+
+
+def test_11_history_temp_aligned(client: TestClient):
+    """温度历史：按传感器名对齐共享时间轴，缺失补 null（与 disk 同契约）。"""
+
+    async def _run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(MonitorSample.metadata.create_all)
+        maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with maker() as s:
+            s.add_all(
+                [
+                    _row(10.0, 100, [], [], 20,
+                         temps=[{"name": "CPU", "current": 45.0, "high": 80, "critical": 95}]),
+                    _row(20.0, 200, [], [], 5,
+                         temps=[{"name": "CPU", "current": 52.0, "high": 80, "critical": 95},
+                                {"name": "nvme", "current": 40.0, "high": 70, "critical": 85}]),
+                ]
+            )
+            await s.commit()
+            temp = await build_history(s, "temp", "24h")
+        await engine.dispose()
+        return temp
+
+    temp = asyncio.run(_run())
+    by_name = {s["name"]: s["points"] for s in temp["sensors"]}
+    assert set(by_name) == {"CPU", "nvme"}
+    assert [p["current"] for p in by_name["CPU"]] == [45.0, 52.0]
+    assert [p["current"] for p in by_name["nvme"]] == [None, 40.0]  # 后出现的传感器首刻补 null
+    assert [p["ts"] for p in by_name["CPU"]] == [p["ts"] for p in by_name["nvme"]]
+
+
+def test_12_should_sample_and_int_setting():
+    """采样间隔判断：无样本即采样；未达间隔跳过；非法设置回退默认。"""
+
+    async def _run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with maker() as s:
+            first = await should_sample(s)  # 空库 → 采样
+            await sample_once(s)
+            just_sampled = await should_sample(s)  # 刚采过（默认间隔 60s）→ 跳过
+            await s.merge(Setting(key="monitor.sample_interval", value=json.dumps(10)))
+            await s.commit()
+            after_cfg = await read_int_setting(s, "monitor.sample_interval", 60)
+            await s.merge(Setting(key="monitor.sample_interval", value=json.dumps("bad")))
+            await s.commit()
+            fallback = await read_int_setting(s, "monitor.sample_interval", 60)
+        await engine.dispose()
+        return first, just_sampled, after_cfg, fallback
+
+    from app.models import Base
+    from app.models.setting import Setting
+
+    first, just_sampled, after_cfg, fallback = asyncio.run(_run())
+    assert first is True
+    assert just_sampled is False
+    assert after_cfg == 10
+    assert fallback == 60

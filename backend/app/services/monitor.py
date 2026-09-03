@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import platform
@@ -23,8 +24,12 @@ from app.models.monitor import MonitorSample
 
 RETENTION_KEY = "monitor.retention_days"
 RETENTION_DEFAULT = 7
+SAMPLE_INTERVAL_KEY = "monitor.sample_interval"
+SAMPLE_INTERVAL_DEFAULT = 60
+PUSH_INTERVAL_KEY = "monitor.push_interval"
+PUSH_INTERVAL_DEFAULT = 2
 
-HISTORY_METRICS = ("cpu", "mem", "disk", "net")
+HISTORY_METRICS = ("cpu", "mem", "disk", "net", "temp", "io", "gpu")
 RANGE_SECONDS = {"24h": 24 * 3600, "7d": 7 * 24 * 3600, "30d": 30 * 24 * 3600}
 # 7d/30d 先按桶平均降点（约每 20min/1h 一点），24h 用原始分钟粒度
 RANGE_BUCKET_SECONDS = {"24h": None, "7d": 20 * 60, "30d": 3600}
@@ -118,6 +123,149 @@ def collect_disks() -> list[dict]:
     return out
 
 
+def collect_temps() -> list[dict]:
+    """温度传感器（M17-11）：CPU/主板等，°C；无传感器（如多数 Windows 桌面机）返回空。"""
+    try:
+        temps = psutil.sensors_temperatures()
+    except (AttributeError, OSError):
+        return []  # 平台不支持（Windows）或无 hwmon
+    out: list[dict] = []
+    for name, entries in (temps or {}).items():
+        for e in entries:
+            label = e.label or name
+            if any(o["name"] == label for o in out):
+                continue
+            out.append(
+                {
+                    "name": label,
+                    "current": round(e.current, 1) if e.current is not None else None,
+                    "high": e.high,
+                    "critical": e.critical,
+                }
+            )
+    return out
+
+
+class IoRateCalculator:
+    """磁盘 IO 读写速率与 IOPS（相邻快照差值；短间隔沿用上次值，同网卡逻辑）。"""
+
+    MIN_ELAPSED = 1.0
+
+    def __init__(self) -> None:
+        self._last: tuple[int, int, int, int] | None = None
+        self._last_ts = 0.0
+        self._last_rates = (0.0, 0.0, 0.0, 0.0)
+
+    def feed(
+        self, counts: tuple[int, int, int, int] | None, ts: float | None = None
+    ) -> dict | None:
+        if counts is None:
+            return None
+        ts = time.time() if ts is None else ts
+        elapsed = ts - self._last_ts if self._last and ts > self._last_ts else 0.0
+        if elapsed >= self.MIN_ELAPSED and self._last:
+            rates = tuple(
+                round(max(0.0, (cur - prev) / elapsed), 1)
+                for cur, prev in zip(counts, self._last)
+            )
+            self._last_rates = rates
+        else:
+            rates = self._last_rates
+        self._last = counts
+        self._last_ts = ts
+        return {
+            "read_rate": rates[0],
+            "write_rate": rates[1],
+            "read_iops": rates[2],
+            "write_iops": rates[3],
+            "read_total": counts[0],
+            "write_total": counts[1],
+        }
+
+
+def io_snapshot() -> tuple[int, int, int, int] | None:
+    """全盘 IO 计数快照 (read_bytes, write_bytes, read_count, write_count)。"""
+    c = psutil.disk_io_counters()
+    if c is None:
+        return None
+    return (c.read_bytes, c.write_bytes, c.read_count, c.write_count)
+
+
+ws_io_calc = IoRateCalculator()
+sample_io_calc = IoRateCalculator()
+
+# GPU：nvidia-smi 尽力而为（无 NVIDIA 卡/命令缺失 → 空列表，前端自动隐藏）。
+# 子进程查询不能阻塞事件循环，由 lifespan 每 5s 刷新缓存，采集端同步读缓存。
+_gpu_cache: list[dict] = []
+
+
+def _gpu_query_sync() -> list[dict]:
+    """GPU 采集（同步，跑在线程池）：优先 nvidia-smi，Windows 回退 GPU Engine 计数器。"""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["nvidia-smi",
+             "--query-gpu=name,utilization.gpu,memory.used,memory.total",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, timeout=2.5,
+        ).stdout.decode("utf-8", "ignore")
+        gpus = []
+        for line in out.strip().splitlines():
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) == 4:
+                try:
+                    gpus.append(
+                        {
+                            "name": parts[0],
+                            "util": float(parts[1]),
+                            "mem_used": float(parts[2]) * 1024 * 1024,
+                            "mem_total": float(parts[3]) * 1024 * 1024,
+                        }
+                    )
+                except ValueError:
+                    continue
+        if gpus:
+            return gpus
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        pass
+
+    # Windows 回退：GPU Engine 计数器（WDDM2，N/A/I 卡通用），取引擎峰值近似整体利用率
+    try:
+        out = subprocess.run(
+            ["typeperf", r"\GPU Engine(*)\Utilization Percentage", "-sc", "1"],
+            capture_output=True, timeout=10,
+        ).stdout.decode("utf-8", "ignore")
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return []
+    # 末行是「命令成功结束。」提示，数据行以引号开头（CSV）
+    lines = [ln for ln in out.splitlines() if ln.strip().startswith('"')]
+    if not lines:
+        return []
+    import csv
+
+    utils = []
+    for v in next(csv.reader([lines[-1]])):
+        try:
+            utils.append(float(v))
+        except ValueError:
+            continue
+    if not utils:
+        return []
+    # 多引擎计数值重叠，取峰值近似整体利用率；显存计数器按进程拆分无法可靠汇总
+    return [{"name": "GPU", "util": round(max(utils), 1), "mem_used": None, "mem_total": None}]
+
+
+async def refresh_gpu_cache() -> None:
+    """子进程在 Windows Selector 事件循环不可用（NotImplementedError），放入线程池执行。"""
+    global _gpu_cache
+    _gpu_cache = await asyncio.to_thread(_gpu_query_sync)
+
+
+def collect_gpu() -> list[dict]:
+    return _gpu_cache
+
+
 def net_snapshot() -> dict[str, tuple[int, int]]:
     """网卡计数快照 {iface: (rx_total, tx_total)}，剔除回环口。"""
     counters = psutil.net_io_counters(pernic=True)
@@ -187,7 +335,7 @@ sample_net_calc = NetRateCalculator()
 
 
 def collect_overview(net_calc: NetRateCalculator) -> dict:
-    """实时概览（M17-1~5；WS /ws/monitor 与 GET /monitor/system 共用）。"""
+    """实时概览（M17-1~5/11；WS /ws/monitor 与 GET /monitor/system 共用）。"""
     return {
         "ts": datetime.utcnow().isoformat() + "Z",
         "system": collect_system(),
@@ -195,6 +343,9 @@ def collect_overview(net_calc: NetRateCalculator) -> dict:
         "mem": collect_mem(),
         "disks": collect_disks(),
         "nets": net_calc.feed(net_snapshot()),
+        "io": ws_io_calc.feed(io_snapshot()),
+        "gpu": collect_gpu(),
+        "temps": collect_temps(),
     }
 
 
@@ -202,7 +353,9 @@ def collect_overview(net_calc: NetRateCalculator) -> dict:
 
 
 async def sample_once(session: AsyncSession) -> MonitorSample:
-    """写入一行分钟级采样（json 列按 api-spec §3.4 结构）。"""
+    """写入一行采样（json 列按 api-spec §3.4 结构；无温度传感器时 temps 置空）。"""
+    temps = collect_temps()
+    io_data = sample_io_calc.feed(io_snapshot())
     row = MonitorSample(
         cpu=psutil.cpu_percent(interval=None),
         cpu_cores=json.dumps(psutil.cpu_percent(interval=None, percpu=True)),
@@ -210,23 +363,48 @@ async def sample_once(session: AsyncSession) -> MonitorSample:
         mem=json.dumps(collect_mem()),
         disks=json.dumps(collect_disks()),
         nets=json.dumps(sample_net_calc.feed(net_snapshot())),
+        io=json.dumps(io_data) if io_data else None,
+        gpu=json.dumps(collect_gpu()) or None,
+        temps=json.dumps(temps) if temps else None,
     )
     session.add(row)
     await session.commit()
     return row
 
 
-async def read_retention_days(session: AsyncSession) -> int:
+async def read_int_setting(session: AsyncSession, key: str, default: int, minimum: int = 1) -> int:
+    """读取整型设置键；缺失/非法回退默认值。"""
     from app.models.setting import Setting
 
-    row = await session.get(Setting, RETENTION_KEY)
+    row = await session.get(Setting, key)
     if row is None:
-        return RETENTION_DEFAULT
+        return default
     try:
-        days = int(json.loads(row.value))
+        value = int(json.loads(row.value))
     except (ValueError, TypeError):
-        return RETENTION_DEFAULT
-    return days if days > 0 else RETENTION_DEFAULT
+        return default
+    return value if value >= minimum else default
+
+
+async def read_retention_days(session: AsyncSession) -> int:
+    return await read_int_setting(session, RETENTION_KEY, RETENTION_DEFAULT, minimum=1)
+
+
+async def read_push_interval(session: AsyncSession) -> int:
+    return await read_int_setting(session, PUSH_INTERVAL_KEY, PUSH_INTERVAL_DEFAULT, minimum=1)
+
+
+async def should_sample(session: AsyncSession) -> bool:
+    """采样调度判断（P5.2 增强间隔可配）：距最近一次采样是否已达配置间隔。"""
+    interval = await read_int_setting(
+        session, SAMPLE_INTERVAL_KEY, SAMPLE_INTERVAL_DEFAULT, minimum=10
+    )
+    last = (
+        await session.execute(select(MonitorSample.ts).order_by(MonitorSample.ts.desc()).limit(1))
+    ).scalar_one_or_none()
+    if last is None:
+        return True
+    return datetime.utcnow() - last >= timedelta(seconds=interval)
 
 
 async def cleanup_expired(session: AsyncSession, retention_days: int | None = None) -> int:
@@ -279,6 +457,14 @@ def _merge_avg(values: list):
     return [round(sum(col) / len(col), 2) for col in cols]
 
 
+def _io_point(r: MonitorSample) -> dict:
+    io = json.loads(r.io) if r.io else {}
+    return {
+        "read": io.get("read_rate", 0),
+        "write": io.get("write_rate", 0),
+    }
+
+
 def _avg(vals: list) -> float:
     return round(sum(vals) / len(vals), 2)
 
@@ -327,44 +513,82 @@ async def build_history(session: AsyncSession, metric: str, rng: str) -> dict:
     if metric == "net":
         return {"metric": metric, "range": rng, "points": _bucket_avg(rows, bucket, _nets_sum)}
 
-    # disk：全挂载点共享统一时间轴（缺失时刻补 null，保证前端多序列 x 轴对齐）
+    if metric in ("disk", "temp"):
+        key = "mounts" if metric == "disk" else "sensors"
+        return {"metric": metric, "range": rng, key: _aligned_series(rows, bucket, metric)}
+    if metric == "io":
+        return {
+            "metric": metric,
+            "range": rng,
+            "points": _bucket_avg(rows, bucket, _io_point),
+        }
+    if metric == "gpu":
+        return {
+            "metric": metric,
+            "range": rng,
+            "gpus": _aligned_series(rows, bucket, "gpu"),
+        }
+    raise ValueError(f"unsupported metric: {metric}")  # 前置校验后不应到达
+
+
+def _aligned_series(
+    rows: list[MonitorSample], bucket: int | None, metric: str
+) -> list[dict]:
+    """多序列共享统一时间轴（缺失时刻补 null）：disk 按挂载点、temp 按传感器。"""
+    label_key = {"disk": "mount", "temp": "name", "gpu": "name"}[metric]
+    value_key = {"disk": "percent", "temp": "current", "gpu": "util"}[metric]
+
+    def entries_of(r: MonitorSample) -> list[tuple[str, float | None]]:
+        raw = {"disk": r.disks, "temp": r.temps, "gpu": r.gpu}[metric]
+        items = json.loads(raw) if raw else []
+        if metric == "disk":
+            return [(d.get("mount"), d.get("percent", 0)) for d in items]
+        if metric == "temp":
+            return [(t.get("name"), t.get("current")) for t in items]
+        return [(g.get("name"), g.get("util")) for g in items]
+
     acc: dict[str, dict[datetime, list]] = {}
     for r in rows:
-        for d in json.loads(r.disks) if r.disks else []:
-            acc.setdefault(d["mount"], {}).setdefault(r.ts, []).append(d.get("percent", 0))
+        for key, val in entries_of(r):
+            if key and val is not None:
+                acc.setdefault(key, {}).setdefault(r.ts, []).append(val)
+    if not acc:
+        return []
 
     if bucket is None:  # 24h：时间轴 = 全部行时间戳去重升序
         timeline = sorted({r.ts for r in rows})
-        out = [
+        return [
             {
-                "mount": m,
+                label_key: k,
                 "points": [
-                    {"ts": ts.isoformat() + "Z", "percent": _avg(vals[ts]) if ts in vals else None}
+                    {
+                        "ts": ts.isoformat() + "Z",
+                        value_key: _avg(vals[ts]) if ts in vals else None,
+                    }
                     for ts in timeline
                 ],
             }
-            for m, vals in sorted(acc.items())
+            for k, vals in sorted(acc.items())
         ]
-        return {"metric": "disk", "range": rng, "mounts": out}
 
-    # 桶模式：全局 origin 划桶，桶 ts 统一取桶尾，各挂载点输出等长序列
+    # 桶模式：全局 origin 划桶，桶 ts 统一取桶尾，各序列输出等长数据
     origin = rows[0].ts
     n_buckets = int((rows[-1].ts - origin).total_seconds()) // bucket + 1
     out = []
-    for m, by_ts in sorted(acc.items()):
+    for k, by_ts in sorted(acc.items()):
         by_key: dict[int, list] = {}
         for ts, vals in by_ts.items():
             by_key.setdefault(int((ts - origin).total_seconds()) // bucket, []).extend(vals)
         out.append(
             {
-                "mount": m,
+                label_key: k,
                 "points": [
                     {
-                        "ts": (origin + timedelta(seconds=(k + 1) * bucket)).isoformat() + "Z",
-                        "percent": _avg(by_key[k]) if k in by_key else None,
+                        "ts": (origin + timedelta(seconds=(i + 1) * bucket)).isoformat() + "Z",
+                        value_key: _avg(by_key[i]) if i in by_key else None,
                     }
-                    for k in range(n_buckets)
+                    for i in range(n_buckets)
                 ],
             }
         )
-    return {"metric": "disk", "range": rng, "mounts": out}
+    return out

@@ -95,7 +95,7 @@
 
 **probe_events**（M1 建表/M2 重度使用）：id；app_id FK；event TEXT（up/down/slow）；latency_ms INT NULL；created_at。索引 (app_id, created_at)。
 
-**monitor_samples**（M1）：id；ts TIMESTAMP（索引）；cpu REAL；cpu_cores TEXT(JSON) [每核使用率，P5 补列]；load TEXT(JSON) [l1,l5,l15]；mem TEXT(JSON) {total,used,swap_used}；disks TEXT(JSON) [{mount,total,used,inode_p}]；nets TEXT(JSON) [{iface,rx,tx,rx_total,tx_total}]；io TEXT(JSON) NULL（M2：磁盘读写/IOPS）；temps TEXT(JSON) NULL（M2：温度）；procs TEXT(JSON) NULL（M2：Top 进程快照）。采样保留天数由设置控制，清理任务删除过期行。
+**monitor_samples**（M1）：id；ts TIMESTAMP（索引）；cpu REAL；cpu_cores TEXT(JSON) [每核使用率，P5 补列]；gpu TEXT(JSON) [{name,util,mem_used,mem_total}]；load TEXT(JSON) [l1,l5,l15]；mem TEXT(JSON) {total,used,swap_used}；disks TEXT(JSON) [{mount,total,used,inode_p}]；nets TEXT(JSON) [{iface,rx,tx,rx_total,tx_total}]；io TEXT(JSON)（{read_rate,write_rate,read_iops,write_iops,read_total,write_total}，P5 已用）；temps TEXT(JSON) NULL（M2：温度）；procs TEXT(JSON) NULL（M2：Top 进程快照）。采样保留天数由设置控制，清理任务删除过期行。
 
 **alert_rules**（M2）：id；name；metric TEXT（cpu/mem/disk/disk_io/temp）；target TEXT NULL（如挂载点 "/"）；op TEXT（'>'/'<'）；threshold REAL；duration_min INT 5（持续 N 分钟才触发）；level TEXT（warn/error）；enabled INT 1；last_fired_at NULL。
 
@@ -218,7 +218,7 @@
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
 | GET | /api/monitor/system | 实时概览：系统信息/CPU/内存/磁盘/网络 | A | P5 |
-| GET | /api/monitor/history?metric=cpu&range=24h | 历史曲线（支持 cpu/mem/disk/net/io/temp）。响应：`{metric, range, points:[{ts,…}]}`；cpu→`{cpu, cores:[每核]}`、mem→`{used,percent}`、net→`{rx,tx}`（全网卡速率之和，B/s）；disk 特殊为 `mounts:[{mount,points:[{ts,percent}]}]`——各挂载点共享统一时间轴（24h=全部行时刻去重；桶模式=全局 origin 划桶、桶 ts 取桶尾），缺失时刻补 `null`，前端多序列可直接对齐。24h 原始分钟粒度，7d/30d 按 20min/1h 桶平均，`ts` 为桶内末行 UTC 时间 | A | P5 |
+| GET | /api/monitor/history?metric=cpu&range=24h | 历史曲线（支持 cpu/mem/disk/net/temp/io/gpu）。响应：`{metric, range, points:[{ts,…}]}`；cpu→`{cpu, cores:[每核]}`、mem→`{used,percent}`、net→`{rx,tx}`（全网卡速率之和，B/s）；io→`{read,write}`（读写速率 B/s）；gpu→`gpus:[{name,points:[{ts,util}]}]`（对齐时间轴）；temp→`sensors:[{name,points:[{ts,current}]}]`（与 disk 同为共享对齐时间轴、缺失补 null）；disk 特殊为 `mounts:[{mount,points:[{ts,percent}]}]`——各挂载点共享统一时间轴（24h=全部行时刻去重；桶模式=全局 origin 划桶、桶 ts 取桶尾），缺失时刻补 `null`，前端多序列可直接对齐。24h 原始分钟粒度，7d/30d 按 20min/1h 桶平均，`ts` 为桶内末行 UTC 时间 | A | P5 |
 | GET | /api/monitor/processes?sort=cpu | 进程 Top 榜 | M | M2 |
 | GET | /api/monitor/temps | 温度（无传感器返回空数组） | A | M2 |
 | GET | /api/monitor/docker-stats | 按容器资源占用 | A | M2 |
@@ -316,7 +316,7 @@
 
 ## 5. 实时协议（WebSocket / SSE）
 
-**WS /ws/monitor**（P5）：连接后服务端每 2 秒推送
+**WS /ws/monitor**（P5）：连接后服务端按 `monitor.push_interval`（设置键，默认 2 秒，最小 1 秒）推送
 `{"type":"monitor","data":{"cpu":12.3,"cpu_per_core":[...],"load":[0.5,0.4,0.3],"mem":{...},"disks":[...],"nets":[...]}}`。
 
 **WS /ws/notify**（P6 起）：

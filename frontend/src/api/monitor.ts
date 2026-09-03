@@ -47,6 +47,29 @@ export interface MonitorNet {
   tx_today: number
 }
 
+export interface MonitorIo {
+  read_rate: number
+  write_rate: number
+  read_iops: number
+  write_iops: number
+  read_total: number
+  write_total: number
+}
+
+export interface MonitorGpu {
+  name: string
+  util: number
+  mem_used: number | null
+  mem_total: number | null
+}
+
+export interface MonitorTemp {
+  name: string
+  current: number | null
+  high: number | null
+  critical: number | null
+}
+
 export interface MonitorOverview {
   ts: string
   system: MonitorSystemInfo
@@ -54,6 +77,9 @@ export interface MonitorOverview {
   mem: MonitorMem
   disks: MonitorDisk[]
   nets: MonitorNet[]
+  io: MonitorIo | null
+  gpu: MonitorGpu[]
+  temps: MonitorTemp[]
 }
 
 export interface MonitorHistoryPoint {
@@ -65,13 +91,20 @@ export interface MonitorHistoryPoint {
   percent?: number
   rx?: number
   tx?: number
+  current?: number
+  /** 磁盘读写速率 B/s（io 指标返回） */
+  read?: number
+  write?: number
 }
 
 export interface MonitorHistory {
   metric: string
   range: string
   points: MonitorHistoryPoint[]
-  mounts?: { mount: string; points: { ts: string; percent: number }[] }[]
+  /** disk/temp/gpu 指标：多序列共享对齐时间轴（缺失补 null） */
+  mounts?: { mount: string; points: { ts: string; percent: number | null }[] }[]
+  sensors?: { name: string; points: { ts: string; current: number | null }[] }[]
+  gpus?: { name: string; points: { ts: string; util: number | null }[] }[]
 }
 
 export const monitorApi = {
@@ -84,4 +117,4 @@ export const monitorApi = {
     }),
 }
 
-type HistoryMetricParam = 'cpu' | 'mem' | 'net' | 'disk'
+type HistoryMetricParam = 'cpu' | 'mem' | 'net' | 'disk' | 'temp' | 'io' | 'gpu'

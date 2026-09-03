@@ -1,62 +1,163 @@
 <script setup lang="ts">
 /**
- * 监控页（M17-9；dev-plan P5.5）。
+ * 监控页（M17-9/11；dev-plan P5.5 + 温度与分块推送增强）。
  *
- * 一屏：系统信息 + CPU/内存/网络 实时曲线（WS /ws/monitor 每 2 秒推送，
- * 失败自动降级 5s 轮询）+ 磁盘分区列表 + 历史曲线（24h/7d/30d）。
+ * 一屏：系统信息 + CPU（总量+每核）/内存/网络 实时曲线 + 磁盘/温度列表
+ * + 历史曲线（cpu/mem/net/disk/temp × 24h/7d/30d）。
+ * 数据由 WS /ws/monitor 推送（断连降级 5s 轮询）；每个数据块可单独设置
+ * 刷新间隔（localStorage 持久化），帧到达时按块节流应用。
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { monitorApi, type MonitorOverview, type MonitorHistory } from '../api/monitor'
+import { Setting as IconSetting } from '@element-plus/icons-vue'
+import { monitorApi, type MonitorOverview } from '../api/monitor'
 import { useAuthStore } from '../stores/auth'
 import MonitorChart from '../components/MonitorChart.vue'
-import { formatBytes, formatRate, formatUptime, HISTORY_RANGES, type HistoryMetric, type HistoryRange } from '../utils/monitor'
+import {
+  formatBytes,
+  formatRate,
+  formatUptime,
+  HISTORY_RANGES,
+  type HistoryMetric,
+  type HistoryRange,
+} from '../utils/monitor'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
 
-// ---- 实时数据（WS 推送 / 轮询降级共用）----
-const overview = ref<MonitorOverview | null>(null)
+// ---- 分块推送间隔（秒，localStorage 持久化）----
+const BLOCKS = ['cpu', 'mem', 'net', 'disk', 'io', 'gpu', 'temp'] as const
+type Block = (typeof BLOCKS)[number]
+const INTERVALS_KEY = 'portal.monitor.intervals'
+const DEFAULT_INTERVALS: Record<Block, number> = {
+  cpu: 2,
+  mem: 5,
+  net: 2,
+  disk: 30,
+  io: 5,
+  gpu: 5,
+  temp: 60,
+}
+const INTERVAL_OPTIONS = [1, 2, 5, 10, 30, 60]
+
+function loadIntervals(): Record<Block, number> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(INTERVALS_KEY) ?? '{}') as Partial<Record<Block, number>>
+    return { ...DEFAULT_INTERVALS, ...raw }
+  } catch {
+    return { ...DEFAULT_INTERVALS }
+  }
+}
+const blockIntervals = reactive<Record<Block, number>>(loadIntervals())
+const settingsVisible = ref(false)
+function saveIntervals() {
+  localStorage.setItem(INTERVALS_KEY, JSON.stringify({ ...blockIntervals }))
+}
+function resetIntervals() {
+  Object.assign(blockIntervals, DEFAULT_INTERVALS)
+}
+watch(blockIntervals, saveIntervals, { deep: true })
+
+// ---- 分块数据（WS 帧 × 块间隔节流后写入）----
+const sysInfo = ref<MonitorOverview['system'] | null>(null)
+const cpuBlock = ref<MonitorOverview['cpu'] | null>(null)
+const memBlock = ref<MonitorOverview['mem'] | null>(null)
+const netBlock = ref<MonitorOverview['nets'] | null>(null)
+const disks = ref<MonitorOverview['disks']>([])
+const ioBlock = ref<MonitorOverview['io']>(null)
+const gpuBlock = ref<MonitorOverview['gpu']>([])
+const temps = ref<MonitorOverview['temps']>([])
+const hasTemps = computed(() => temps.value.length > 0)
+const hasGpu = computed(() => gpuBlock.value.length > 0)
+
+const rt = reactive({
+  cpu: { ts: [] as string[], total: [] as number[], cores: [] as number[][] },
+  mem: { ts: [] as string[], pct: [] as number[] },
+  net: { ts: [] as string[], rx: [] as number[], tx: [] as number[] },
+  io: { ts: [] as string[], read: [] as number[], write: [] as number[] },
+})
+const WINDOW_MAX = 150 // 5 分钟 @2s
+
+const lastApplied: Record<Block, number> = {
+  cpu: 0,
+  mem: 0,
+  net: 0,
+  disk: 0,
+  io: 0,
+  gpu: 0,
+  temp: 0,
+}
+
+function pushWin(win: { ts: string[] }, label: string) {
+  win.ts.push(label)
+  if (win.ts.length > WINDOW_MAX) win.ts.shift()
+}
+
+function applyBlock(o: MonitorOverview, block: Block) {
+  const label = new Date(o.ts).toLocaleTimeString('zh-CN', { hour12: false })
+  if (block === 'cpu') {
+    cpuBlock.value = o.cpu
+    pushWin(rt.cpu, label)
+    rt.cpu.total.push(Number(o.cpu.percent.toFixed(1)))
+    o.cpu.per_core.forEach((v, i) => {
+      const rounded = Number(v.toFixed(1))
+      if (rt.cpu.cores[i]) rt.cpu.cores[i].push(rounded)
+      else rt.cpu.cores[i] = [rounded]
+    })
+    if (rt.cpu.cores.length > o.cpu.per_core.length) rt.cpu.cores.length = o.cpu.per_core.length
+    for (const s of rt.cpu.cores) if (s.length > WINDOW_MAX) s.shift()
+    if (rt.cpu.total.length > WINDOW_MAX) rt.cpu.total.shift()
+  } else if (block === 'mem') {
+    memBlock.value = o.mem
+    pushWin(rt.mem, label)
+    rt.mem.pct.push(Number(o.mem.percent.toFixed(1)))
+    if (rt.mem.pct.length > WINDOW_MAX) rt.mem.pct.shift()
+  } else if (block === 'net') {
+    netBlock.value = o.nets
+    pushWin(rt.net, label)
+    rt.net.rx.push(Number((o.nets.reduce((s, n) => s + n.rx_rate, 0) / 1024).toFixed(1)))
+    rt.net.tx.push(Number((o.nets.reduce((s, n) => s + n.tx_rate, 0) / 1024).toFixed(1)))
+    if (rt.net.rx.length > WINDOW_MAX) rt.net.rx.shift()
+    if (rt.net.tx.length > WINDOW_MAX) rt.net.tx.shift()
+  } else if (block === 'disk') {
+    disks.value = o.disks
+  } else if (block === 'io') {
+    ioBlock.value = o.io
+    if (o.io) {
+      pushWin(rt.io, label)
+      rt.io.read.push(Number((o.io.read_rate / 1024).toFixed(1)))
+      rt.io.write.push(Number((o.io.write_rate / 1024).toFixed(1)))
+      if (rt.io.read.length > WINDOW_MAX) rt.io.read.shift()
+      if (rt.io.write.length > WINDOW_MAX) rt.io.write.shift()
+    }
+  } else if (block === 'gpu') {
+    gpuBlock.value = o.gpu
+  } else if (block === 'temp') {
+    temps.value = o.temps
+  }
+}
+
+function applyOverview(o: MonitorOverview) {
+  sysInfo.value = o.system // 系统信息随每帧（开销可忽略）
+  const now = Date.now()
+  for (const block of BLOCKS) {
+    if (now - lastApplied[block] >= blockIntervals[block] * 1000) {
+      lastApplied[block] = now
+      applyBlock(o, block)
+    }
+  }
+}
+
+// ---- WS 推送 + 轮询降级 ----
 const wsLost = ref(false)
 let ws: WebSocket | null = null
 let pollTimer: number | undefined
 let reconnectDelay = 2000
 let closed = false
 
-/** 实时窗口（最近 5 分钟的 2s 点），驱动三张曲线图。 */
-const rt = reactive<{ ts: string[]; cpu: number[]; mem: number[]; rx: number[]; tx: number[] }>({
-  ts: [],
-  cpu: [],
-  mem: [],
-  rx: [],
-  tx: [],
-})
-const coreWindow = reactive<number[][]>([]) // 每核一条序列
-const WINDOW_MAX = 150 // 5 分钟 @2s
-
-function pushWindow(o: MonitorOverview) {
-  const label = new Date(o.ts).toLocaleTimeString('zh-CN', { hour12: false })
-  rt.ts.push(label)
-  rt.cpu.push(Number(o.cpu.percent.toFixed(1)))
-  rt.mem.push(Number(o.mem.percent.toFixed(1)))
-  rt.rx.push(Number((o.nets.reduce((s, n) => s + n.rx_rate, 0) / 1024).toFixed(1))) // KB/s
-  rt.tx.push(Number((o.nets.reduce((s, n) => s + n.tx_rate, 0) / 1024).toFixed(1)))
-  o.cpu.per_core.forEach((v, i) => {
-    if (coreWindow[i]) coreWindow[i].push(Number(v.toFixed(1)))
-    else coreWindow[i] = [Number(v.toFixed(1))]
-  })
-  if (coreWindow.length > o.cpu.per_core.length) coreWindow.length = o.cpu.per_core.length
-  for (const key of ['ts', 'cpu', 'mem', 'rx', 'tx'] as const) {
-    if (rt[key].length > WINDOW_MAX) rt[key].shift()
-  }
-  for (const series of coreWindow) {
-    if (series.length > WINDOW_MAX) series.shift()
-  }
-}
-
-function applyOverview(o: MonitorOverview) {
-  overview.value = o
-  pushWindow(o)
+function buildWsUrl(): string {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${proto}://${location.host}/ws/monitor?token=${encodeURIComponent(auth.token)}`
 }
 
 function connectWs() {
@@ -73,7 +174,6 @@ function connectWs() {
     ws = null
     if (closed) return
     startPolling()
-    // 指数退避重连，成功后停轮询
     setTimeout(() => {
       if (!closed && !ws) connectWs()
     }, reconnectDelay)
@@ -98,11 +198,6 @@ function stopPolling() {
   pollTimer = undefined
 }
 
-function buildWsUrl(): string {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${proto}://${location.host}/ws/monitor?token=${encodeURIComponent(auth.token)}`
-}
-
 onMounted(async () => {
   connectWs()
   try {
@@ -121,7 +216,6 @@ onBeforeUnmount(() => {
 const axisLabel = { color: '#8a93a8', fontSize: 11 }
 const splitLine = { lineStyle: { color: 'rgba(138, 147, 168, 0.18)' } }
 const grid = { left: 46, right: 16, top: 34, bottom: 26 }
-/** 轴触发提示；fmt 给出时数值带单位显示（% / KB/s→可读速率） */
 const axisTooltip = (fmt?: (v: number) => string) => ({
   trigger: 'axis' as const,
   ...(fmt ? { valueFormatter: (v: number) => fmt(Number(v)) } : {}),
@@ -133,11 +227,11 @@ const cpuOption = computed(() => ({
   tooltip: axisTooltip(pct),
   legend: { top: 4, type: 'scroll', textStyle: axisLabel },
   grid,
-  xAxis: { type: 'category', data: [...rt.ts], axisLabel, splitLine },
+  xAxis: { type: 'category', data: [...rt.cpu.ts], axisLabel, splitLine },
   yAxis: { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } },
   series: [
-    { name: t('monitor.cpuTotal'), type: 'line', data: [...rt.cpu], smooth: true, showSymbol: false, lineWidth: 2 },
-    ...coreWindow.map((data, i) => ({
+    { name: t('monitor.cpuTotal'), type: 'line', data: [...rt.cpu.total], smooth: true, showSymbol: false, lineWidth: 2 },
+    ...rt.cpu.cores.map((data, i) => ({
       name: `CPU${i + 1}`,
       type: 'line',
       data: [...data],
@@ -153,10 +247,10 @@ const memOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: axisTooltip(pct),
   grid,
-  xAxis: { type: 'category', data: [...rt.ts], axisLabel, splitLine },
+  xAxis: { type: 'category', data: [...rt.mem.ts], axisLabel, splitLine },
   yAxis: { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } },
   series: [
-    { name: t('monitor.memPercent'), type: 'line', data: [...rt.mem], smooth: true, showSymbol: false, areaStyle: { opacity: 0.15 } },
+    { name: t('monitor.memPercent'), type: 'line', data: [...rt.mem.pct], smooth: true, showSymbol: false, areaStyle: { opacity: 0.15 } },
   ],
 }))
 
@@ -165,18 +259,31 @@ const netOption = computed(() => ({
   tooltip: axisTooltip((v) => formatRate(v * 1024)), // 窗口数据以 KB/s 存储
   legend: { top: 4, textStyle: axisLabel },
   grid,
-  xAxis: { type: 'category', data: [...rt.ts], axisLabel, splitLine },
+  xAxis: { type: 'category', data: [...rt.net.ts], axisLabel, splitLine },
   yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
   series: [
-    { name: t('monitor.down'), type: 'line', data: [...rt.rx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
-    { name: t('monitor.up'), type: 'line', data: [...rt.tx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.down'), type: 'line', data: [...rt.net.rx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.up'), type: 'line', data: [...rt.net.tx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
+  ],
+}))
+
+const ioOption = computed(() => ({
+  backgroundColor: 'transparent',
+  tooltip: axisTooltip((v) => formatRate(v * 1024)), // KB/s 存储
+  legend: { top: 4, textStyle: axisLabel },
+  grid,
+  xAxis: { type: 'category', data: [...rt.io.ts], axisLabel, splitLine },
+  yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
+  series: [
+    { name: t('monitor.read'), type: 'line', data: [...rt.io.read], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.write'), type: 'line', data: [...rt.io.write], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
   ],
 }))
 
 // ---- 历史曲线 ----
 const metric = ref<HistoryMetric>('cpu')
 const range = ref<HistoryRange>('24h')
-const history = ref<MonitorHistory | null>(null)
+const history = ref<Awaited<ReturnType<typeof monitorApi.history>> | null>(null)
 const historyLoading = ref(false)
 
 async function loadHistory() {
@@ -192,12 +299,20 @@ watch([metric, range], () => {
   history.value = null
   loadHistory()
 })
+// 无温度传感器时温度 tab 自动隐藏并回退 cpu（M17-11：无传感器自动隐藏）
+watch(hasTemps, (has) => {
+  if (!has && metric.value === 'temp') metric.value = 'cpu'
+})
+watch(hasGpu, (has) => {
+  if (!has && metric.value === 'gpu') metric.value = 'cpu'
+})
 
 const historyOption = computed(() => {
   const h = history.value
   if (!h) return { backgroundColor: 'transparent' }
-  // disk 响应无 points，时间轴取首个挂载点（后端保证各挂载点对齐、缺失补 null）
-  const timeline = metric.value === 'disk' ? (h.mounts?.[0]?.points ?? []) : (h.points ?? [])
+  // disk/temp 响应无 points，时间轴取首序列（后端保证各序列对齐、缺失补 null）
+  const multiSeriesMeta = metric.value === 'disk' ? h.mounts : metric.value === 'temp' ? h.sensors : metric.value === 'gpu' ? h.gpus : undefined
+  const timeline = multiSeriesMeta ? (multiSeriesMeta[0]?.points ?? []) : (h.points ?? [])
   const labels = timeline.map((p) =>
     new Date(p.ts).toLocaleString('zh-CN', {
       month: '2-digit',
@@ -207,7 +322,7 @@ const historyOption = computed(() => {
       hour12: false,
     }),
   )
-  const mk = (data: (number | undefined)[], name: string, thin = false) => ({
+  const mk = (data: (number | null | undefined)[], name: string, thin = false) => ({
     name,
     type: 'line',
     data,
@@ -218,22 +333,42 @@ const historyOption = computed(() => {
     connectNulls: false,
   })
   const legendScroll = { top: 4, type: 'scroll', textStyle: axisLabel }
-  if (metric.value === 'disk') {
-    const series = (h.mounts ?? []).map((m) => ({
-      name: m.mount,
-      type: 'line' as const,
-      data: m.points.map((p) => p.percent),
-      smooth: true,
-      showSymbol: false,
-    }))
+  if (multiSeriesMeta) {
+    const multi = multiSeriesMeta.map((s) => {
+      const name = 'mount' in s ? s.mount : s.name
+      const data = s.points.map((p) => ('percent' in p ? p.percent : 'current' in p ? p.current : p.util))
+      return { name, data }
+    })
+    const fmt =
+      metric.value === 'disk' ? pct : metric.value === 'temp' ? (v: number) => `${v} °C` : metric.value === 'gpu' ? pct : (v: number) => formatRate(v)
+    const y =
+      metric.value === 'disk' || metric.value === 'gpu'
+        ? { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } }
+        : metric.value === 'temp'
+          ? { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: '°C', nameTextStyle: axisLabel }
+          : { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'B/s', nameTextStyle: axisLabel }
     return {
       backgroundColor: 'transparent',
-      tooltip: axisTooltip(pct),
+      tooltip: axisTooltip(fmt),
       legend: legendScroll,
       grid,
       xAxis: { type: 'category', data: labels, axisLabel, splitLine },
-      yAxis: { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } },
-      series,
+      yAxis: y,
+      series: multi.map((s) => mk(s.data, s.name)),
+    }
+  }
+  if (metric.value === 'io') {
+    return {
+      backgroundColor: 'transparent',
+      tooltip: axisTooltip((v) => formatRate(v)),
+      legend: legendScroll,
+      grid,
+      xAxis: { type: 'category', data: labels, axisLabel, splitLine },
+      yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'B/s', nameTextStyle: axisLabel },
+      series: [
+        mk((h.points ?? []).map((p) => p.read), t('monitor.read')),
+        mk((h.points ?? []).map((p) => p.write), t('monitor.write')),
+      ],
     }
   }
   let series
@@ -268,9 +403,7 @@ const historyOption = computed(() => {
   }
   return {
     backgroundColor: 'transparent',
-    tooltip: axisTooltip(
-      metric.value === 'net' ? (v) => formatRate(v) : pct,
-    ),
+    tooltip: axisTooltip(metric.value === 'net' ? (v) => formatRate(v) : pct),
     legend: legendScroll,
     grid,
     xAxis: { type: 'category', data: labels, axisLabel, splitLine },
@@ -292,20 +425,40 @@ onMounted(loadHistory)
   <div class="monitor">
     <header class="page-head">
       <h2>{{ t('monitor.title') }}</h2>
+      <el-popover v-model:visible="settingsVisible" trigger="click" width="260">
+        <template #reference>
+          <button type="button" class="push-settings" :title="t('monitor.pushSettings')">
+            <el-icon :size="14"><IconSetting /></el-icon>
+            <span>{{ t('monitor.pushSettings') }}</span>
+          </button>
+        </template>
+        <div class="push-table">
+          <div v-for="b in BLOCKS" :key="b" class="push-row">
+            <span class="push-label">{{ t(`monitor.block.${b}`) }}</span>
+            <el-select v-model="blockIntervals[b]" size="small" style="width: 110px" @change="saveIntervals">
+              <el-option v-for="s in INTERVAL_OPTIONS" :key="s" :value="s" :label="`${s} ${$t('monitor.seconds')}`" />
+            </el-select>
+          </div>
+          <p class="push-hint">{{ t('monitor.pushHint') }}</p>
+          <div class="push-reset">
+            <el-button size="small" @click="resetIntervals">{{ t('monitor.resetIntervals') }}</el-button>
+          </div>
+        </div>
+      </el-popover>
     </header>
 
     <!-- 系统信息（M17-1） -->
-    <section v-if="overview" class="glass sys-card fade-up">
-      <div class="sys-item"><span class="k">{{ t('monitor.hostname') }}</span><span class="v">{{ overview.system.hostname }}</span></div>
-      <div class="sys-item"><span class="k">{{ t('monitor.os') }}</span><span class="v">{{ overview.system.os }}</span></div>
-      <div class="sys-item"><span class="k">{{ t('monitor.kernel') }}</span><span class="v">{{ overview.system.kernel }}</span></div>
-      <div class="sys-item"><span class="k">{{ t('monitor.arch') }}</span><span class="v">{{ overview.system.arch }}</span></div>
-      <div class="sys-item"><span class="k">{{ t('monitor.uptime') }}</span><span class="v">{{ formatUptime(overview.system.uptime, locale) }}</span></div>
-      <div class="sys-item">
+    <section v-if="sysInfo" class="glass sys-card fade-up">
+      <div class="sys-item"><span class="k">{{ t('monitor.hostname') }}</span><span class="v">{{ sysInfo.hostname }}</span></div>
+      <div class="sys-item"><span class="k">{{ t('monitor.os') }}</span><span class="v">{{ sysInfo.os }}</span></div>
+      <div class="sys-item"><span class="k">{{ t('monitor.kernel') }}</span><span class="v">{{ sysInfo.kernel }}</span></div>
+      <div class="sys-item"><span class="k">{{ t('monitor.arch') }}</span><span class="v">{{ sysInfo.arch }}</span></div>
+      <div class="sys-item"><span class="k">{{ t('monitor.uptime') }}</span><span class="v">{{ formatUptime(sysInfo.uptime, locale) }}</span></div>
+      <div class="sys-item" v-if="cpuBlock">
         <span class="k">{{ t('monitor.load') }}</span>
-        <span class="v">{{ overview.cpu.load.map((l) => l ?? '-').join(' / ') }}</span>
+        <span class="v">{{ cpuBlock.load.map((l) => l ?? '-').join(' / ') }}</span>
       </div>
-      <div class="sys-item"><span class="k">{{ t('monitor.cores') }}</span><span class="v">{{ overview.cpu.cores }}</span></div>
+      <div class="sys-item" v-if="cpuBlock"><span class="k">{{ t('monitor.cores') }}</span><span class="v">{{ cpuBlock.cores }}</span></div>
     </section>
 
     <el-alert v-if="wsLost" :title="t('monitor.wsLost')" type="warning" :closable="false" class="fade-up" />
@@ -315,24 +468,24 @@ onMounted(loadHistory)
       <section class="glass chart-card">
         <h3>
           {{ t('monitor.cpuTitle') }}
-          <b v-if="overview" class="now">{{ overview.cpu.percent.toFixed(1) }}%</b>
+          <b v-if="cpuBlock" class="now">{{ cpuBlock.percent.toFixed(1) }}%</b>
         </h3>
         <MonitorChart :option="cpuOption" height="230px" />
       </section>
       <section class="glass chart-card">
         <h3>
           {{ t('monitor.memTitle') }}
-          <b v-if="overview" class="now">{{ overview.mem.percent.toFixed(1) }}%</b>
-          <small v-if="overview" class="sub">{{ formatBytes(overview.mem.used) }} / {{ formatBytes(overview.mem.total) }}</small>
+          <b v-if="memBlock" class="now">{{ memBlock.percent.toFixed(1) }}%</b>
+          <small v-if="memBlock" class="sub">{{ formatBytes(memBlock.used) }} / {{ formatBytes(memBlock.total) }}</small>
         </h3>
         <MonitorChart :option="memOption" height="230px" />
       </section>
       <section class="glass chart-card">
         <h3>
           {{ t('monitor.netTitle') }}
-          <small v-if="overview" class="sub">
-            ↓ {{ formatRate(overview.nets.reduce((s, n) => s + n.rx_rate, 0)) }} · ↑
-            {{ formatRate(overview.nets.reduce((s, n) => s + n.tx_rate, 0)) }}
+          <small v-if="netBlock" class="sub">
+            ↓ {{ formatRate(netBlock.reduce((s, n) => s + n.rx_rate, 0)) }} · ↑
+            {{ formatRate(netBlock.reduce((s, n) => s + n.tx_rate, 0)) }}
           </small>
         </h3>
         <MonitorChart :option="netOption" height="230px" />
@@ -341,8 +494,8 @@ onMounted(loadHistory)
       <!-- 磁盘分区（M17-4） -->
       <section class="glass chart-card">
         <h3>{{ t('monitor.diskTitle') }}</h3>
-        <div v-if="overview" class="disk-list">
-          <div v-for="d in overview.disks" :key="d.mount" class="disk-row">
+        <div class="disk-list">
+          <div v-for="d in disks" :key="d.mount" class="disk-row">
             <div class="disk-head">
               <span class="mount">{{ d.mount }}</span>
               <span class="usage">{{ formatBytes(d.used) }} / {{ formatBytes(d.total) }}</span>
@@ -351,7 +504,57 @@ onMounted(loadHistory)
             <el-progress :percentage="d.percent" :show-text="false" :stroke-width="8" />
             <small v-if="d.inode_p !== null" class="inode">inode {{ d.inode_p.toFixed(1) }}%</small>
           </div>
-          <p v-if="!overview.disks.length" class="empty">{{ t('monitor.noData') }}</p>
+          <p v-if="!disks.length" class="empty">{{ t('monitor.noData') }}</p>
+        </div>
+      </section>
+
+      <!-- 磁盘 IO（M17-10） -->
+      <section class="glass chart-card">
+        <h3>
+          I/O
+          <small v-if="ioBlock" class="sub">
+            {{ t('monitor.read') }} {{ formatRate(ioBlock.read_rate) }} · {{ t('monitor.write') }} {{ formatRate(ioBlock.write_rate) }}
+          </small>
+        </h3>
+        <MonitorChart :option="ioOption" height="230px" />
+      </section>
+
+      <!-- GPU（尽力而为：nvidia-smi / Windows GPU Engine 计数器；无数据整卡隐藏） -->
+      <section v-if="hasGpu" class="glass chart-card">
+        <h3>GPU</h3>
+        <div class="disk-list">
+          <div v-for="g in gpuBlock" :key="g.name" class="disk-row">
+            <div class="disk-head">
+              <span class="mount">{{ g.name }}</span>
+              <span class="usage" v-if="g.mem_used !== null && g.mem_total">
+                {{ formatBytes(g.mem_used) }} / {{ formatBytes(g.mem_total) }}
+              </span>
+              <span class="pct">{{ g.util.toFixed(0) }}%</span>
+            </div>
+            <el-progress :percentage="Math.round(g.util)" :show-text="false" :stroke-width="8" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 温度（M17-11；无传感器整卡隐藏） -->
+      <section v-if="hasTemps" class="glass chart-card">
+        <h3>{{ t('monitor.tempTitle') }}</h3>
+        <div class="disk-list">
+          <div v-for="s in temps" :key="s.name" class="disk-row">
+            <div class="disk-head">
+              <span class="mount">{{ s.name }}</span>
+              <span class="usage" v-if="s.high !== null">≥ {{ s.high }}°C 注意</span>
+              <span class="pct temp" :class="{ hot: s.critical !== null && s.current !== null && s.current >= s.critical }">
+                {{ s.current !== null ? `${s.current.toFixed(1)}°C` : '-' }}
+              </span>
+            </div>
+            <el-progress
+              :percentage="Math.min(100, Math.round(((s.current ?? 0) / (s.critical ?? s.high ?? 100)) * 100))"
+              :show-text="false"
+              :stroke-width="8"
+              :status="s.critical !== null && s.current !== null && s.current >= s.critical ? 'exception' : undefined"
+            />
+          </div>
         </div>
       </section>
     </div>
@@ -366,6 +569,9 @@ onMounted(loadHistory)
             <el-radio-button value="mem">{{ t('monitor.memTitle') }}</el-radio-button>
             <el-radio-button value="net">{{ t('monitor.netTitle') }}</el-radio-button>
             <el-radio-button value="disk">{{ t('monitor.diskTitle') }}</el-radio-button>
+            <el-radio-button value="io">I/O</el-radio-button>
+            <el-radio-button v-if="hasGpu" value="gpu">GPU</el-radio-button>
+            <el-radio-button v-if="hasTemps" value="temp">{{ t('monitor.tempTitle') }}</el-radio-button>
           </el-radio-group>
           <el-radio-group v-model="range" size="small">
             <el-radio-button v-for="r in HISTORY_RANGES" :key="r" :value="r">
@@ -389,8 +595,48 @@ onMounted(loadHistory)
   gap: 14px;
   padding-bottom: 6px;
 }
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .page-head h2 {
   margin: 0;
+}
+.push-settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--p-muted);
+  border: 1px solid var(--p-card-border);
+  background: var(--p-card);
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.push-settings:hover {
+  border-color: var(--p-primary);
+  color: var(--p-primary);
+}
+.push-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+}
+.push-label {
+  font-size: 12.5px;
+}
+.push-hint {
+  margin: 8px 0 8px;
+  font-size: 11.5px;
+  color: var(--p-muted);
+}
+.push-reset {
+  display: flex;
+  justify-content: flex-end;
 }
 .sys-card {
   display: flex;
@@ -454,6 +700,9 @@ onMounted(loadHistory)
 .disk-head .pct {
   font-weight: 700;
   color: var(--p-primary);
+}
+.disk-head .pct.temp.hot {
+  color: var(--el-color-danger);
 }
 .inode {
   color: var(--p-muted);

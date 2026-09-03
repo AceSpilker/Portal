@@ -44,8 +44,10 @@ DEFAULT_SETTINGS: dict[str, str] = {
     ),
     "sync.enabled": json.dumps(False),
     "sync.interval_min": json.dumps(30),
-    # 监控采样保留天数（M17-7，超出自动清理）
+    # 监控采样保留天数（M17-7，超出自动清理）；采样/推送间隔（秒）
     "monitor.retention_days": json.dumps(7),
+    "monitor.sample_interval": json.dumps(60),
+    "monitor.push_interval": json.dumps(2),
 }
 
 

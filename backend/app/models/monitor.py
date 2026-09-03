@@ -27,8 +27,10 @@ class MonitorSample(Base):
     # JSON [{mount,total,used,inode_p}]
     disks: Mapped[str | None] = mapped_column(Text, default=None)
     nets: Mapped[str | None] = mapped_column(Text, default=None)  # JSON [{iface,rx_rate,tx_rate,…}]
-    io: Mapped[str | None] = mapped_column(Text, default=None)  # M2
-    temps: Mapped[str | None] = mapped_column(Text, default=None)  # M2
+    io: Mapped[str | None] = mapped_column(Text, default=None)  # JSON {read_rate,write_rate,iops,…}
+    # JSON [{name,util,mem_used,mem_total}]
+    gpu: Mapped[str | None] = mapped_column(Text, default=None)
+    temps: Mapped[str | None] = mapped_column(Text, default=None)  # JSON [{name,current,…}]
     procs: Mapped[str | None] = mapped_column(Text, default=None)  # M2
 
     __table_args__ = (Index("ix_monitor_samples_ts", "ts"),)

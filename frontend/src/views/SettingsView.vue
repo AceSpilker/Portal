@@ -11,6 +11,7 @@ import {
   Picture as IconLib,
   Setting as IconGeneral,
   Brush as IconAppearance,
+  Odometer as IconMonitor,
 } from '@element-plus/icons-vue'
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
@@ -27,7 +28,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -39,6 +40,11 @@ const aboutVersion = ref('')
 // ---- 应用配置 ----
 const tagOptions = ref<string[]>([])
 const newTag = ref('')
+
+// ---- 监控设置（采样/推送间隔与保留天数；api-spec §4.4）----
+const sampleInterval = ref(60)
+const pushInterval = ref(2)
+const retentionDays = ref(7)
 
 // ---- 图标库 ----
 const iconSearch = ref('')
@@ -96,6 +102,10 @@ onMounted(async () => {
   siteName.value = settingsStore.siteName
   tagOptions.value = [...settingsStore.tagOptions]
   favDraft.value = [...settingsStore.iconFavorites]
+  const map = settingsStore.map
+  sampleInterval.value = (map['monitor.sample_interval'] as number) || 60
+  pushInterval.value = (map['monitor.push_interval'] as number) || 2
+  retentionDays.value = (map['monitor.retention_days'] as number) || 7
   try {
     aboutVersion.value = (await getHealth()).version
   } catch {
@@ -253,6 +263,21 @@ function saveTags() {
 function saveIcons() {
   save({ 'apps.icon_favorites': [...favDraft.value] }, t('settings.iconsSaved'))
 }
+
+function saveMonitor() {
+  if (sampleInterval.value < 10 || pushInterval.value < 1 || retentionDays.value < 1) {
+    ElMessage.warning(t('settings.monitorRangeWarn'))
+    return
+  }
+  save(
+    {
+      'monitor.sample_interval': Math.round(sampleInterval.value),
+      'monitor.push_interval': Math.round(pushInterval.value),
+      'monitor.retention_days': Math.round(retentionDays.value),
+    },
+    t('settings.monitorSaved'),
+  )
+}
 </script>
 
 <template>
@@ -280,6 +305,10 @@ function saveIcons() {
         <el-menu-item index="access">
           <el-icon><component :is="IconAccess" /></el-icon>
           <span>{{ t('settings.menuAccess') }}</span>
+        </el-menu-item>
+                <el-menu-item index="monitor">
+          <el-icon><component :is="IconMonitor" /></el-icon>
+          <span>{{ t('settings.menuMonitor') }}</span>
         </el-menu-item>
         <el-menu-item index="about">
           <el-icon><component :is="IconInfo" /></el-icon>
@@ -467,7 +496,28 @@ function saveIcons() {
       <template v-else-if="active === 'access'">
         <AccessPanel />
       </template>
-        <template v-else-if="active === 'about'">
+        <template v-else-if="active === 'monitor'">
+        <h3>{{ t('settings.menuMonitor') }}</h3>
+        <p class="panel-hint">{{ t('settings.monitorHint') }}</p>
+        <el-form label-width="auto" class="monitor-form">
+          <el-form-item :label="t('settings.sampleInterval')">
+            <el-input-number v-model="sampleInterval" :min="10" :max="3600" :step="10" />
+            <span class="form-tip">{{ t('settings.sampleIntervalTip') }}</span>
+          </el-form-item>
+          <el-form-item :label="t('settings.pushInterval')">
+            <el-input-number v-model="pushInterval" :min="1" :max="60" :step="1" />
+            <span class="form-tip">{{ t('settings.pushIntervalTip') }}</span>
+          </el-form-item>
+          <el-form-item :label="t('settings.retentionDays')">
+            <el-input-number v-model="retentionDays" :min="1" :max="365" :step="1" />
+            <span class="form-tip">{{ t('settings.retentionDaysTip') }}</span>
+          </el-form-item>
+          <el-button type="primary" class="btn-gradient" :loading="saving" @click="saveMonitor">
+            {{ t('common.save') }}
+          </el-button>
+        </el-form>
+      </template>
+      <template v-else-if="active === 'about'">
           <header class="panel-head">
             <h3>{{ t('settings.aboutTitle') }}</h3>
             <p>Portal · {{ t('home.copyright') }}</p>
@@ -750,5 +800,16 @@ function saveIcons() {
     display: flex;
     flex: 1;
   }
+}
+
+.panel-hint {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: var(--p-muted);
+}
+.monitor-form .form-tip {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--p-muted);
 }
 </style>
