@@ -12,6 +12,7 @@ import NotificationCenter from '../components/NotificationCenter.vue'
 import {
   Grid as IconApps,
   Monitor as IconMonitor,
+  Connection as IconConnection,
   MagicStick as IconAi,
   Suitcase as IconTools,
   Setting as IconSetting,
@@ -74,6 +75,7 @@ const navItems = computed<NavItem[]>(() => [
   { icon: IconHome, label: t('nav.home'), to: '/' },
   { icon: IconApps, label: t('nav.apps'), to: '/apps' },
   { icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' },
+  { icon: IconConnection, label: t('nav.ports'), to: '/ports' },
   { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
   { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },
