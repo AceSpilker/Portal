@@ -95,6 +95,8 @@
 
 **probe_events**（M1 建表/M2 重度使用）：id；app_id FK；event TEXT（up/down/slow）；latency_ms INT NULL；created_at。索引 (app_id, created_at)。
 
+**温度/GPU 数据源（M17-11，尽力而为）**：温度——Linux 原生 psutil(hwmon)；Docker 挂载 HOST_SYS 时直读宿主 hwmon（tempN_input 毫度/label/max/crit）；macOS 走 osx-cpu-temp（brew 可选）；Windows 桌面机通常无传感器 → 空数组自动隐藏。GPU——N 卡 nvidia-smi（含显存）；Windows 回退 typeperf GPU Engine 计数器（引擎峰值近似，无显存汇总）；均不可用 → 空数组自动隐藏。子进程采集一律经线程池执行（Windows Selector 循环不支持 asyncio 子进程）。
+
 **monitor_samples**（M1）：id；ts TIMESTAMP（索引）；cpu REAL；cpu_cores TEXT(JSON) [每核使用率，P5 补列]；gpu TEXT(JSON) [{name,util,mem_used,mem_total}]；load TEXT(JSON) [l1,l5,l15]；mem TEXT(JSON) {total,used,swap_used}；disks TEXT(JSON) [{mount,total,used,inode_p}]；nets TEXT(JSON) [{iface,rx,tx,rx_total,tx_total}]；io TEXT(JSON)（{read_rate,write_rate,read_iops,write_iops,read_total,write_total}，P5 已用）；temps TEXT(JSON) NULL（M2：温度）；procs TEXT(JSON) NULL（M2：Top 进程快照）。采样保留天数由设置控制，清理任务删除过期行。
 
 **alert_rules**（M2）：id；name；metric TEXT（cpu/mem/disk/disk_io/temp）；target TEXT NULL（如挂载点 "/"）；op TEXT（'>'/'<'）；threshold REAL；duration_min INT 5（持续 N 分钟才触发）；level TEXT（warn/error）；enabled INT 1；last_fired_at NULL。

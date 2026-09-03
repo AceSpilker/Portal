@@ -12,8 +12,10 @@ import asyncio
 import json
 import os
 import platform
+import re
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import psutil
 from sqlalchemy import delete, select
@@ -124,11 +126,31 @@ def collect_disks() -> list[dict]:
 
 
 def collect_temps() -> list[dict]:
-    """温度传感器（M17-11）：CPU/主板等，°C；无传感器（如多数 Windows 桌面机）返回空。"""
+    """温度传感器（M17-11）：CPU/主板等，°C；无传感器返回空（前端自动隐藏）。
+
+    按平台分派：
+    - Docker/NAS：HOST_SYS 指向宿主只读 /sys 时直接读宿主 hwmon（psutil 无法重定向 /sys）；
+    - Linux 原生：psutil 读 /sys/class/hwmon；
+    - macOS：psutil 不支持 hwmon，走 osx-cpu-temp 后台缓存（brew 安装，非必须）；
+    - Windows：psutil 抛 AttributeError → 空列表。
+    """
+    system = platform.system()
+    if system == "Darwin":
+        return list(_mac_temps_cache)
+    if settings.host_sys:
+        hwmon = _read_hwmon(Path(settings.host_sys) / "class" / "hwmon")
+        if hwmon:
+            return hwmon
+    if system == "Linux":
+        return _psutil_temps()
+    return []
+
+
+def _psutil_temps() -> list[dict]:
     try:
         temps = psutil.sensors_temperatures()
     except (AttributeError, OSError):
-        return []  # 平台不支持（Windows）或无 hwmon
+        return []
     out: list[dict] = []
     for name, entries in (temps or {}).items():
         for e in entries:
@@ -141,6 +163,46 @@ def collect_temps() -> list[dict]:
                     "current": round(e.current, 1) if e.current is not None else None,
                     "high": e.high,
                     "critical": e.critical,
+                }
+            )
+    return out
+
+
+def _read_hwmon(hwmon_root: Path) -> list[dict]:
+    """直接读 hwmon 目录（宿主 /sys 挂载场景）：tempN_input 毫度 → °C。"""
+    out: list[dict] = []
+    if not hwmon_root.is_dir():
+        return out
+    for chip_dir in sorted(hwmon_root.iterdir()):
+        if not chip_dir.is_dir():
+            continue
+        chip = chip_dir.name
+        for inp in sorted(chip_dir.glob("temp*_input")):
+            idx = inp.stem.replace("_input", "")
+            try:
+                milli = int(inp.read_text().strip())
+            except (ValueError, OSError):
+                continue
+
+            def _opt(suffix: str) -> float | None:
+                f = chip_dir / f"{idx}{suffix}"
+                if not f.exists():
+                    return None
+                try:
+                    return round(int(f.read_text().strip()) / 1000, 1)
+                except (ValueError, OSError):
+                    return None
+
+            label_file = chip_dir / f"{idx}_label"
+            # 无 label 的传感器用索引命名，避免同芯片多个温度互相覆盖
+            label = label_file.read_text().strip() if label_file.exists() else idx
+            name = f"{chip} {label}".strip()
+            out.append(
+                {
+                    "name": name,
+                    "current": round(milli / 1000, 1),
+                    "high": _opt("_max"),
+                    "critical": _opt("_crit"),
                 }
             )
     return out
@@ -197,6 +259,7 @@ sample_io_calc = IoRateCalculator()
 # GPU：nvidia-smi 尽力而为（无 NVIDIA 卡/命令缺失 → 空列表，前端自动隐藏）。
 # 子进程查询不能阻塞事件循环，由 lifespan 每 5s 刷新缓存，采集端同步读缓存。
 _gpu_cache: list[dict] = []
+_mac_temps_cache: list[dict] = []
 
 
 def _gpu_query_sync() -> list[dict]:
@@ -230,6 +293,8 @@ def _gpu_query_sync() -> list[dict]:
     except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         pass
 
+    if platform.system() != "Windows":
+        return []
     # Windows 回退：GPU Engine 计数器（WDDM2，N/A/I 卡通用），取引擎峰值近似整体利用率
     try:
         out = subprocess.run(
@@ -258,8 +323,32 @@ def _gpu_query_sync() -> list[dict]:
 
 async def refresh_gpu_cache() -> None:
     """子进程在 Windows Selector 事件循环不可用（NotImplementedError），放入线程池执行。"""
-    global _gpu_cache
+    global _gpu_cache, _mac_temps_cache
     _gpu_cache = await asyncio.to_thread(_gpu_query_sync)
+    if platform.system() == "Darwin":
+        _mac_temps_cache = await asyncio.to_thread(_mac_temps_query_sync)
+
+
+def _mac_temps_query_sync() -> list[dict]:
+    """macOS 温度尽力而为：osx-cpu-temp（brew 安装，非必须；缺失返回空）。"""
+    import subprocess
+
+    try:
+        out = subprocess.run(["osx-cpu-temp"], capture_output=True, timeout=2.5).stdout.decode(
+            "utf-8", "ignore"
+        )
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return []
+    pairs = re.findall(r"([A-Za-z0-9 /_-]+?):\s*(-?\d+(?:\.\d+)?)\s*°C", out)
+    if pairs:
+        return [
+            {"name": n.strip(), "current": round(float(v), 1), "high": None, "critical": None}
+            for n, v in pairs
+        ]
+    m = re.search(r"(-?\d+(?:\.\d+)?)\s*°C", out)
+    if not m:
+        return []
+    return [{"name": "CPU", "current": round(float(m.group(1)), 1), "high": None, "critical": None}]
 
 
 def collect_gpu() -> list[dict]:

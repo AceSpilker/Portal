@@ -389,3 +389,61 @@ def test_12_should_sample_and_int_setting():
     assert just_sampled is False
     assert after_cfg == 10
     assert fallback == 60
+
+
+def test_13_hwmon_reader(tmp_path):
+    """HOST_SYS hwmon 直读：毫度换算、label/max/crit 解析、缺省容错。"""
+    from app.services.monitor import _read_hwmon
+
+    chip = tmp_path / "class" / "hwmon" / "coretemp"
+    chip.mkdir(parents=True)
+    (chip / "temp1_input").write_text("45000")
+    (chip / "temp1_label").write_text("Package id 0")
+    (chip / "temp1_max").write_text("80000")
+    (chip / "temp1_crit").write_text("95000")
+    (chip / "temp2_input").write_text("41000")  # 无 label/阈值
+    (chip / "tempBad_input").write_text("not-a-number")  # 非法值跳过
+    (chip / "temp4_input").write_text("")  # 空文件跳过
+
+    out = _read_hwmon(tmp_path / "class" / "hwmon")
+    by_name = {t["name"]: t for t in out}
+    assert set(by_name) == {"coretemp Package id 0", "coretemp temp2"}
+    cpu = by_name["coretemp Package id 0"]
+    assert cpu["current"] == 45.0 and cpu["high"] == 80.0 and cpu["critical"] == 95.0
+    assert by_name["coretemp temp2"]["current"] == 41.0
+    assert by_name["coretemp temp2"]["high"] is None
+
+
+def test_14_read_int_setting_fallback(client):
+    """read_int_setting：缺失/非法回退默认值（sample_interval 最小 10）。"""
+    import asyncio
+    import json
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from app.models import Base
+    from app.models.setting import Setting
+    from app.services.monitor import SAMPLE_INTERVAL_DEFAULT, read_int_setting
+
+    async def _run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with maker() as s:
+            missing = await read_int_setting(s, "monitor.sample_interval", SAMPLE_INTERVAL_DEFAULT)
+            await s.merge(Setting(key="monitor.sample_interval", value=json.dumps(15)))
+            await s.commit()
+            custom = await read_int_setting(s, "monitor.sample_interval", SAMPLE_INTERVAL_DEFAULT)
+            await s.merge(Setting(key="monitor.sample_interval", value=json.dumps(5)))  # 低于下限
+            await s.commit()
+            too_low = await read_int_setting(
+                s, "monitor.sample_interval", SAMPLE_INTERVAL_DEFAULT, minimum=10
+            )
+            n = len((await s.execute(select(Setting))).scalars().all())
+        await engine.dispose()
+        return missing, custom, too_low, n
+
+    missing, custom, too_low, _ = asyncio.run(_run())
+    assert missing == 60 and custom == 15 and too_low == 60
