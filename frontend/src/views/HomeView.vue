@@ -26,6 +26,7 @@ import { layoutApi } from '../api/dashboard'
 import { useAuthStore } from '../stores/auth'
 import { useOpenApp } from '../composables/useOpenApp'
 import AppIcon from '../components/AppIcon.vue'
+import NasOverview from '../components/NasOverview.vue'
 import {
   buildSections,
   DEFAULT_LAYOUT,
@@ -35,8 +36,9 @@ import {
   type DashboardLayoutData,
 } from '../utils/layout'
 import { isMobile } from '../composables/useIsMobile'
+import { formatClockDate, formatClockTime } from '../utils/clock'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const auth = useAuthStore()
 const { openApp } = useOpenApp()
 
@@ -132,15 +134,12 @@ function onSectionsDragEnd() {
   persistSoon()
 }
 
-// ---- 时钟小组件（P4.7）----
+// ---- 时钟小组件（P4.7；032 增强为年月日+时分秒+星期，每秒跳）----
+// 本地时钟每秒自跳，不走后端接口：网络往返只会让显示滞后于真实时间
 const now = ref(new Date())
 let clockTimer: number | undefined
-const clockText = computed(() =>
-  now.value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-)
-const dateText = computed(() =>
-  now.value.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }),
-)
+const clockText = computed(() => formatClockTime(now.value, locale.value))
+const dateText = computed(() => formatClockDate(now.value, locale.value))
 const greetingKey = computed(() => {
   const h = now.value.getHours()
   if (h < 5) return 'home.greetNight'
@@ -153,7 +152,7 @@ const greetingKey = computed(() => {
 
 onMounted(() => {
   load()
-  clockTimer = window.setInterval(() => (now.value = new Date()), 30_000)
+  clockTimer = window.setInterval(() => (now.value = new Date()), 1_000)
 })
 onBeforeUnmount(() => window.clearInterval(clockTimer))
 </script>
@@ -166,9 +165,13 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
         <h1>{{ t(greetingKey) }}，{{ auth.user?.username ?? '' }} 👋</h1>
         <p>{{ t('home.heroText') }}</p>
       </div>
-      <div class="clock" :title="dateText">
-        <span class="clock-time">{{ clockText }}</span>
-        <span class="clock-date">{{ dateText }}</span>
+      <div class="hero-side">
+        <!-- NAS 资源速览（M02-12；P5.6，仅管理员） -->
+        <NasOverview v-if="auth.isAdmin" class="nas-widget" />
+        <div class="clock" :title="dateText">
+          <span class="clock-time">{{ clockText }}</span>
+          <span class="clock-date">{{ dateText }}</span>
+        </div>
       </div>
     </section>
 
@@ -273,7 +276,7 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   padding: clamp(16px, 2.2vw, 26px);
   flex-shrink: 0;
   background:
-    linear-gradient(120deg, rgba(91, 95, 241, 0.06), rgba(6, 182, 212, 0.05)),
+    linear-gradient(120deg, color-mix(in srgb, var(--p-primary) 6%, transparent), rgba(6, 182, 212, 0.05)),
     var(--p-card);
 }
 .hero-text h1 {
@@ -285,12 +288,21 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   color: var(--p-muted);
   font-size: 13px;
 }
+.hero-side {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 3vw, 34px);
+  flex-shrink: 0;
+}
 .clock {
   text-align: right;
   flex-shrink: 0;
 }
 .clock-time {
   display: block;
+  /* 数字宽度在不同回退字体下不完全等宽（"1"偏窄），固定最小宽度避免每秒抖动布局 */
+  min-width: 4.6em;
+  text-align: right;
   font-size: clamp(24px, 3vw, 34px);
   font-weight: 800;
   letter-spacing: 1px;
@@ -336,7 +348,7 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   cursor: pointer;
 }
 .sec-toggle:hover {
-  background: rgba(91, 95, 241, 0.1);
+  background: color-mix(in srgb, var(--p-primary) 10%, transparent);
   color: var(--p-primary);
 }
 .sec-head h3 {
@@ -449,7 +461,7 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
 .tile-op:hover,
 .tile-op.active {
   color: var(--p-primary);
-  background: rgba(91, 95, 241, 0.12);
+  background: color-mix(in srgb, var(--p-primary) 12%, transparent);
 }
 .tile-op.active {
   color: #f59e0b;
@@ -499,6 +511,11 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   }
   .clock {
     text-align: left;
+  }
+  .hero-side {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
   .tiles {
     grid-template-columns: 1fr 1fr;
