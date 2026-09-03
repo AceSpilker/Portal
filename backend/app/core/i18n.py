@@ -195,6 +195,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- 首页小组件/快捷搜索（M02/P15）----
+    "err.template_not_found": {"zh-CN": "模板不存在", "en": "Template not found"},
+    "err.shortcuts_invalid": {
+        "zh-CN": "快捷搜索需为 {keyword, url} 数组",
+        "en": "Search shortcuts must be a list of {keyword, url}",
+    },
     # ---- Flow 自动化（M06/P14）----
     "err.flow_not_found": {"zh-CN": "Flow 不存在", "en": "Flow not found"},
     "err.flow_run_not_found": {"zh-CN": "执行记录不存在", "en": "Flow run not found"},

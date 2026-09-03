@@ -33,6 +33,9 @@ WRITABLE_KEYS: set[str] = {
     "ai.context_rounds",
     "ai.context_aware",
     "ai.active_provider_id",
+    # 首页小组件与快捷搜索（P15/M02）
+    "home.weather_city",
+    "home.search_shortcuts",
 }
 
 
@@ -93,6 +96,21 @@ class SettingsUpdate(BaseModel):
                 not isinstance(value, int) or not 1 <= value <= 60
             ):
                 raise ValueError(t("err.monitor_range"))
+            if key == "home.weather_city" and (
+                not isinstance(value, str) or len(value) > 60
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "home.search_shortcuts" and (
+                not isinstance(value, list)
+                or len(value) > 20
+                or not all(
+                    isinstance(x, dict)
+                    and isinstance(x.get("keyword"), str)
+                    and isinstance(x.get("url"), str)
+                    for x in value
+                )
+            ):
+                raise ValueError(t("err.shortcuts_invalid"))
             if key == "ai.context_rounds" and (
                 not isinstance(value, int) or not 0 <= value <= 20
             ):

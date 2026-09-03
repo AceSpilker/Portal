@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
 from sqlalchemy import String, and_, cast, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -32,6 +33,7 @@ from app.schemas.portal import (
     ExportPayload,
     IconUploadRequest,
 )
+from app.services.audit import write_audit
 from app.services.icon import fetch_favicon, save_icon
 
 router = APIRouter()
@@ -204,6 +206,139 @@ def _visible_to(user: User, app: App) -> bool:
         except ValueError:
             return False
     return False
+
+
+# ---------- P15.1 回收站 / 模板库 / 批量操作（M03-7/13/14~16） ----------
+
+
+@router.get("/apps/templates")
+async def app_templates(_: User = Depends(get_current_user)):
+    """内置应用模板库（M03-13）：一键实例化常用自托管服务。"""
+    return ok(TEMPLATE_APPS)
+
+
+class FromTemplateIn(BaseModel):
+    key: str
+    host: str = Field(min_length=1, max_length=120)  # 如 192.168.1.10，替换 {host}
+    category_id: int | None = None
+
+
+@router.post("/apps/from-template")
+async def from_template(
+    body: FromTemplateIn,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """模板一键创建（M03-13）：{host} 占位替换后生成应用 + 内网入口。"""
+    tpl = next((x for x in TEMPLATE_APPS if x["key"] == body.key), None)
+    if tpl is None:
+        raise BizError(CODE_NOT_FOUND, t("err.template_not_found"), 404)
+    url = tpl["health_target"].format(host=body.host)
+    app = App(
+        name=tpl["name"], description=tpl["description"], icon=tpl["icon"], icon_type="emoji",
+        category_id=body.category_id, health_type=tpl["health_type"], health_target=url,
+        tags=tpl["tags"], visibility="all",
+    )
+    session.add(app)
+    await session.commit()
+    session.add(AppUrl(app_id=app.id, access_type="lan", url=url, sort=0))
+    await session.commit()
+    return ok({"id": app.id, "name": app.name, "entry": url})
+
+
+class BatchIn(BaseModel):
+    ids: list[int] = Field(min_length=1)
+    op: str = Field(pattern="^(enable|disable|recycle|move)$")
+    category_id: int | None = None
+
+
+@router.post("/apps/batch")
+async def batch_apps(
+    body: BatchIn,
+    admin: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """批量操作（M03-14~16）：启用/停用/回收站/移动分组。"""
+    if body.op == "move" and body.category_id is not None and body.category_id != 0:
+        if await session.get(Category, body.category_id) is None:
+            raise BizError(CODE_VALIDATION, t("err.category_not_found"), 422)
+    from datetime import datetime as dt
+
+    count = 0
+    for app_id in body.ids[:100]:
+        a = await session.get(App, app_id)
+        if a is None or a.deleted:
+            continue
+        if body.op == "enable":
+            a.enabled = True
+        elif body.op == "disable":
+            a.enabled = False
+        elif body.op == "recycle":
+            a.deleted = True
+            a.deleted_at = dt.utcnow()
+        elif body.op == "move":
+            a.category_id = body.category_id if body.category_id else None
+        count += 1
+    await session.commit()
+    await write_audit(session, admin.id, "apps_batch", f"批量 {body.op} {count} 个应用", "")
+    await session.commit()
+    return ok({"count": count})
+
+
+@router.post("/apps/{app_id}/restore")
+async def restore_app(
+    app_id: int,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """回收站恢复（M03-7）。"""
+    a = await session.get(App, app_id)
+    if a is None or not a.deleted:
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
+    a.deleted = False
+    a.deleted_at = None
+    await session.commit()
+    return ok({"id": a.id})
+
+
+@router.delete("/apps/{app_id}/purge")
+async def purge_app(
+    app_id: int,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """彻底删除（M03-7）：物理删除应用与入口。"""
+    a = await session.get(App, app_id)
+    if a is None:
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
+    urls = (
+        await session.execute(select(AppUrl).where(AppUrl.app_id == app_id))
+    ).scalars().all()
+    for u in urls:
+        await session.delete(u)
+    await session.delete(a)
+    await session.commit()
+    return ok(True)
+
+
+@router.get("/apps/recycle-bin")
+async def recycle_bin(
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """回收站列表（M03-7）。"""
+    rows = (
+        await session.execute(
+            select(App).where(App.deleted.is_(True)).order_by(App.deleted_at.desc())
+        )
+    ).scalars().all()
+    return ok(
+        [
+            {"id": a.id, "name": a.name, "description": a.description,
+             "deleted_at": a.deleted_at.isoformat() + "Z" if a.deleted_at else None}
+            for a in rows
+        ]
+    )
 
 
 @router.get("/apps")
@@ -455,3 +590,26 @@ async def toggle_favorite(
     app.favorite = not app.favorite
     await session.commit()
     return ok({"id": app.id, "favorite": app.favorite})
+
+
+# 内置应用模板库（M03-13）：{host} 由实例化时的主机地址替换
+TEMPLATE_APPS = [
+    {"key": "qbittorrent", "name": "qBittorrent", "description": "BT/磁力下载工具",
+     "icon": "📥", "category": "下载", "health_type": "http",
+     "health_target": "http://{host}:8080", "tags": ["下载"]},
+    {"key": "jellyfin", "name": "Jellyfin", "description": "免费开源媒体服务器",
+     "icon": "🎬", "category": "媒体", "health_type": "http",
+     "health_target": "http://{host}:8096", "tags": ["媒体", "影音"]},
+    {"key": "plex", "name": "Plex", "description": "媒体服务器",
+     "icon": "🎞️", "category": "媒体", "health_type": "http",
+     "health_target": "http://{host}:32400", "tags": ["媒体"]},
+    {"key": "homeassistant", "name": "Home Assistant", "description": "智能家居中枢",
+     "icon": "🏠", "category": "工具", "health_type": "http",
+     "health_target": "http://{host}:8123", "tags": ["家庭", "工具"]},
+    {"key": "transmission", "name": "Transmission", "description": "轻量 BT 下载",
+     "icon": "🧲", "category": "下载", "health_type": "http",
+     "health_target": "http://{host}:9091", "tags": ["下载"]},
+    {"key": "portainer", "name": "Portainer", "description": "Docker 可视化管理",
+     "icon": "🐋", "category": "工具", "health_type": "http",
+     "health_target": "http://{host}:9000", "tags": ["工具", "开发"]},
+]

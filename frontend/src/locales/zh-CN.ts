@@ -212,6 +212,14 @@ export default {
     cardFlowTitle: 'Flow 自动化',
     cardFlowDesc: '触发器 → 条件 → 动作',
     copyright: '自托管 NAS 门户',
+    wx: {
+      feels: '体感',
+      notifications: '最近通知',
+      flows: 'Flow 最近执行',
+      docker: '容器状态',
+      running: '运行中',
+      stopped: '已停止',
+    },
   },
   apps: {
     title: '应用管理',

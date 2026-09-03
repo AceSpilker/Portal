@@ -401,3 +401,102 @@ async def alert_events(
             for n in rows
         ]
     )
+
+
+# ---------- P15.2 小组件（M02-11/13~15） ----------
+
+
+@router.get("/widgets/weather")
+async def widget_weather(
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """天气小组件（M02-11）：wttr.in 免费源代理（无 key；失败返回 null 前端隐藏）。"""
+
+    from app.models.setting import Setting
+
+    row = await session.get(Setting, "home.weather_city")
+    city = (row.value if row else "") or ""
+    url = f"https://wttr.in/{city}?format=j1" if city else "https://wttr.in?format=j1"
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as c:
+            resp = await c.get(url, headers={"User-Agent": "curl/8.0"})
+        resp.raise_for_status()
+        data = resp.json()
+        cur = data["current_condition"][0]
+        area = data.get("nearest_area", [{}])[0]
+        return ok(
+            {
+                "city": (area.get("areaName") or [{"value": city or ""}])[0].get("value", ""),
+                "temp_c": int(cur["temp_C"]),
+                "feels_c": int(cur["FeelsLikeC"]),
+                "desc": cur.get("weatherDesc", [{}])[0].get("value", ""),
+                "humidity": int(cur["humidity"]),
+                "days": [
+                    {
+                        "date": d["date"],
+                        "max": int(d["maxtempC"]),
+                        "min": int(d["mintempC"]),
+                        "desc": (
+                            d.get("hourly", [{}])[4]
+                            .get("weatherDesc", [{}])[0]
+                            .get("value", "")
+                        ),
+                    }
+                    for d in data.get("weather", [])[:3]
+                ],
+            }
+        )
+    except Exception:  # 网络/解析失败 → null（小组件隐藏）
+        return ok(None)
+
+
+@router.get("/widgets/summary")
+async def widgets_summary(_: User = Depends(get_current_user)):
+    """仪表盘小组件聚合（M02-13~15）：最近通知 / Flow 最近执行 / 容器计数。"""
+    out: dict = {"notifications": [], "flow_runs": [], "docker": None}
+    # 最近通知（复用站内通知）
+    from sqlalchemy import select as _select
+
+    from app.models.probe import Notification
+
+    async with SessionLocal() as s:
+        rows = (
+            await s.execute(
+                _select(Notification).order_by(Notification.id.desc()).limit(5)
+            )
+        ).scalars().all()
+        out["notifications"] = [
+            {"id": n.id, "title": n.title, "level": n.level, "is_read": bool(n.is_read)}
+            for n in rows
+        ]
+    # Flow 最近执行
+    from app.models.flow import Flow, FlowRun
+
+    async with SessionLocal() as s:
+        rows = (
+            await s.execute(
+                _select(FlowRun, Flow.name)
+                .join(Flow, Flow.id == FlowRun.flow_id)
+                .order_by(FlowRun.id.desc())
+                .limit(6)
+            )
+        ).all()
+        out["flow_runs"] = [
+            {"id": r.id, "flow": name, "status": r.status,
+             "finished_at": r.finished_at.isoformat() + "Z" if r.finished_at else None}
+            for r, name in rows
+        ]
+    # 容器计数（可选模块，未启用 → None 前端隐藏）
+    from app.services import docker_svc
+
+    if docker_svc.enabled():
+        try:
+            containers = await asyncio.wait_for(docker_svc.list_containers(), timeout=10.0)
+            out["docker"] = {
+                "running": sum(1 for c in containers if c["state"] == "running"),
+                "stopped": sum(1 for c in containers if c["state"] != "running"),
+            }
+        except Exception:
+            out["docker"] = None
+    return ok(out)

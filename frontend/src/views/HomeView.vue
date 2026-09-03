@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HomeWidgets from '../components/HomeWidgets.vue'
 /**
  * 首页仪表盘（M02；dev-plan P4）。
  *

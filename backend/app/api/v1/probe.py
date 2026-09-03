@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
@@ -16,7 +17,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user
-from app.core.response import ok
+from app.core.i18n import t
+from app.core.response import CODE_NOT_FOUND, BizError, ok
 from app.core.security import decode_token
 from app.db.session import SessionLocal, get_session
 from app.models.portal import App
@@ -206,3 +208,51 @@ async def probe_availability(
             ],
         }
     )
+
+
+@router.post("/apps/{app_id}/precheck")
+async def precheck_app(
+    app_id: int,
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """点击前预检（M04-11；P15.4）：对推荐入口快速探测（1s 超时），
+    不通时回退备选入口列表，前端弹备选。"""
+    app = await session.get(App, app_id)
+    if app is None or app.deleted:
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
+
+    from app.services.probe import probe_once
+
+    async def _fast_probe(target_app: App) -> tuple[str, int | None]:
+        try:
+            state, latency, _msg = await asyncio.wait_for(probe_once(target_app), timeout=1.0)
+            return state, latency
+        except asyncio.TimeoutError:
+            return "down", None
+
+    state, latency = await _fast_probe(app)
+    result: dict = {
+        "app_id": app.id,
+        "ok": state != "down",
+        "state": state,
+        "latency_ms": latency,
+        "alternatives": [],
+    }
+    if state == "down":
+        # 回退备选：其他启用中的同健康类型应用入口提示（同 host:port 的其他应用）
+        others = (
+            await session.execute(
+                select(App).where(
+                    App.deleted.is_(False),
+                    App.enabled.is_(True),
+                    App.id != app.id,
+                    App.health_target == app.health_target,
+                )
+            )
+        ).scalars().all()
+        result["alternatives"] = [
+            {"app_id": o.id, "name": o.name, "health_target": o.health_target}
+            for o in others[:5]
+        ]
+    return ok(result)

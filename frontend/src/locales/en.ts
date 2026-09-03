@@ -213,6 +213,14 @@ export default {
     cardFlowTitle: 'Flow Automation',
     cardFlowDesc: 'Trigger → Condition → Action',
     copyright: 'Self-hosted NAS Portal',
+    wx: {
+      feels: 'feels',
+      notifications: 'Recent notifications',
+      flows: 'Recent Flow runs',
+      docker: 'Containers',
+      running: 'running',
+      stopped: 'stopped',
+    },
   },
   apps: {
     title: 'App Management',
