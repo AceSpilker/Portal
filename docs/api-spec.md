@@ -20,9 +20,10 @@
 | 分页 | 请求 `?page=1&page_size=20`；响应 `data: {"items": [...], "total": 123, "page": 1, "page_size": 20}` |
 | 时间 | 存储/传输统一 ISO8601 字符串（UTC），前端本地化显示 |
 | ID | 自增整数；对外不暴露内部密文字段（Token/密钥只回传脱敏掩码） |
-| 枚举 | `access_type`: domain/lan/ssh/vpn/custom；`role`: admin/user；`state`: up/down/unknown；`level`: info/warn/error；`trigger_type`: cron/webhook/manual/event；`open_mode`: newtab/current/iframe |
+| 枚举 | `access_type`: domain/lan/ssh/vpn/custom；`role`: admin/user；`state`: up/down/unknown；`level`: info/warn/error；`trigger_type`: cron/webhook/manual/event；`open_mode`: newtab/current/iframe；`visibility`: all/users/admin/public |
 | 文档 | FastAPI 自动生成 `/docs`（OpenAPI），本文为业务契约补充 |
 | 传输加密 | `/api` 全部密文传输（RSA+AES-GCM 信封，见 §7）；豁免：health、crypto 握手、静态资源 |
+| 访客模式 | 设置键 `guest.enabled`（M2）：开启后未登录可访问访客首页（仅 visibility=public 应用）；关闭时 /api/public/apps 返回 404 |
 | 可选外部服务 | MySQL（灾备镜像）与 Redis（会话/缓存）均为**可选**：未配置时全部使用 SQLite + 进程内存，功能不受影响；配置存于 settings（密码加密存储），支持环境变量覆盖 |
 | 导出文件名 | `前缀_YYYYMMDDHHMMSS_RRR.后缀`：本地时间年月日时分秒 + 3 位随机数（000–999），避免同名覆盖（例：`portal-apps_20260902153045_123.json`）；适用于所有导出场景（应用/备份/报表等），由前端统一工具函数生成 |
 
@@ -77,7 +78,7 @@
 
 **categories**（M1）：id；name NOT NULL；icon TEXT NULL；icon_type TEXT NULL（NULL 视为历史 emoji，新数据 element=Element 图标名）；sort INT 0；collapsed INT 0。
 
-**apps**（M1）：id；name NOT NULL；description ''；icon TEXT；icon_type TEXT（url/upload/emoji/element，element 存 Element 图标名）；category_id FK NULL；sort INT 0；enabled INT 1；health_type TEXT（''/http/tcp/keyword）；health_target TEXT NULL（URL 或 host:port）；health_interval INT 60；open_mode TEXT（newtab/current/iframe）DEFAULT 'newtab'；visibility TEXT（all/admin/users）DEFAULT 'all'；favorite INT 0；tags TEXT(JSON) '[]'；remark TEXT ''；doc_url TEXT NULL；deleted INT 0（回收站）；deleted_at NULL。
+**apps**（M1）：id；name NOT NULL；description ''；icon TEXT；icon_type TEXT（url/upload/emoji/element，element 存 Element 图标名）；category_id FK NULL；sort INT 0；enabled INT 1；health_type TEXT（''/http/tcp/keyword）；health_target TEXT NULL（URL 或 host:port）；health_interval INT 60；open_mode TEXT（newtab/current/iframe）DEFAULT 'newtab'；visibility TEXT（all/users/admin/public）DEFAULT 'all'——all=所有登录用户、users=visible_users 列表内用户、admin=仅管理员、public=所有人（含访客）；visible_users TEXT(JSON) '[]'（visibility=users 时生效，存用户 id 数组）；favorite INT 0；tags TEXT(JSON) '[]'；remark TEXT ''；doc_url TEXT NULL；deleted INT 0（回收站）；deleted_at NULL。
 
 **app_urls**（M1）：id；app_id FK CASCADE；access_type TEXT NOT NULL（domain/lan/ssh/vpn/custom）；url TEXT NOT NULL；label TEXT ''；sort INT 0。
 
@@ -179,7 +180,15 @@
 | PUT | /api/auth/password | 修改密码（其他会话失效） | A | P1 |
 | GET/DELETE | /api/auth/sessions · /{id} | 会话列表 / 踢出 | A/M | M2 |
 | POST | /api/auth/totp/{setup,enable,disable} | 两步验证 | A | M2 |
-| GET/POST/PUT/DELETE | /api/users… | 用户管理 | M | M2 |
+| GET | /api/users?keyword=&page=&page_size= | 用户列表（用户名/角色/状态/最近登录；分页，不回传密码哈希） | M | M2 |
+| POST | /api/users | 新增用户 {username, password, role, remark}；用户名唯一 | M | M2 |
+| PUT | /api/users/{id} | 编辑 {role, remark} | M | M2 |
+| PUT | /api/users/{id}/status | 启用/禁用 {enabled}；禁用即全端失效 | M | M2 |
+| PUT | /api/users/{id}/password | 管理员重置密码 {password}；该用户全部会话失效 | M | M2 |
+| POST | /api/users/{id}/kick | 强制下线（token_version++） | M | M2 |
+| GET | /api/public/apps | 访客首页数据：visibility=public 的启用应用（免认证；需设置键 guest.enabled=1，否则 404） | P | M2 |
+
+> **用户管理边界规则**：① 不物理删除用户（audit_logs 外键引用），仅禁用；② 不能对自己执行禁用/降级/踢出；③ 全库至少保留 1 个启用中的 admin（违反返回 4003）；④ username 唯一（4002）；⑤ 全部管理操作写 audit_logs（user_create/user_update/user_status/user_reset_password/user_kick）。
 
 ### 4.2 分类与应用
 

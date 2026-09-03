@@ -28,7 +28,7 @@ const router = createRouter({
           path: 'monitor',
           name: 'monitor',
           component: MonitorView,
-          meta: { titleKey: 'nav.monitor', requiresAdmin: true },
+          meta: { titleKey: 'nav.monitor' },
         },
         {
           path: 'settings',

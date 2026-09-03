@@ -293,8 +293,9 @@ def test_07_cleanup_only_expired():
 
 def test_08_history_validation_and_permission(client: TestClient):
     assert client.get("/api/monitor/history").status_code == 401
-    assert client.get("/api/monitor/history", headers=_alice(client)).status_code == 403
-    assert client.get("/api/monitor/system", headers=_alice(client)).status_code == 403
+    # 权限矩阵 §3：user 可查看基础资源图（监控接口权限 A）
+    assert client.get("/api/monitor/history", headers=_alice(client)).status_code == 200
+    assert client.get("/api/monitor/system", headers=_alice(client)).status_code == 200
     assert (
         client.get("/api/monitor/history?metric=bogus", headers=_admin(client)).status_code == 422
     )
@@ -304,18 +305,21 @@ def test_08_history_validation_and_permission(client: TestClient):
     assert resp.json()["data"]["metric"] == "cpu"
 
 
-def test_09_ws_requires_admin_token(client: TestClient):
-    """WS：无 token / 非 admin token 拒绝（4401）；admin token 收到秒级推送。"""
+def test_09_ws_requires_login_token(client: TestClient):
+    """WS：无 token / 无效 token 拒绝（4401）；任意登录用户（含 user）可订阅。"""
     with pytest.raises(Exception):
         with client.websocket_connect("/ws/monitor"):
             pass
     with pytest.raises(Exception):
-        with client.websocket_connect(f"/ws/monitor?token={_tokens.get('alice', 'x')}"):
+        with client.websocket_connect("/ws/monitor?token=invalid"):
             pass
+    with client.websocket_connect(f"/ws/monitor?token={_tokens['alice']}") as ws:
+        msg = ws.receive_json()
+        assert msg["type"] == "monitor"
+        assert "cpu" in msg["data"]
     with client.websocket_connect(f"/ws/monitor?token={_tokens['admin']}") as ws:
         msg = ws.receive_json()
         assert msg["type"] == "monitor"
-        assert "cpu" in msg["data"] and "mem" in msg["data"]
 
 
 # ============ 温度采集（M17-11）============

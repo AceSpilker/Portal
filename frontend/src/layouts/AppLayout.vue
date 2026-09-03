@@ -64,11 +64,11 @@ async function onEnvCommand(command: string | number) {
   }
 }
 
-/** 管理员额外显示监控（接口权限 A）与系统配置入口 */
+/** 系统配置仅管理员；监控对所有登录用户开放（权限矩阵 §3） */
 const navItems = computed<NavItem[]>(() => [
   { icon: IconHome, label: t('nav.home'), to: '/' },
   { icon: IconApps, label: t('nav.apps'), to: '/apps' },
-  ...(auth.isAdmin ? [{ icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' }] : []),
+  { icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' },
   { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
   { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },

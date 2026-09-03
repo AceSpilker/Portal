@@ -1,8 +1,9 @@
 """监控接口（M17-6/8/9；dev-plan P5.3/P5.4；api-spec §4.4/§5）。
 
-权限：管理员（api-spec 权限 A）。WS /ws/monitor 挂在应用根路径（/api 之外），
-query 带 access token 鉴权；传输加密中间件只处理 http scope，WS 明文穿透
-（与静态资源同属豁免面）。
+权限：A（任意登录用户）——权限矩阵 §3 规定 user 可查看基础资源图；
+进程/Docker/告警等增强接口（M2）仍为 M。WS /ws/monitor 挂在应用根路径
+（/api 之外），query 带 access token 鉴权；传输加密中间件只处理 http scope，
+WS 明文穿透（与静态资源同属豁免面）。
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import asyncio
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import require_admin
+from app.core.deps import get_current_user
 from app.core.i18n import t
 from app.core.response import CODE_VALIDATION, BizError, ok
 from app.core.security import decode_token
@@ -25,7 +26,7 @@ router = APIRouter()
 
 
 @router.get("/monitor/system")
-async def monitor_system(_: User = Depends(require_admin)):
+async def monitor_system(_: User = Depends(get_current_user)):
     """实时概览（M17-1~5）：系统信息/CPU/内存/磁盘/网络（含速率与当日流量）。"""
     return ok(collect_overview(monitor.ws_net_calc))
 
@@ -34,7 +35,7 @@ async def monitor_system(_: User = Depends(require_admin)):
 async def monitor_history(
     metric: str = Query("cpu"),
     range_: str = Query("24h", alias="range"),
-    _: User = Depends(require_admin),
+    _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """历史曲线（M17-6）：metric ∈ cpu/mem/disk/net，range ∈ 24h/7d/30d。"""
@@ -49,8 +50,8 @@ async def monitor_ws(websocket: WebSocket) -> None:
         payload = decode_token(websocket.query_params.get("token", ""), "access")
         async with SessionLocal() as session:
             user = await session.get(User, int(payload["sub"]))
-        if user is None or not user.is_active or user.role != "admin":
-            raise ValueError("not admin")
+        if user is None or not user.is_active:
+            raise ValueError("inactive")
     except Exception:
         await websocket.close(code=4401)
         return
