@@ -790,13 +790,21 @@ onMounted(async () => {
 }
 .disk-head .mount {
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .disk-head .usage {
   color: var(--p-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .disk-head .pct {
   font-weight: 700;
   color: var(--p-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .disk-head .pct.temp.hot {
   color: var(--el-color-danger);

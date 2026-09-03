@@ -37,6 +37,7 @@ const saving = ref(false)
 const siteName = ref('')
 const logoUrl = ref('')
 const timezone = ref('system')
+const guestMode = ref(false)
 const TIMEZONES = [
   'UTC',
   'Asia/Shanghai',
@@ -117,6 +118,7 @@ onMounted(async () => {
   siteName.value = settingsStore.siteName
   logoUrl.value = (settingsStore.map['general.logo'] as string) || ''
   timezone.value = (settingsStore.map['general.timezone'] as string) || 'system'
+  guestMode.value = settingsStore.map['guest.enabled'] === true
   tagOptions.value = [...settingsStore.tagOptions]
   favDraft.value = [...settingsStore.iconFavorites]
   const map = settingsStore.map
@@ -275,6 +277,7 @@ function saveGeneral() {
       'general.site_name': siteName.value.trim(),
       'general.logo': logoUrl.value.trim(),
       'general.timezone': timezone.value,
+      'guest.enabled': guestMode.value,
     },
     t('settings.generalSaved'),
   )
@@ -362,6 +365,12 @@ function saveMonitor() {
             <el-option :label="t('settings.followSystem')" value="system" />
             <el-option v-for="tz in TIMEZONES" :key="tz" :label="tz" :value="tz" />
           </el-select>
+        </el-form-item>
+        <el-form-item :label="t('settings.guestMode')">
+          <div class="guest-switch">
+            <el-switch v-model="guestMode" />
+            <span class="guest-hint">{{ t('settings.guestModeHint') }}</span>
+          </div>
         </el-form-item>
 <el-form-item :label="t('settings.siteName')" style="max-width: 360px">
             <el-input v-model="siteName" maxlength="64" placeholder="Portal" />
@@ -584,6 +593,15 @@ function saveMonitor() {
 </template>
 
 <style scoped>
+.guest-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.guest-hint {
+  font-size: 12.5px;
+  color: var(--p-muted);
+}
 .settings-page {
   flex: 1;
   min-height: 0;

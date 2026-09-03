@@ -71,34 +71,60 @@ async function save() {
   }
 }
 
+function promptError(e: unknown) {
+  // 后端拒绝（self-guard / 最后管理员 / 重名等）时给出可见反馈，不再静默
+  ElMessage.error((e as Error).message || String(e))
+}
+
 async function toggleStatus(u: UserItem) {
-  await ElMessageBox.confirm(
+  const confirmed = await ElMessageBox.confirm(
     u.is_active ? t('users.confirmDisable', { name: u.username }) : t('users.confirmEnable', { name: u.username }),
     t('common.confirm'),
     { type: 'warning' },
-  ).catch(() => Promise.reject())
-  await usersApi.setStatus(u.id, !u.is_active)
-  ElMessage.success(t(u.is_active ? 'users.disabled' : 'users.enabled'))
-  await load()
+  ).then(() => true, () => false)
+  if (!confirmed) return
+  try {
+    await usersApi.setStatus(u.id, !u.is_active)
+    ElMessage.success(t(u.is_active ? 'users.disabled' : 'users.enabled'))
+    await load()
+  } catch (e) {
+    promptError(e)
+  }
 }
 
 async function resetPassword(u: UserItem) {
-  const { value } = await ElMessageBox.prompt(
-    t('users.resetPrompt', { name: u.username }),
-    t('users.resetTitle'),
-    { inputPlaceholder: t('users.resetPh'), inputPattern: /^.{8,}$/, inputErrorMessage: t('users.resetErr') },
-  )
-  await usersApi.resetPassword(u.id, value)
-  ElMessage.success(t('users.resetOk'))
+  let value: string
+  try {
+    ;({ value } = await ElMessageBox.prompt(
+      t('users.resetPrompt', { name: u.username }),
+      t('users.resetTitle'),
+      { inputPlaceholder: t('users.resetPh'), inputPattern: /^.{8,}$/, inputErrorMessage: t('users.resetErr') },
+    ))
+  } catch {
+    return
+  }
+  try {
+    await usersApi.resetPassword(u.id, value)
+    ElMessage.success(t('users.resetOk'))
+  } catch (e) {
+    promptError(e)
+  }
 }
 
 async function kick(u: UserItem) {
-  await ElMessageBox.confirm(t('users.confirmKick', { name: u.username }), t('users.kickTitle'), {
-    type: 'warning',
-  })
-  await usersApi.kick(u.id)
-  ElMessage.success(t('users.kicked'))
-  await load()
+  const confirmed = await ElMessageBox.confirm(
+    t('users.confirmKick', { name: u.username }),
+    t('users.kickTitle'),
+    { type: 'warning' },
+  ).then(() => true, () => false)
+  if (!confirmed) return
+  try {
+    await usersApi.kick(u.id)
+    ElMessage.success(t('users.kicked'))
+    await load()
+  } catch (e) {
+    promptError(e)
+  }
 }
 
 onMounted(load)
@@ -157,7 +183,7 @@ onMounted(load)
     >
       <el-form label-width="90px">
         <el-form-item :label="t('users.username')">
-          <el-input :model-value="form.username" :disabled="!!editing" />
+          <el-input v-model="form.username" :disabled="!!editing" />
         </el-form-item>
         <el-form-item v-if="!editing" :label="t('users.password')">
           <el-input v-model="form.password" type="password" show-password :placeholder="t('users.passwordPh')" />

@@ -321,6 +321,8 @@ export default {
     logoUrlPh: 'https://…/logo.png（留空显示站点名）',
     timezone: '时区',
     followSystem: '跟随系统',
+    guestMode: '访客模式',
+    guestModeHint: '开启后，未登录访客可访问 /guest 页浏览「所有人（含访客）」的应用',
     generalSaved: '常规设置已保存',
     monitorHint: '采样入库频率、实时推送节奏与历史数据保留时长；保存后约 10 秒内生效。',
     sampleInterval: '采样间隔（秒）',

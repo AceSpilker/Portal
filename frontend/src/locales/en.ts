@@ -321,6 +321,8 @@ export default {
     logoUrlPh: 'https://…/logo.png (leave empty to show site name)',
     timezone: 'Timezone',
     followSystem: 'Follow system',
+    guestMode: 'Guest mode',
+    guestModeHint: 'When on, signed-out visitors can browse "Everyone (incl. guests)" apps at /guest',
     generalSaved: 'General settings saved',
     monitorHint: 'Sampling cadence, live push rhythm and history retention; takes effect within ~10s after saving.',
     sampleInterval: 'Sample interval (s)',
