@@ -119,7 +119,7 @@
       <span class="chip">关联 feature-spec v1.6</span>
       <span class="chip">26 阶段</span>
       <span class="chip">120 步骤</span>
-      <span class="chip">进度 74 / 120</span>
+      <span class="chip">进度 79 / 120</span>
       <span class="chip">v1.2 新增：P24 传输加密（已完成）</span>
       <span class="chip">v1.4/v1.5：桌面 Web 专用 · 新增 7.4 用户管理 · 7.5 可见性与访客 · 17.5 在线更新</span>
     </div>
@@ -253,7 +253,7 @@
       <tr><td class="num">P10</td><td><a href="#p10">监控增强与阈值告警 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st doing">🔄 5/5（外部渠道待真机）</span></td></tr>
       <tr><td class="num">P11</td><td><a href="#p11">端口监控 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st doing">🔄 5/5（Flow 联动待 P14）</span></td></tr>
       <tr><td class="num">P12</td><td><a href="#p12">Docker 容器管理基础</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st done">✅ 已完成（3/3）</span></td></tr>
-      <tr><td class="num">P13</td><td><a href="#p13">AI 助手</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P13</td><td><a href="#p13">AI 助手</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st doing">🔄 5/5（真实模型待真 Key）</span></td></tr>
       <tr><td class="num">P14</td><td><a href="#p14">Flow 自动化（表单版）</a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P15</td><td><a href="#p15">应用与仪表盘增强</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P16</td><td><a href="#p16">效率模块（日程/文件/下载媒体）</a></td><td><span class="badge m2">M2</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
@@ -477,15 +477,15 @@
   <div class="gate"><b>业务功能测试关卡：</b><ul><li>容器列表与 <code>docker ps</code> 一致；重启 Jellyfin 生效；无 sock 挂载时模块自动隐藏。</li></ul></div>
   <div class="goal">退出标准：未挂载 sock 时系统零报错。</div>
 
-  <h3 id="p13">P13 · AI 助手 <span class="st open">未开始</span></h3>
+  <h3 id="p13">P13 · AI 助手 <span class="st doing">进行中（真实模型待真 Key）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">13.1</td><td>Provider 接入</td><td>多套 Provider 配置、连接测试、模型列表拉取</td><td>M05-1~3</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">13.2</td><td>流式对话</td><td>SSE 流式 + 多会话管理 + Markdown 渲染 + 上下文轮数</td><td>M05-4~9</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">13.3</td><td>意图导航</td><td>应用清单注入 + <code>{action:"navigate"}</code> 协议 + 非法输出兜底</td><td>M05-10</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">13.4</td><td>上下文与指令</td><td>NAS 状态摘要注入（可开关）+ 快捷指令库</td><td>M05-11/12</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">13.5</td><td>AI 生成应用草稿</td><td>粘贴服务描述 → 结构化应用配置草稿 → 人工确认入库</td><td>M05-13</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">13.1</td><td>Provider 接入</td><td>多套 Provider 配置、连接测试、模型列表拉取</td><td>M05-1~3</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">13.2</td><td>流式对话</td><td>SSE 流式 + 多会话管理 + Markdown 渲染 + 上下文轮数</td><td>M05-4~9</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">13.3</td><td>意图导航</td><td>应用清单注入 + <code>{action:"navigate"}</code> 协议 + 非法输出兜底</td><td>M05-10</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">13.4</td><td>上下文与指令</td><td>NAS 状态摘要注入（可开关）+ 快捷指令库</td><td>M05-11/12</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">13.5</td><td>AI 生成应用草稿</td><td>粘贴服务描述 → 结构化应用配置草稿 → 人工确认入库</td><td>M05-13</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
   <div class="gate"><b>单元测试关卡：</b><ul><li>Prompt 组装；navigate 协议解析（含格式错误兜底）；会话截断策略。</li></ul></div>

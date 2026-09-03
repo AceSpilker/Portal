@@ -134,7 +134,9 @@
 
 **ai_conversations**（M2）：id；user_id FK；title；provider TEXT；created_at。
 
-**ai_messages**（M2）：id；conversation_id FK CASCADE；role TEXT（user/assistant/system）；content TEXT；tokens INT 0；created_at。
+**ai_messages**（M2）：id；conversation_id FK CASCADE；role TEXT（user/assistant/system）；content TEXT；tokens INT 0；created_at。索引 (conversation_id, created_at)。
+
+**Provider 配置**（P13 定稿）：存设置键 `ai.providers`（JSON 数组 id/name/base_url/api_key/model/enabled），key 掩码回传；另有 `ai.context_rounds`（0~20，默认 6）、`ai.context_aware`（bool）、`ai.active_provider_id`。
 
 ### 3.10 效率模块
 
@@ -276,11 +278,10 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| GET/POST/PUT/DELETE | /api/ai/providers… | Provider 配置（key 回传掩码） | M | M2 |
-| POST | /api/ai/providers/{id}/test · GET /{id}/models | 连接测试/模型列表 | M | M2 |
-| POST | /api/ai/chat | SSE 流式对话（body: conversation_id, content） | A | M2 |
-| GET/POST/DELETE | /api/ai/conversations… | 会话管理 | A | M2 |
-| POST | /api/ai/generate/app-draft | 生成应用草稿 | A | M2 |
+| GET/POST/PUT/DELETE | /api/ai/providers… · POST /api/ai/providers/test · /models | Provider 配置（settings 键 ai.providers；key 回传 ******，保存时保持原值）/ 连接测试 / 模型列表 | M | P13 |
+| GET/POST/PUT/DELETE | /api/ai/conversations… · /{id}/messages | 会话管理（按 user_id 隔离；重命名/删除级联消息） | A | P13 |
+| POST | /api/ai/generate/app-draft | AI 生成应用草稿（body {description}；容忍 ```json 包裹，非法输出 502） | A | P13 |
+| WS | /ws/ai-chat | 流式对话（P13.2）：加密中间件全量缓冲会破坏 SSE，故流式改走 WS 豁免面（token query 鉴权）；收帧 {conversation_id, content}，发帧 delta/done{content, navigate_app_id}/error；系统提示注入应用清单（意图导航 M05-10）+ NAS 摘要（ai.context_aware），上下文轮数 ai.context_rounds | A | P13 |
 
 ### 4.9 通知（P9 已落地）
 
