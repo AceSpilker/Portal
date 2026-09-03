@@ -88,7 +88,7 @@ const navItems = computed<NavItem[]>(() => [
     ? [{ icon: IconDocker, label: t('nav.docker'), to: '/docker' }]
     : []),
   { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
-  { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
+  { icon: IconAi, label: t('nav.ai'), to: '/ai' },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },
   ...(auth.isAdmin ? [{ icon: IconSetting, label: t('nav.settings'), to: '/settings' }] : []),
 ])

@@ -7,6 +7,7 @@ import HomeView from '../views/HomeView.vue'
 import AppsManageView from '../views/AppsManageView.vue'
 import PortsView from '../views/PortsView.vue'
 import DockerView from '../views/DockerView.vue'
+import AiView from '../views/AiView.vue'
 import MonitorView from '../views/MonitorView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import ToolsView from '../views/ToolsView.vue'
@@ -35,6 +36,7 @@ const router = createRouter({
         { path: 'apps', name: 'apps', component: AppsManageView, meta: { titleKey: 'apps.title' } },
         { path: 'ports', name: 'ports', component: PortsView, meta: { titleKey: 'nav.ports' } },
         { path: 'docker', name: 'docker', component: DockerView, meta: { titleKey: 'nav.docker' } },
+        { path: 'ai', name: 'ai', component: AiView, meta: { titleKey: 'nav.ai' } },
         {
           path: 'monitor',
           name: 'monitor',
