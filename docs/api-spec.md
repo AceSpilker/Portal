@@ -277,15 +277,18 @@
 | GET/POST/DELETE | /api/ai/conversations… | 会话管理 | A | M2 |
 | POST | /api/ai/generate/app-draft | 生成应用草稿 | A | M2 |
 
-### 4.9 通知
+### 4.9 通知（P9 已落地）
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| GET | /api/notifications?level=&unread= | 站内通知（P6.4 最小集已落地：探活下线/恢复通知；列表/已读） | A | P6 最小 / P9 完整 |
-| PUT | /api/notifications/read-all · /{id}/read | 已读 | A | M2 |
-| GET/POST/PUT/DELETE | /api/notify-channels… | 渠道 CRUD | M | M2 |
-| POST | /api/notify-channels/{id}/test | 测试发送 | M | M2 |
-| GET/PUT | /api/notify-rules | 事件→渠道路由规则 | M | M2 |
+| GET | /api/notifications?level=&unread=&limit=&offset= | 站内通知：分页对象 {items[], total, unread}（unread=全局未读数，供角标） | A | P9 |
+| GET | /api/notifications/unread-count | 角标未读数 {unread} | A | P9 |
+| PUT | /api/notifications/read-all · /{id}/read | 全部已读 / 单条已读 | A | P9 |
+| DELETE | /api/notifications/{id} | 删除单条 | A | P9 |
+| GET/POST/PUT/DELETE | /api/notify-channels… | 渠道 CRUD（type: bark/telegram/smtp/webhook/wecom/dingtalk/feishu/ntfy；config 敏感字段回传 ******，保存时 ****** 表示保持原值） | M | P9 |
+| POST | /api/notify-channels/{id}/test | 测试发送（不落站内，返回 {sent}） | M | P9 |
+| GET/PUT | /api/notify-rules | 事件→渠道路由矩阵；PUT 全量保存（event: app_down/app_up/metric_alert/port_down/port_up/flow_failed/system；规则级 quiet_start/quiet_end HH:MM 可跨午夜） | M | P9 |
+| WS | /ws/notify（既有） | 事件新增 `{"type":"notification","data":{…通知视图}}`；站内写入后实时广播；聚合去重：同 dedup_key 300s 窗口内合并；免打扰仅抑制外部渠道（站内始终写入） | — | P9 |
 
 ### 4.10 工具箱
 

@@ -11,7 +11,7 @@
 | [docs/api-spec](docs/api-spec.html) | 接口与数据模型详述：32 张表、90+ 端点、错误码、WS/SSE 协议 | v1.2 |
 | [docs/dev-plan](docs/dev-plan.html) | 开发计划：26 阶段 / 120 步骤，带完成状态与测试关卡 | v1.5b |
 
-> Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **58 / 120**：P0~P8、P24 步骤全部完成；P3 待真实双环境验收，P8 待 NAS 实机 48h 验收）。
+> Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **61 / 120**：P0~P9、P24 步骤全部完成；P3/P8/P9 待真实环境与真机验收）。
 
 ## 目录结构
 
