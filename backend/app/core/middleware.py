@@ -29,7 +29,8 @@ class TransportEncryptionMiddleware:
             return
 
         path = scope["path"]
-        if not path.startswith("/api") or path in EXEMPT_PATHS:
+        # /api/hooks/*：外部回调（Flow webhook，token 自鉴权），传输加密豁免（api-spec §1）
+        if not path.startswith("/api") or path in EXEMPT_PATHS or path.startswith("/api/hooks/"):
             await self.app(scope, receive, send)
             return
 

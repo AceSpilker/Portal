@@ -264,6 +264,14 @@ async def dispatch(
     view = _notification_view(n)
     await wsbus.broadcast({"type": "notification", "data": view})
 
+    # 事件触发器（M06-7；P14.1）：匹配 event 的启用 Flow 逐个执行
+    try:
+        from app.services import flow_svc
+
+        await flow_svc.trigger_event_flows(session, event, {"title": title, "body": body})
+    except Exception:  # 事件触发不影响通知主流程
+        log.debug("event flow trigger failed", exc_info=True)
+
     rules = await load_enabled_rules(session, event)
     if rules:
         channels = {

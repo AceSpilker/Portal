@@ -195,6 +195,15 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- Flow 自动化（M06/P14）----
+    "err.flow_not_found": {"zh-CN": "Flow 不存在", "en": "Flow not found"},
+    "err.flow_run_not_found": {"zh-CN": "执行记录不存在", "en": "Flow run not found"},
+        "err.flow_bad_trigger": {
+        "zh-CN": "触发器类型或参数不合法",
+        "en": "Invalid trigger type or config",
+    },
+    "err.flow_bad_action": {"zh-CN": "动作节点类型不合法", "en": "Invalid action node type"},
+    "err.flow_token_invalid": {"zh-CN": "Webhook token 无效", "en": "Invalid webhook token"},
     # ---- AI 助手（M05/P13）----
     "err.provider_not_found": {"zh-CN": "AI Provider 不存在", "en": "AI provider not found"},
     "err.conversation_not_found": {"zh-CN": "会话不存在", "en": "Conversation not found"},

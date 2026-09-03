@@ -2,6 +2,7 @@
 
 from app.models.ai import AiConversation, AiMessage
 from app.models.base import Base
+from app.models.flow import Flow, FlowRun
 from app.models.layout import DashboardLayout
 from app.models.monitor import AlertRule, MonitorSample
 from app.models.network import NetworkProfile
@@ -27,6 +28,8 @@ __all__ = [
     "AlertRule",
     "MonitorSample",
     "NotifyChannel",
+    "Flow",
+    "FlowRun",
     "NotifyRule",
     "PortEvent",
     "PortMonitor",

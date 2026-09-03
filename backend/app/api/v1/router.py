@@ -7,6 +7,7 @@ from app.api.v1 import (
     categories,
     crypto,
     docker,
+    flows,
     health,
     icons,
     layouts,
@@ -42,3 +43,4 @@ api_router.include_router(notify.router, tags=["notify"])
 api_router.include_router(ports.router, tags=["ports"])
 api_router.include_router(docker.router, tags=["docker"])
 api_router.include_router(ai.router, tags=["ai"])
+api_router.include_router(flows.router, tags=["flows"])
