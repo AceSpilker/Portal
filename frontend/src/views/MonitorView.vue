@@ -11,6 +11,9 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Setting as IconSetting } from '@element-plus/icons-vue'
 import { monitorApi, type MonitorOverview } from '../api/monitor'
+import { portalApi, type PortalApp } from '../api/portal'
+import { probeApi } from '../api/probe'
+import { useProbeStore } from '../stores/probe'
 import { useAuthStore } from '../stores/auth'
 import MonitorChart from '../components/MonitorChart.vue'
 import {
@@ -24,6 +27,7 @@ import {
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
+const probeStore = useProbeStore()
 
 // ---- 分块推送间隔（秒，localStorage 持久化）----
 const BLOCKS = ['cpu', 'mem', 'net', 'disk', 'io', 'gpu', 'temp'] as const
@@ -68,6 +72,22 @@ const ioBlock = ref<MonitorOverview['io']>(null)
 const gpuBlock = ref<MonitorOverview['gpu']>([])
 const temps = ref<MonitorOverview['temps']>([])
 const hasTemps = computed(() => temps.value.length > 0)
+const apps = ref<Pick<PortalApp, 'id' | 'name'>[]>([])
+
+/** 应用状态行（M17-9：监控页一屏含应用状态；M07-2） */
+const appStatusRows = computed(() =>
+  apps.value.map((a) => ({
+    id: a.id,
+    name: a.name,
+    ...(probeStore.statusMap[String(a.id)] ?? { state: 'unknown', latency_ms: null, message: '' }),
+  })),
+)
+
+async function checkNow(id: number) {
+  await probeApi.check(id)
+  void probeStore.load()
+}
+
 const firstGpuUtil = computed(() => {
   const u = gpuBlock.value[0]?.util
   return typeof u === 'number' ? u : null
@@ -451,7 +471,14 @@ const historyOption = computed(() => {
   }
 })
 
-onMounted(loadHistory)
+onMounted(async () => {
+  loadHistory()
+  try {
+    apps.value = (await portalApi.listApps()).map((a) => ({ id: a.id, name: a.name }))
+  } catch {
+    apps.value = []
+  }
+})
 </script>
 
 <template>
@@ -590,6 +617,25 @@ onMounted(loadHistory)
         </div>
       </section>
     </div>
+
+    <!-- 应用状态（M17-9 + M07-2） -->
+    <section class="glass history fade-up">
+      <div class="history-head">
+        <h3>{{ t('monitor.statusList') }}</h3>
+      </div>
+      <div class="app-status-list">
+        <div v-for="row in appStatusRows" :key="row.id" class="app-status-row">
+          <span class="as-dot" :class="row.state" />
+          <span class="as-name">{{ row.name }}</span>
+          <span class="as-state" :class="row.state">
+            {{ row.state === 'up' ? t('monitor.statusUp') : row.state === 'down' ? t('monitor.statusDown') : t('monitor.statusUnknown') }}
+            <small v-if="row.state === 'up' && row.latency_ms !== null"> · {{ row.latency_ms }}ms</small>
+          </span>
+          <el-button link size="small" @click="checkNow(row.id)">{{ t('home.probeCheckNow') }}</el-button>
+        </div>
+        <p v-if="!appStatusRows.length" class="empty">{{ t('monitor.noData') }}</p>
+      </div>
+    </section>
 
     <!-- 历史曲线（M17-6） -->
     <section class="glass history fade-up" v-loading="historyLoading">
@@ -764,6 +810,50 @@ onMounted(loadHistory)
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.app-status-list {
+  display: flex;
+  flex-direction: column;
+}
+.app-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--p-text) 6%, transparent);
+}
+.app-status-row:last-child {
+  border-bottom: none;
+}
+.as-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--p-muted);
+  opacity: 0.5;
+}
+.as-dot.up {
+  background: #22c55e;
+  opacity: 1;
+}
+.as-dot.down {
+  background: var(--el-color-danger, #ef4444);
+  opacity: 1;
+}
+.as-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.as-state {
+  font-size: 12px;
+  color: var(--p-muted);
+}
+.as-state.up {
+  color: #22c55e;
+}
+.as-state.down {
+  color: var(--el-color-danger, #ef4444);
 }
 @media (max-width: 768px) {
   .chart-grid {

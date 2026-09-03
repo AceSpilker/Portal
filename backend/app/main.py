@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.monitor import cleanup_job, monitor_ws, sampler_job
+from app.api.v1.probe import notify_ws, probe_job
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.i18n import set_locale
@@ -44,6 +45,11 @@ async def lifespan(_: FastAPI):
         refresh_gpu_cache, "interval", seconds=5, id="monitor_gpu",
         max_instances=1, replace_existing=True,
     )
+    # 应用探活（P6.1/P6.2）：每 10s 巡检到期应用
+    _scheduler.add_job(
+        probe_job, "interval", seconds=10, id="app_probe",
+        max_instances=1, replace_existing=True,
+    )
     if not _scheduler.running:  # 测试环境会多次进入 lifespan
         _scheduler.start()
     yield
@@ -62,6 +68,12 @@ async def locale_middleware(request: Request, call_next):
     """按 Accept-Language 设置本请求的文案语言（api-spec §1）。"""
     set_locale(request.headers.get("accept-language", ""))
     return await call_next(request)
+
+
+@app.websocket("/ws/notify")
+async def ws_notify(websocket: WebSocket):
+    """状态变化广播（P6.3；api-spec §5）。"""
+    await notify_ws(websocket)
 
 
 @app.websocket("/ws/monitor")

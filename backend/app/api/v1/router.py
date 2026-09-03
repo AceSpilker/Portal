@@ -11,6 +11,7 @@ from app.api.v1 import (
     me,
     monitor,
     network_profiles,
+    probe,
     settings,
 )
 
@@ -26,3 +27,4 @@ api_router.include_router(categories.router, tags=["portal"])
 api_router.include_router(apps.router, tags=["portal"])
 api_router.include_router(network_profiles.router, tags=["network"])
 api_router.include_router(monitor.router, tags=["monitor"])
+api_router.include_router(probe.router, tags=["probe"])

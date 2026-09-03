@@ -24,6 +24,7 @@ import { portalApi } from '../api/portal'
 import type { Category, PortalApp } from '../api/portal'
 import { layoutApi } from '../api/dashboard'
 import { useAuthStore } from '../stores/auth'
+import { useProbeStore } from '../stores/probe'
 import { useOpenApp } from '../composables/useOpenApp'
 import AppIcon from '../components/AppIcon.vue'
 import NasOverview from '../components/NasOverview.vue'
@@ -39,6 +40,7 @@ import { formatClockDate, formatClockTime } from '../utils/clock'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
+const probeStore = useProbeStore()
 const { openApp } = useOpenApp()
 
 // ---- 数据 ----
@@ -133,6 +135,14 @@ function onSectionsDragEnd() {
   persistSoon()
 }
 
+/** 磁贴状态点提示（M07-2）：up 显示延迟，down 显示原因 */
+function dotTitle(appId: number): string {
+  const s = probeStore.statusMap[String(appId)]
+  if (!s || s.state === 'unknown') return t('home.statusUnknown')
+  if (s.state === 'up') return `${t('home.statusUp')}${s.latency_ms !== null ? ` · ${s.latency_ms}ms` : ''}`
+  return t('home.statusDown') + (s.message ? ` · ${s.message}` : '')
+}
+
 // ---- 时钟小组件（P4.7；032 增强为年月日+时分秒+星期，每秒跳）----
 // 本地时钟每秒自跳，不走后端接口：网络往返只会让显示滞后于真实时间
 const now = ref(new Date())
@@ -210,7 +220,11 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
             >
               <span class="tile-icon">
                 <AppIcon :icon="app.icon" :icon-type="app.icon_type" :size="30" />
-                <span class="status-dot unknown" :title="t('home.statusPending')" />
+                <span
+                  class="status-dot"
+                  :class="probeStore.statusMap[String(app.id)]?.state ?? 'unknown'"
+                  :title="dotTitle(app.id)"
+                />
               </span>
               <span class="tile-name">{{ app.name }}</span>
               <span v-if="app.description" class="tile-desc">{{ app.description }}</span>
@@ -405,13 +419,28 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   display: inline-flex;
 }
 .status-dot {
-  position: absolute;
-  right: -3px;
-  bottom: -1px;
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  border: 2px solid var(--p-card);
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--p-muted);
+  opacity: 0.5;
+}
+.status-dot.up {
+  background: #22c55e;
+  opacity: 1;
+}
+.status-dot.down {
+  background: var(--el-color-danger, #ef4444);
+  opacity: 1;
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  50% {
+    opacity: 0.35;
+  }
 }
 .status-dot.unknown {
   background: #9aa3b8;

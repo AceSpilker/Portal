@@ -5,11 +5,13 @@ from app.models.layout import DashboardLayout
 from app.models.monitor import MonitorSample
 from app.models.network import NetworkProfile
 from app.models.portal import App, AppUrl, Category, Icon
+from app.models.probe import AppStatus, Notification, ProbeEvent
 from app.models.setting import DEFAULT_SETTINGS, Setting
 from app.models.user import User
 
 __all__ = [
     "App",
+    "AppStatus",
     "AppUrl",
     "Base",
     "Category",
@@ -18,6 +20,8 @@ __all__ = [
     "Icon",
     "MonitorSample",
     "NetworkProfile",
+    "Notification",
+    "ProbeEvent",
     "Setting",
     "User",
 ]

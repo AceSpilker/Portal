@@ -683,6 +683,33 @@ async function doExport() {
             </div>
           </el-form-item>
 
+          <!-- 探活配置（M07-1；P6） -->
+          <el-form-item :label="t('home.probeTitle')">
+            <div class="probe-editor">
+              <el-select v-model="draft.health_type" class="probe-type" style="width: 150px">
+                <el-option :label="t('home.probeTypeNone')" value="" />
+                <el-option :label="t('home.probeTypeHttp')" value="http" />
+                <el-option :label="t('home.probeTypeTcp')" value="tcp" />
+                <el-option :label="t('home.probeTypeKeyword')" value="keyword" />
+              </el-select>
+              <el-input
+                v-model="draft.health_target"
+                :placeholder="draft.health_type === 'keyword' ? t('home.probeTargetKeyword') : t('home.probeTargetHttp')"
+                :disabled="!draft.health_type"
+                class="probe-target"
+              />
+              <el-input-number
+                v-model="draft.health_interval"
+                :min="10"
+                :max="3600"
+                :step="10"
+                :disabled="!draft.health_type"
+                style="width: 120px"
+              />
+              <span class="probe-unit">{{ t('home.probeInterval') }}</span>
+            </div>
+          </el-form-item>
+
           <div class="form-grid">
             <el-form-item :label="t('apps.fieldOpenMode')">
               <el-select v-model="draft.open_mode" style="width: 100%">

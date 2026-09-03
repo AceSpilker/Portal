@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { useEnvStore } from '../stores/env'
+import { useProbeStore } from '../stores/probe'
 import { useMediaQuery } from '@vueuse/core'
 import CommandPalette from '../components/CommandPalette.vue'
 import {
@@ -34,6 +35,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const settingsStore = useSettingsStore()
 const envStore = useEnvStore()
+const probeStore = useProbeStore()
 const paletteVisible = ref(false)
 // 窗口 <1080px 时侧栏折叠为图标栏（桌面窄窗口行为，非移动端适配）
 const isRail = useMediaQuery('(max-width: 1079px)')
@@ -42,6 +44,8 @@ onMounted(() => {
   settingsStore.load()
   // 网络环境自动识别 + 档案列表（顶栏切换器，M04-8/9）
   envStore.load()
+  // 应用探活状态订阅（P6.3，登录用户均可）
+  probeStore.start(auth.token)
 })
 
 /** 切换器展示的生效环境名（手动优先，其次自动识别结果） */
