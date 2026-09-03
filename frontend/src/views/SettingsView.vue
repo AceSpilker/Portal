@@ -502,8 +502,10 @@ function saveMonitor() {
         <AccessPanel />
       </template>
         <template v-else-if="active === 'monitor'">
-        <h3>{{ t('settings.menuMonitor') }}</h3>
-        <p class="panel-hint">{{ t('settings.monitorHint') }}</p>
+        <header class="panel-head">
+          <h3>{{ t('settings.menuMonitor') }}</h3>
+          <p>{{ t('settings.monitorHint') }}</p>
+        </header>
         <el-form label-width="auto" class="monitor-form">
           <el-form-item :label="t('settings.sampleInterval')">
             <el-input-number v-model="sampleInterval" :min="10" :max="3600" :step="10" />
@@ -523,8 +525,10 @@ function saveMonitor() {
         </el-form>
       </template>
       <template v-else-if="active === 'usermgmt'">
-        <h3>{{ t('settings.menuUsers') }}</h3>
-        <p class="panel-hint">{{ t('settings.usersHint') }}</p>
+        <header class="panel-head">
+          <h3>{{ t('settings.menuUsers') }}</h3>
+          <p>{{ t('settings.usersHint') }}</p>
+        </header>
         <UsersPanel />
       </template>
       <template v-else-if="active === 'about'">

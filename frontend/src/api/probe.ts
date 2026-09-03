@@ -19,9 +19,7 @@ export const probeApi = {
   status: () => request.get<never, ProbeStatusMap>('/probe/status'),
   /** 立即探活一次 */
   check: (appId: number) =>
-    request.get<never, { state: ProbeState; latency_ms: number | null }>(`/apps/${appId}/check`, {
-      method: 'POST',
-    }),
+    request.post<never, { state: ProbeState; latency_ms: number | null }>(`/apps/${appId}/check`),
   /** 站内通知（P6.4 最小集） */
   notifications: () =>
     request.get<never, { id: number; title: string; level: string; is_read: boolean }[]>(

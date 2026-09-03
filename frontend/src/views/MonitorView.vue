@@ -8,6 +8,7 @@
  * 刷新间隔（localStorage 持久化），帧到达时按块节流应用。
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { Setting as IconSetting } from '@element-plus/icons-vue'
 import { monitorApi, type MonitorOverview } from '../api/monitor'
@@ -84,7 +85,14 @@ const appStatusRows = computed(() =>
 )
 
 async function checkNow(id: number) {
-  await probeApi.check(id)
+  const result = await probeApi.check(id)
+  ElMessage.success(
+    result.state === 'up'
+      ? `${t('home.statusUp')} · ${result.latency_ms ?? '-'}ms`
+      : result.state === 'down'
+        ? t('home.statusDown')
+        : t('monitor.statusUnknown'),
+  )
   void probeStore.load()
 }
 
@@ -397,12 +405,16 @@ const historyOption = computed(() => {
     })
     const fmt =
       metric.value === 'disk' ? pct : metric.value === 'temp' ? (v: number) => `${v} °C` : metric.value === 'gpu' ? pct : (v: number) => formatRate(v)
-    const y =
-      metric.value === 'disk' || metric.value === 'gpu'
-        ? { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } }
-        : metric.value === 'temp'
-          ? { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: '°C', nameTextStyle: axisLabel }
-          : { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'B/s', nameTextStyle: axisLabel }
+    const unit = metric.value === 'temp' ? '°C' : metric.value === 'gpu' || metric.value === 'disk' ? '%' : 'KB/s'
+    const y = {
+      type: 'value',
+      ...(metric.value === 'disk' || metric.value === 'gpu' ? { max: 100 } : {}),
+      axisLabel,
+      splitLine,
+      axisLine: { show: false },
+      name: unit,
+      nameTextStyle: axisLabel,
+    }
     return {
       backgroundColor: 'transparent',
       tooltip: axisTooltip(fmt),
@@ -414,16 +426,17 @@ const historyOption = computed(() => {
     }
   }
   if (metric.value === 'io') {
+    const toKb = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round((v / 1024) * 10) / 10)
     return {
       backgroundColor: 'transparent',
-      tooltip: axisTooltip((v) => formatRate(v)),
+      tooltip: axisTooltip((v) => formatRate(v * 1024)),
       legend: legendScroll,
       grid,
       xAxis: { type: 'category', data: labels, axisLabel, splitLine },
-      yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'B/s', nameTextStyle: axisLabel },
+      yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
       series: [
-        mk((h.points ?? []).map((p) => p.read), t('monitor.read')),
-        mk((h.points ?? []).map((p) => p.write), t('monitor.write')),
+        mk((h.points ?? []).map((p) => toKb(p.read)), t('monitor.read')),
+        mk((h.points ?? []).map((p) => toKb(p.write)), t('monitor.write')),
       ],
     }
   }
@@ -452,9 +465,10 @@ const historyOption = computed(() => {
   } else if (metric.value === 'mem') {
     series = [mk((h.points ?? []).map((p) => p.percent), t('monitor.memPercent'))]
   } else {
+    const toKb = (v: number | null | undefined) => (v === null || v === undefined ? null : Math.round((v / 1024) * 10) / 10)
     series = [
-      mk((h.points ?? []).map((p) => p.rx), t('monitor.down')),
-      mk((h.points ?? []).map((p) => p.tx), t('monitor.up')),
+      mk((h.points ?? []).map((p) => toKb(p.rx)), t('monitor.down')),
+      mk((h.points ?? []).map((p) => toKb(p.tx)), t('monitor.up')),
     ]
   }
   return {
@@ -468,6 +482,8 @@ const historyOption = computed(() => {
       axisLabel,
       splitLine,
       axisLine: { show: false },
+      name: metric.value === 'net' ? 'KB/s' : '%',
+      nameTextStyle: axisLabel,
       ...(metric.value === 'cpu' || metric.value === 'mem' ? { max: 100 } : {}),
     },
     series,
