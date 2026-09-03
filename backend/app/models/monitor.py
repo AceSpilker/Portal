@@ -1,6 +1,7 @@
-"""监控采样模型（M17-7；api-spec §3.4 monitor_samples）。
+"""监控采样与阈值告警规则模型（M17-7/14/15；api-spec §3.4）。
 
-每分钟一行实时快照；io/temps/procs 为 M2 预留列（本阶段恒为 NULL）。
+monitor_samples 每分钟一行实时快照；io/temps 为 M2 列（P5 已用 temps，procs 预留）。
+alert_rules 为 P10.3 阈值告警规则（metric/target/op/threshold/duration_min/level）。
 ts 存 naive UTC（与全库约定一致）。
 """
 
@@ -12,6 +13,9 @@ from sqlalchemy import DateTime, Float, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
+
+ALERT_METRICS = ("cpu", "mem", "disk", "disk_io", "temp")
+ALERT_LEVELS = ("warn", "error")
 
 
 class MonitorSample(Base):
@@ -34,3 +38,18 @@ class MonitorSample(Base):
     procs: Mapped[str | None] = mapped_column(Text, default=None)  # M2
 
     __table_args__ = (Index("ix_monitor_samples_ts", "ts"),)
+
+
+class AlertRule(Base):
+    __tablename__ = "alert_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(Text, default="")
+    metric: Mapped[str] = mapped_column(Text, default="cpu")  # cpu/mem/disk/disk_io/temp
+    target: Mapped[str | None] = mapped_column(Text, default=None)  # 如挂载点 "/"、传感器名
+    op: Mapped[str] = mapped_column(Text, default=">")  # > / <
+    threshold: Mapped[float] = mapped_column(Float, default=80.0)
+    duration_min: Mapped[int] = mapped_column(Integer, default=5)
+    level: Mapped[str] = mapped_column(Text, default="warn")  # warn / error
+    enabled: Mapped[int] = mapped_column(Integer, default=1)
+    last_fired_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)

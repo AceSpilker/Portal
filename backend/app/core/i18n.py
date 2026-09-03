@@ -195,6 +195,12 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- 监控告警/证书（M17/P10）----
+    "err.alert_rule_not_found": {"zh-CN": "告警规则不存在", "en": "Alert rule not found"},
+    "err.cert_hosts_invalid": {
+        "zh-CN": "证书监控域名需为 ≤20 条的字符串数组",
+        "en": "Certificate hosts must be a list of ≤20 strings",
+    },
     # ---- 通知中心（M09/P9）----
     "err.channel_not_found": {"zh-CN": "通知渠道不存在", "en": "Notification channel not found"},
     "notify.test_title": {"zh-CN": "Portal 测试消息", "en": "Portal test message"},

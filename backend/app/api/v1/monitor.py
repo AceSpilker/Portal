@@ -1,7 +1,7 @@
-"""监控接口（M17-6/8/9；dev-plan P5.3/P5.4；api-spec §4.4/§5）。
+"""监控接口（M17-6/8/9/10~15；dev-plan P5/P10；api-spec §4.4/§5）。
 
 权限：A（任意登录用户）——权限矩阵 §3 规定 user 可查看基础资源图；
-进程/Docker/告警等增强接口（M2）仍为 M。WS /ws/monitor 挂在应用根路径
+进程/Docker/告警规则等增强接口为 M。WS /ws/monitor 挂在应用根路径
 （/api 之外），query 带 access token 鉴权；传输加密中间件只处理 http scope，
 WS 明文穿透（与静态资源同属豁免面）。
 """
@@ -9,16 +9,26 @@ WS 明文穿透（与静态资源同属豁免面）。
 from __future__ import annotations
 
 import asyncio
+import json
+import os
+import time
 
+import httpx
+import psutil
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_admin
 from app.core.i18n import t
-from app.core.response import CODE_VALIDATION, BizError, ok
+from app.core.response import CODE_NOT_FOUND, CODE_VALIDATION, BizError, ok
 from app.core.security import decode_token
 from app.db.session import SessionLocal, get_session
+from app.models.monitor import AlertRule
+from app.models.probe import Notification
 from app.models.user import User
+from app.services import alerts as alerts_svc
 from app.services import monitor
 from app.services.monitor import HISTORY_METRICS, RANGE_SECONDS, build_history, collect_overview
 
@@ -80,3 +90,314 @@ async def cleanup_job() -> None:
     """APScheduler 每小时清理任务：按 monitor.retention_days 删过期采样。"""
     async with SessionLocal() as session:
         await monitor.cleanup_expired(session)
+
+
+# ---------- P10.1 进程 Top 榜（M17-12，M） ----------
+
+_proc_cache: dict = {"rows": [], "ts": 0.0}
+_PROC_TTL = 3.0
+
+
+def _collect_procs_sync() -> list[dict]:
+    """psutil 进程快照（cpu_percent 首采样为 0，进程级用两次差值太贵，
+    这里以单次 non-blocking 采样 + 缓存 TTL 平滑；排序字段由查询端决定）。"""
+    rows = []
+    for p in psutil.process_iter(["pid", "name", "username", "memory_percent", "memory_info"]):
+        try:
+            info = p.info
+            rows.append(
+                {
+                    "pid": info["pid"],
+                    "name": info["name"] or "",
+                    "username": info["username"] or "",
+                    "cpu_percent": p.cpu_percent(interval=None),
+                    "mem_percent": round(info["memory_percent"] or 0.0, 1),
+                    "mem_mb": round(
+                        (info["memory_info"].rss if info["memory_info"] else 0) / 1048576, 1
+                    ),
+                }
+            )
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+    return rows
+
+
+@router.get("/monitor/processes")
+async def monitor_processes(
+    sort: str = Query("cpu", pattern="^(cpu|mem)$"),
+    q: str = Query("", max_length=64),
+    limit: int = Query(20, ge=1, le=100),
+    _: User = Depends(require_admin),
+):
+    """进程 Top 榜（M17-12）：按 CPU/内存排序，支持名称/用户过滤。"""
+    now = time.time()
+    if now - _proc_cache["ts"] > _PROC_TTL:
+        _proc_cache["rows"] = await asyncio.to_thread(_collect_procs_sync)
+        _proc_cache["ts"] = now
+    rows = _proc_cache["rows"]
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in r["name"].lower() or ql in r["username"].lower()]
+    key = "cpu_percent" if sort == "cpu" else "mem_percent"
+    rows = sorted(rows, key=lambda r: r[key], reverse=True)[:limit]
+    # 二次采样后 cpu_percent 才有意义：缓存首建时补一次即时采样
+    return ok(rows)
+
+
+# ---------- P10.2 Docker 资源占用（M17-13，A，无 socket 自动降级） ----------
+
+DOCKER_SOCK = os.getenv("DOCKER_SOCK", "/var/run/docker.sock")
+
+
+async def _docker_stats_inner() -> list[dict]:
+    if not os.path.exists(DOCKER_SOCK):
+        return []
+    transport = httpx.AsyncHTTPTransport(uds=DOCKER_SOCK)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://docker", timeout=8.0
+    ) as client:
+        resp = await client.get("/containers/json?all=1")
+        resp.raise_for_status()
+        containers = resp.json()[:12]
+        result = []
+        for c in containers:
+            cid = c.get("Id", "")
+            name = (c.get("Names") or [""])[0].lstrip("/")
+            stats = (await client.get(f"/containers/{cid}/stats?stream=false")).json()
+            cpu_d = stats.get("cpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0) - (
+                stats.get("precpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
+            )
+            sys_d = stats.get("cpu_stats", {}).get("system_cpu_usage", 0) - (
+                stats.get("precpu_stats", {}).get("system_cpu_usage", 0)
+            )
+            online = stats.get("cpu_stats", {}).get("online_cpus") or len(
+                stats.get("cpu_stats", {}).get("cpu_usage", {}).get("percpu_usage", []) or [1]
+            )
+            cpu_pct = (cpu_d / sys_d * online * 100) if sys_d > 0 and cpu_d > 0 else 0.0
+            mem = stats.get("memory_stats", {})
+            used = mem.get("usage", 0)
+            limit = mem.get("limit", 0)
+            nets = stats.get("networks", {})
+            result.append(
+                {
+                    "id": cid[:12],
+                    "name": name,
+                    "image": c.get("Image", ""),
+                    "state": c.get("State", ""),
+                    "cpu_percent": round(cpu_pct, 1),
+                    "mem_used_mb": round(used / 1048576, 1),
+                    "mem_limit_mb": round(limit / 1048576, 1),
+                    "mem_percent": round(used / limit * 100, 1) if limit else 0.0,
+                    "net_rx_mb": round(
+                        sum(n.get("rx_bytes", 0) for n in nets.values()) / 1048576, 2
+                    ),
+                    "net_tx_mb": round(
+                        sum(n.get("tx_bytes", 0) for n in nets.values()) / 1048576, 2
+                    ),
+                }
+            )
+        return result
+
+
+@router.get("/monitor/docker-stats")
+async def docker_stats(_: User = Depends(get_current_user)):
+    """按容器资源占用（M17-13）：DOCKER_SOCK 不可达/超时 → 空数组（前端隐藏）。"""
+    try:
+        return ok(await asyncio.wait_for(_docker_stats_inner(), timeout=15.0))
+    except (httpx.HTTPError, asyncio.TimeoutError, KeyError, OSError, json.JSONDecodeError):
+        return ok([])
+
+
+# ---------- P10.5 证书监控（M07-6） ----------
+
+
+@router.get("/monitor/certs")
+async def monitor_certs(
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """证书到期即时检查（hosts 来自设置键 monitor.cert_hosts；空列表 → 空数组）。"""
+    hosts = await alerts_svc.get_cert_hosts(session)
+    return ok([await alerts_svc.check_cert(h) for h in hosts[:20]])
+
+
+class CertHostsIn(BaseModel):
+    hosts: list[str] = Field(default_factory=list, max_length=20)
+
+    from pydantic import field_validator
+
+    @field_validator("hosts")
+    @classmethod
+    def _check_hosts(cls, v: list[str]) -> list[str]:
+        for h in v:
+            if not h.strip() or len(h) > 253:
+                raise ValueError("invalid host")
+        return v
+
+
+@router.put("/monitor/certs/hosts")
+async def set_cert_hosts(
+    body: CertHostsIn,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """保存证书监控域名列表（M；monitor.cert_hosts 设置键，白名单校验见 schemas）。"""
+    from app.models.setting import Setting
+
+    hosts = [h.strip() for h in body.hosts if h.strip()]
+    row = await session.get(Setting, alerts_svc.CERT_HOSTS_KEY)
+    if row is None:
+        session.add(Setting(key=alerts_svc.CERT_HOSTS_KEY, value=json.dumps(hosts)))
+    else:
+        row.value = json.dumps(hosts)
+    await session.commit()
+    return ok(hosts)
+
+
+# ---------- P10.3 阈值告警规则（M17-14/15，M） ----------
+
+
+class AlertRuleIn(BaseModel):
+    name: str = ""
+    metric: str = Field(pattern="^(cpu|mem|disk|disk_io|temp)$")
+    target: str | None = None
+    op: str = Field(">", pattern="^[<>]$")
+    threshold: float
+    duration_min: int = Field(5, ge=1, le=1440)
+    level: str = Field("warn", pattern="^(warn|error)$")
+    enabled: bool = True
+
+
+def _rule_view(r: AlertRule) -> dict:
+    return {
+        "id": r.id,
+        "name": r.name,
+        "metric": r.metric,
+        "target": r.target,
+        "op": r.op,
+        "threshold": r.threshold,
+        "duration_min": r.duration_min,
+        "level": r.level,
+        "enabled": bool(r.enabled),
+        "last_fired_at": r.last_fired_at.isoformat() + "Z" if r.last_fired_at else None,
+    }
+
+
+async def _rule_or_404(session: AsyncSession, rule_id: int) -> AlertRule:
+    r = await session.get(AlertRule, rule_id)
+    if r is None:
+        raise BizError(CODE_NOT_FOUND, t("err.alert_rule_not_found"), 404)
+    return r
+
+
+@router.get("/alerts/rules")
+async def list_alert_rules(
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = (await session.execute(select(AlertRule).order_by(AlertRule.id))).scalars().all()
+    return ok([_rule_view(r) for r in rows])
+
+
+@router.post("/alerts/rules")
+async def create_alert_rule(
+    body: AlertRuleIn,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    r = AlertRule(
+        name=body.name, metric=body.metric, target=body.target or None, op=body.op,
+        threshold=body.threshold, duration_min=body.duration_min, level=body.level,
+        enabled=int(body.enabled),
+    )
+    session.add(r)
+    await session.commit()
+    return ok(_rule_view(r))
+
+
+@router.put("/alerts/rules/{rule_id}")
+async def update_alert_rule(
+    rule_id: int,
+    body: AlertRuleIn,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    r = await _rule_or_404(session, rule_id)
+    r.name = body.name
+    r.metric = body.metric
+    r.target = body.target or None
+    r.op = body.op
+    r.threshold = body.threshold
+    r.duration_min = body.duration_min
+    r.level = body.level
+    r.enabled = int(body.enabled)
+    alerts_svc._STATE.pop(r.id, None)  # 规则变更后重新计时
+    await session.commit()
+    return ok(_rule_view(r))
+
+
+@router.delete("/alerts/rules/{rule_id}")
+async def delete_alert_rule(
+    rule_id: int,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    r = await _rule_or_404(session, rule_id)
+    alerts_svc._STATE.pop(r.id, None)
+    await session.delete(r)
+    await session.commit()
+    return ok(True)
+
+
+@router.post("/alerts/rules/{rule_id}/test")
+async def test_alert_rule(
+    rule_id: int,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """立即评估一次：返回当前值/阈值/是否越限（不落通知）。"""
+    r = await _rule_or_404(session, rule_id)
+    value = await alerts_svc.current_value(session, r)
+    violated = (
+        None
+        if value is None
+        else (value > r.threshold if r.op == ">" else value < r.threshold)
+    )
+    return ok({"current": value, "threshold": r.threshold, "op": r.op, "violated": violated})
+
+
+@router.get("/alerts/events")
+async def alert_events(
+    level: str | None = Query(None),
+    range_: str = Query("7d", alias="range"),
+    limit: int = Query(50, ge=1, le=200),
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """告警事件历史（M17-14）：与站内通知同源（source=metric），按级别/时间过滤。"""
+    if range_ not in RANGE_SECONDS:
+        raise BizError(CODE_VALIDATION, t("err.invalid_metric_or_range"), 422)
+    from datetime import datetime, timedelta
+
+    since = datetime.utcnow() - timedelta(seconds=RANGE_SECONDS[range_])
+    stmt = select(Notification).where(
+        Notification.source == "metric", Notification.created_at >= since
+    )
+    if level in ("info", "warn", "error"):
+        stmt = stmt.where(Notification.level == level)
+    rows = (
+        await session.execute(stmt.order_by(Notification.id.desc()).limit(limit))
+    ).scalars().all()
+    return ok(
+        [
+            {
+                "id": n.id,
+                "title": n.title,
+                "body": n.body,
+                "level": n.level,
+                "is_read": bool(n.is_read),
+                "created_at": n.created_at.isoformat() + "Z",
+            }
+            for n in rows
+        ]
+    )

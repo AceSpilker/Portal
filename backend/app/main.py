@@ -20,8 +20,21 @@ from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
 from app.core.scheduler import scheduler as _scheduler
-from app.db.session import init_db
+from app.db.session import SessionLocal, init_db
+from app.services.alerts import check_certs_and_notify, evaluate_alerts
 from app.services.monitor import prime_cpu_counters, refresh_gpu_cache, setup_host_sources
+
+
+async def alerts_evaluate_job() -> None:
+    """阈值告警评估（P10.3）：每 30s 对启用规则跑一次状态机。"""
+    async with SessionLocal() as session:
+        await evaluate_alerts(session)
+
+
+async def certs_check_job() -> None:
+    """证书到期检查（P10.5）：每 6h 对 monitor.cert_hosts 做分级提醒。"""
+    async with SessionLocal() as session:
+        await check_certs_and_notify(session)
 
 
 @asynccontextmanager
@@ -46,6 +59,16 @@ async def lifespan(_: FastAPI):
     # 应用探活（P6.1/P6.2）：每 10s 巡检到期应用
     _scheduler.add_job(
         probe_job, "interval", seconds=10, id="app_probe",
+        max_instances=1, replace_existing=True,
+    )
+    # 阈值告警评估（P10.3/M17-14）：每 30s 跑一次状态机
+    _scheduler.add_job(
+        alerts_evaluate_job, "interval", seconds=30, id="alerts_evaluate",
+        max_instances=1, replace_existing=True,
+    )
+    # 证书到期检查（P10.5/M07-6）：每 6h，dedup 按天
+    _scheduler.add_job(
+        certs_check_job, "interval", hours=6, id="certs_check",
         max_instances=1, replace_existing=True,
     )
     if not _scheduler.running:  # 测试环境会多次进入 lifespan

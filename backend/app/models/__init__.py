@@ -2,7 +2,7 @@
 
 from app.models.base import Base
 from app.models.layout import DashboardLayout
-from app.models.monitor import MonitorSample
+from app.models.monitor import AlertRule, MonitorSample
 from app.models.network import NetworkProfile
 from app.models.notify import NotifyChannel, NotifyRule
 from app.models.portal import App, AppUrl, Category, Icon
@@ -20,6 +20,7 @@ __all__ = [
     "DashboardLayout",
     "DEFAULT_SETTINGS",
     "Icon",
+    "AlertRule",
     "MonitorSample",
     "NotifyChannel",
     "NotifyRule",

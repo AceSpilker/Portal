@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +20,7 @@ from app.core.response import ok
 from app.core.security import decode_token
 from app.db.session import SessionLocal, get_session
 from app.models.portal import App
-from app.models.probe import AppStatus
+from app.models.probe import AppStatus, ProbeEvent
 from app.models.user import User
 from app.services import probe
 from app.services.wsbus import broadcast, register_ws, unregister_ws
@@ -123,3 +123,86 @@ async def probe_job() -> None:
         events = await probe.run_due_checks(session)
     for ev in events:
         await broadcast(ev)
+
+
+@router.get("/probe/availability")
+async def probe_availability(
+    range_: str = Query("24h", alias="range"),
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """可用性分析（M07-3/4；P10.4）：各应用 24h/7d/30d 可用率 + 最近事件时间线。
+
+    口径：窗口起点状态由 app_status（state/since）推断，since 晚于窗口起点则
+    从首个事件起算；down 时长占比即不可用率，unknown 不计损。
+    """
+    from datetime import datetime, timedelta
+
+    ranges = {"24h": 24 * 3600, "7d": 7 * 86400, "30d": 30 * 86400}
+    if range_ not in ranges:
+        from app.core.i18n import t as _t
+        from app.core.response import CODE_VALIDATION, fail
+
+        return fail(CODE_VALIDATION, _t("err.invalid_metric_or_range"), 422)
+    end = datetime.utcnow()
+    start = end - timedelta(seconds=ranges[range_])
+
+    apps = (
+        await session.execute(select(App).where(App.deleted.is_(False), App.enabled.is_(True)))
+    ).scalars().all()
+    result = []
+    for app in apps:
+        status = await session.get(AppStatus, app.id)
+        events = (
+            await session.execute(
+                select(ProbeEvent)
+                .where(ProbeEvent.app_id == app.id, ProbeEvent.created_at >= start)
+                .order_by(ProbeEvent.created_at)
+            )
+        ).scalars().all()
+        # 窗口起点状态：since 早于起点 → 沿用当前状态；否则 unknown（不计损）
+        cur = None
+        if status is not None and status.since <= start:
+            cur = status.state
+        down = 0.0
+        last_t = start
+        for ev in events:
+            if cur == "down":
+                down += (ev.created_at - last_t).total_seconds()
+            cur = ev.event if ev.event in ("up", "down") else cur
+            last_t = ev.created_at
+        if cur == "down":
+            down += (end - last_t).total_seconds()
+        total = ranges[range_]
+        uptime_pct = None if cur is None else round(max(0.0, (total - down) / total * 100), 2)
+        result.append(
+            {
+                "app_id": app.id,
+                "name": app.name,
+                "uptime_pct": uptime_pct,
+                "current_state": status.state if status else "unknown",
+                "event_count": len(events),
+            }
+        )
+    recent = (
+        await session.execute(
+            select(ProbeEvent).order_by(ProbeEvent.id.desc()).limit(30)
+        )
+    ).scalars().all()
+    names = {a.id: a.name for a in apps}
+    return ok(
+        {
+            "range": range_,
+            "apps": result,
+            "timeline": [
+                {
+                    "app_id": e.app_id,
+                    "app_name": names.get(e.app_id, f"#{e.app_id}"),
+                    "event": e.event,
+                    "latency_ms": e.latency_ms,
+                    "created_at": e.created_at.isoformat() + "Z",
+                }
+                for e in reversed(recent)
+            ],
+        }
+    )

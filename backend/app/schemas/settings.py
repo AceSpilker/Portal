@@ -27,6 +27,8 @@ WRITABLE_KEYS: set[str] = {
     "monitor.retention_days",
     "monitor.sample_interval",
     "monitor.push_interval",
+    # 证书监控域名（P10.5）：["example.com", …] ≤20
+    "monitor.cert_hosts",
 }
 
 
@@ -87,4 +89,10 @@ class SettingsUpdate(BaseModel):
                 not isinstance(value, int) or not 1 <= value <= 60
             ):
                 raise ValueError(t("err.monitor_range"))
+            if key == "monitor.cert_hosts" and (
+                not isinstance(value, list)
+                or len(value) > 20
+                or not all(isinstance(h, str) and 0 < len(h) <= 253 for h in value)
+            ):
+                raise ValueError(t("err.cert_hosts_invalid"))
         return v
