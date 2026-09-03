@@ -86,6 +86,8 @@ export default {
       mem: 'MEM',
       net: 'NET',
       disk: 'Disk',
+      io: 'I/O',
+      gpu: 'GPU',
       temp: 'Temp',
     },
     noData: 'No data',

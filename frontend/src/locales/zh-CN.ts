@@ -85,6 +85,8 @@ export default {
       mem: '内存',
       net: '网络',
       disk: '磁盘',
+      io: 'I/O',
+      gpu: 'GPU',
       temp: '温度',
     },
     noData: '暂无数据',
