@@ -244,12 +244,14 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| GET | /api/ports/listen | 当前监听清单（协议/地址/端口/进程） | A | M2 |
-| GET/POST | /api/ports/monitors · PUT/DELETE /{id} | 端口监控项 CRUD | A读 M写 | M2 |
-| POST | /api/ports/monitors/import | 批量导入 host:port | M | M2 |
+| GET | /api/ports/listen | 当前监听清单（协议/地址/端口/进程/命令行；macOS 非 root 经 lsof 回退） | A | P11 |
+| GET/POST | /api/ports/monitors · PUT/DELETE /{id} | 端口监控项 CRUD（app_id 关联应用；列表回传 app_name） | A读 M写 | P11 |
+| POST | /api/ports/monitors/import | 批量导入：每行 host:port 或 名称\|host:port，同 host+port 去重，返回 {created, skipped} | M | P11 |
 | GET | /api/ports/monitors/{id}/history?range= | 通断/延迟历史 | A | M3 |
-| GET | /api/ports/lookup?port=8080 | 端口占用检索（进程/命令行） | A | M2 |
-| GET | /api/ports/events?monitor_id= | 通断事件流水 | A | M2 |
+| GET | /api/ports/lookup?port=8080 | 端口占用检索（进程/命令行/用户） | A | P11 |
+| GET | /api/ports/events?limit= · /monitors/{id}/events | 通断事件流水（附监控项名与应用名） | A | P11 |
+| WS | /ws/notify（既有） | 新增 `{"type":"port_status","data":{monitor_id,name,state,latency}}` | — | P11 |
+| GET | /api/ports/security-scan | 裸露端口（0.0.0.0 监听无入口）检查 | M | M3 |
 | GET | /api/ports/security-scan | 裸露端口（0.0.0.0 监听无入口）检查 | M | M3 |
 
 ### 4.6 Docker 管理（可选模块）
