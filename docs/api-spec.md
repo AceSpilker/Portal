@@ -231,11 +231,14 @@
 |---|---|---|---|---|
 | GET | /api/monitor/system | 实时概览：系统信息/CPU/内存/磁盘/网络 | A | P5 |
 | GET | /api/monitor/history?metric=cpu&range=24h | 历史曲线（支持 cpu/mem/disk/net/temp/io/gpu）。响应：`{metric, range, points:[{ts,…}]}`；cpu→`{cpu, cores:[每核]}`、mem→`{used,percent}`、net→`{rx,tx}`（全网卡速率之和，B/s）；io→`{read,write}`（读写速率 B/s）；gpu→`gpus:[{name,points:[{ts,util}]}]`（对齐时间轴）；temp→`sensors:[{name,points:[{ts,current}]}]`（与 disk 同为共享对齐时间轴、缺失补 null）；disk 特殊为 `mounts:[{mount,points:[{ts,percent}]}]`——各挂载点共享统一时间轴（24h=全部行时刻去重；桶模式=全局 origin 划桶、桶 ts 取桶尾），缺失时刻补 `null`，前端多序列可直接对齐。24h 原始分钟粒度，7d/30d 按 20min/1h 桶平均，`ts` 为桶内末行 UTC 时间 | A | P5 |
-| GET | /api/monitor/processes?sort=cpu | 进程 Top 榜 | M | M2 |
-| GET | /api/monitor/temps | 温度（无传感器返回空数组） | A | M2 |
-| GET | /api/monitor/docker-stats | 按容器资源占用 | A | M2 |
+| GET | /api/monitor/processes?sort=cpu&q=&limit= | 进程 Top 榜（cpu_percent/memory_percent 排序，名称/用户过滤；3s 缓存） | M | P10 |
+| GET | /api/monitor/temps | 温度（无传感器返回空数组） | A | P5 已落地 |
+| GET | /api/monitor/docker-stats | 按容器资源占用（DOCKER_SOCK 不可达/超时 → 空数组降级；cpu 为 delta 换算百分比，mem 含 limit/percent，net 为累计） | A | P10 |
 | GET/POST | /api/alerts/rules · PUT/DELETE /{id} · POST /{id}/test | 阈值告警规则 CRUD/测试 | M | M2 |
-| GET | /api/alerts/events?level=&range= | 告警事件历史 | A | M2 |
+| GET | /api/alerts/events?level=&range= | 告警事件历史（与站内通知同源 source=metric；告警触发/恢复均经 P9 dispatch，级别/冷却见 P10.3） | A | P10 |
+| GET | /api/probe/availability?range=24h\|7d\|30d | 可用性分析：各应用 {uptime_pct, current_state, event_count} + 最近 probe_events 时间线（窗口起点状态由 app_status.since 推断，unknown 不计损） | A | P10 |
+| GET | /api/monitor/certs | monitor.cert_hosts 域名证书即时检查：[{host, days_left, not_after, level(ok/info/warn/error)}]（≤1 error / ≤7 warn / ≤30 info） | A | P10 |
+| PUT | /api/monitor/certs/hosts | 保存证书监控域名（设置键 monitor.cert_hosts，≤20 条） | M | P10 |
 
 ### 4.5 端口监控 ★
 
