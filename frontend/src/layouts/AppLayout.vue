@@ -344,7 +344,7 @@ function logout() {
   font-size: 12.5px;
   color: var(--p-text);
   border: 1px solid var(--p-card-border);
-  background: #fff;
+  background: var(--p-card); /* 跟随卡片底色：暗色模式下不再保持纯白 */
   padding: 4px 12px;
   border-radius: 999px;
   white-space: nowrap;
