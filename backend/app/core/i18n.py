@@ -58,6 +58,11 @@ MESSAGES: dict[str, dict[str, str]] = {
     "ok.logged_out": {"zh-CN": "已登出", "en": "Signed out"},
     # ---- 权限 ----
     "err.admin_required": {"zh-CN": "需要管理员权限", "en": "Administrator privilege required"},
+    # ---- 监控 ----
+    "err.invalid_metric_or_range": {
+        "zh-CN": "不支持的指标或时间区间",
+        "en": "Unsupported metric or range",
+    },
     # ---- 分组 ----
     "err.category_dup": {"zh-CN": "分组名已存在", "en": "Group name already exists"},
     "err.category_not_found": {"zh-CN": "分组不存在", "en": "Group not found"},

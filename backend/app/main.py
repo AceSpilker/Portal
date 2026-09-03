@@ -1,28 +1,49 @@
 """Portal 后端入口（dev-plan P0.2）。
 
 - /api/...     JSON 接口（统一响应，见 api-spec §1/§2）
+- /ws/monitor  监控实时推送（api-spec §5）
 - /            前端构建产物（存在时托管，单容器部署）
 """
 
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
+from app.api.v1.monitor import cleanup_job, monitor_ws, sampler_job
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
 from app.db.session import init_db
+from app.services.monitor import prime_cpu_counters, setup_host_sources
+
+_scheduler = AsyncIOScheduler(timezone="UTC")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    # 监控采集（P5.1/P5.2）：宿主机数据源 + cpu_percent 预热 + 分钟采样/小时清理
+    setup_host_sources()
+    prime_cpu_counters()
+    _scheduler.add_job(
+        sampler_job, "interval", seconds=60, id="monitor_sample",
+        max_instances=1, replace_existing=True,
+    )
+    _scheduler.add_job(
+        cleanup_job, "interval", hours=1, id="monitor_cleanup",
+        max_instances=1, replace_existing=True,
+    )
+    if not _scheduler.running:  # 测试环境会多次进入 lifespan
+        _scheduler.start()
     yield
+    if _scheduler.running:
+        _scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="Portal API", version="0.1.0", lifespan=lifespan)
@@ -36,6 +57,12 @@ async def locale_middleware(request: Request, call_next):
     """按 Accept-Language 设置本请求的文案语言（api-spec §1）。"""
     set_locale(request.headers.get("accept-language", ""))
     return await call_next(request)
+
+
+@app.websocket("/ws/monitor")
+async def ws_monitor(websocket: WebSocket):
+    """监控实时推送（P5.3；api-spec §5）：管理员 token 鉴权后每 2 秒推送。"""
+    await monitor_ws(websocket)
 
 
 @app.exception_handler(BizError)

@@ -9,6 +9,7 @@ from app.api.v1 import (
     icons,
     layouts,
     me,
+    monitor,
     network_profiles,
     settings,
 )
@@ -24,3 +25,4 @@ api_router.include_router(icons.router, tags=["portal"])
 api_router.include_router(categories.router, tags=["portal"])
 api_router.include_router(apps.router, tags=["portal"])
 api_router.include_router(network_profiles.router, tags=["network"])
+api_router.include_router(monitor.router, tags=["monitor"])

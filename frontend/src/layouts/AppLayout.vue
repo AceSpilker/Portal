@@ -62,11 +62,11 @@ async function onEnvCommand(command: string | number) {
   }
 }
 
-/** 管理员额外显示系统配置入口 */
+/** 管理员额外显示监控（接口权限 A）与系统配置入口 */
 const navItems = computed<NavItem[]>(() => [
   { icon: IconHome, label: t('nav.home'), to: '/' },
   { icon: IconApps, label: t('nav.apps'), to: '/apps' },
-  { icon: IconMonitor, label: t('nav.monitor'), tag: 'P5', disabled: true },
+  ...(auth.isAdmin ? [{ icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' }] : []),
   { icon: IconFlow, label: t('nav.flow'), tag: 'M2', disabled: true },
   { icon: IconAi, label: t('nav.ai'), tag: 'M2', disabled: true },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },
@@ -221,7 +221,7 @@ function logout() {
   box-sizing: border-box;
   overflow: hidden;
   background:
-    radial-gradient(900px 500px at 85% -10%, rgba(91, 95, 241, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 85% -10%, color-mix(in srgb, var(--p-primary) 8%, transparent), transparent 60%),
     radial-gradient(700px 500px at -10% 110%, rgba(6, 182, 212, 0.06), transparent 60%);
 }
 .side {
@@ -267,7 +267,7 @@ function logout() {
   white-space: nowrap;
 }
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(91, 95, 241, 0.12), rgba(139, 92, 246, 0.08));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--p-primary) 12%, transparent), rgba(139, 92, 246, 0.08));
   color: var(--p-primary);
   font-weight: 600;
 }
@@ -276,7 +276,7 @@ function logout() {
   cursor: not-allowed;
 }
 .nav-item:not(.disabled):hover {
-  background: rgba(91, 95, 241, 0.07);
+  background: color-mix(in srgb, var(--p-primary) 7%, transparent);
   transform: translateX(2px);
 }
 .side.rail .nav-item {
@@ -395,8 +395,8 @@ function logout() {
 .env-mode {
   font-size: 10.5px;
   color: var(--p-primary);
-  border: 1px solid rgba(91, 95, 241, 0.35);
-  background: rgba(91, 95, 241, 0.08);
+  border: 1px solid color-mix(in srgb, var(--p-primary) 35%, transparent);
+  background: color-mix(in srgb, var(--p-primary) 8%, transparent);
   padding: 0 6px;
   border-radius: 999px;
 }

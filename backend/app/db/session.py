@@ -33,7 +33,11 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # 轻量迁移：create_all 不会给已有表补列，逐条尝试（列/表已存在则忽略）
-        for stmt in ("ALTER TABLE categories ADD COLUMN icon_type VARCHAR(16)",):
+        for stmt in (
+            "ALTER TABLE categories ADD COLUMN icon_type VARCHAR(16)",
+            # P5.5：monitor_samples 补每核使用率列（历史每核曲线）
+            "ALTER TABLE monitor_samples ADD COLUMN cpu_cores TEXT",
+        ):
             try:
                 await conn.exec_driver_sql(stmt)
             except Exception:

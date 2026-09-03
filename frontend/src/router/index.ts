@@ -4,6 +4,7 @@ import LoginView from '../views/LoginView.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 import HomeView from '../views/HomeView.vue'
 import AppsManageView from '../views/AppsManageView.vue'
+import MonitorView from '../views/MonitorView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import ToolsView from '../views/ToolsView.vue'
 
@@ -23,6 +24,12 @@ const router = createRouter({
       children: [
         { path: '', name: 'home', component: HomeView, meta: { titleKey: 'nav.home' } },
         { path: 'apps', name: 'apps', component: AppsManageView, meta: { titleKey: 'apps.title' } },
+        {
+          path: 'monitor',
+          name: 'monitor',
+          component: MonitorView,
+          meta: { titleKey: 'nav.monitor', requiresAdmin: true },
+        },
         {
           path: 'settings',
           name: 'settings',

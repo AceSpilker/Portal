@@ -2,6 +2,7 @@
 
 from app.models.base import Base
 from app.models.layout import DashboardLayout
+from app.models.monitor import MonitorSample
 from app.models.network import NetworkProfile
 from app.models.portal import App, AppUrl, Category, Icon
 from app.models.setting import DEFAULT_SETTINGS, Setting
@@ -15,6 +16,7 @@ __all__ = [
     "DashboardLayout",
     "DEFAULT_SETTINGS",
     "Icon",
+    "MonitorSample",
     "NetworkProfile",
     "Setting",
     "User",
