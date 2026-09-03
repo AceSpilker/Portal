@@ -147,11 +147,11 @@ function select(cell: PickCell) {
   transition: background 0.12s, color 0.12s;
 }
 .picker-cell:hover {
-  background: rgba(91, 95, 241, 0.08);
+  background: color-mix(in srgb, var(--p-primary) 8%, transparent);
   color: var(--p-primary);
 }
 .picker-cell.active {
-  background: rgba(91, 95, 241, 0.14);
+  background: color-mix(in srgb, var(--p-primary) 14%, transparent);
   color: var(--p-primary);
   border-color: var(--p-primary);
 }

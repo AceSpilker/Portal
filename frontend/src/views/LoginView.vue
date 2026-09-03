@@ -198,7 +198,7 @@ async function handleInit() {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 3px solid rgba(91, 95, 241, 0.2);
+  border: 3px solid color-mix(in srgb, var(--p-primary) 20%, transparent);
   border-top-color: var(--p-primary);
   animation: spin 0.8s linear infinite;
 }

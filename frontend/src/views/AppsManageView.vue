@@ -831,7 +831,7 @@ async function doExport() {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(91, 95, 241, 0.06);
+  background: color-mix(in srgb, var(--p-primary) 6%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -206,7 +206,7 @@ function backToList() {
 }
 .entry-row:hover {
   border-color: var(--p-primary);
-  background: rgba(91, 95, 241, 0.05);
+  background: color-mix(in srgb, var(--p-primary) 5%, transparent);
 }
 .entry-main {
   display: flex;

@@ -24,19 +24,49 @@ export function resolveDark(mode: string, systemPrefersDark: boolean): boolean {
   return false
 }
 
-/** 由主题色生成 hover/active 等派生色（与亮色系混合，保持可读性）。 */
-export function deriveColors(hex: string): { light3: string; dark2: string } {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
-  if (!m) return { light3: hex, dark2: hex }
-  const num = parseInt(m[1], 16)
-  const mix = (to: number, ratio: number) => {
+export interface PrimaryLadder {
+  light1: string
+  light2: string
+  light3: string
+  light4: string
+  light5: string
+  light6: string
+  light7: string
+  light8: string
+  light9: string
+  dark2: string
+}
+
+/**
+ * 由主题色派生 Element Plus 全套主色色阶（规则与 EP 官方一致）：
+ * 亮色下 light-N 向白混合 N*10%、dark-2 向黑混合 20%；
+ * 暗色下 light-N 向 #141414（EP 暗底）混合 N*10%、dark-2 向白混合 20%。
+ */
+export function deriveColors(hex: string, dark = false): PrimaryLadder {
+  const ladderBase = dark ? 0x141414 : 0xffffff
+  const darkBase = dark ? 0xffffff : 0x000000
+  const mix = (num: number, to: number, ratio: number) => {
+    // 通道按 R,G,B 取（num 高位在左），勿按字节序取成 B、G、R
     const ch = (shift: number) => (num >> shift) & 0xff
-    const blended = [0, 1, 2].map((i) =>
-      Math.round(ch(i * 8) * (1 - ratio) + ((to >> (i * 8)) & 0xff) * ratio),
+    const blended = [16, 8, 0].map((shift) =>
+      Math.round(ch(shift) * (1 - ratio) + ((to >> shift) & 0xff) * ratio),
     )
     return `#${blended.map((v) => v.toString(16).padStart(2, '0')).join('')}`
   }
-  return { light3: mix(0xffffff, 0.3), dark2: mix(0x000000, 0.2) }
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  const keys = ['light1', 'light2', 'light3', 'light4', 'light5', 'light6', 'light7', 'light8', 'light9', 'dark2'] as const
+  if (!m) {
+    const same = {} as PrimaryLadder
+    for (const k of keys) same[k] = hex.trim()
+    return same
+  }
+  const num = parseInt(m[1], 16)
+  const ladder = {} as PrimaryLadder
+  for (let i = 1; i <= 9; i++) {
+    ladder[`light${i}` as keyof PrimaryLadder] = mix(num, ladderBase, i / 10)
+  }
+  ladder.dark2 = mix(num, darkBase, 0.2)
+  return ladder
 }
 
 /** 壁纸层 CSS：返回 background 与 filter/遮罩变量；none 返回空串。 */
@@ -60,10 +90,12 @@ export function applyTheme(s: AppearanceSettings, systemPrefersDark: boolean): v
   el.dataset.theme = dark ? 'dark' : 'light'
   el.classList.toggle('dark', dark) // Element Plus 暗色变量约定
   el.style.setProperty('--p-primary', s.themeColor)
-  const { light3, dark2 } = deriveColors(s.themeColor)
-  el.style.setProperty('--p-primary-light3', light3)
-  el.style.setProperty('--p-primary-dark2', dark2)
+  // EP 组件（按钮 hover/选中/plain、表格选中行、菜单、分页等）消费整条派生色阶，
+  // 内联样式覆盖亮/暗两套样式表，因此必须按当前模式生成全套，缺一条就回退默认蓝
+  const ladder = deriveColors(s.themeColor, dark)
   el.style.setProperty('--el-color-primary', s.themeColor)
-  el.style.setProperty('--el-color-primary-light-3', light3)
-  el.style.setProperty('--el-color-primary-dark-2', dark2)
+  for (let i = 1; i <= 9; i++) {
+    el.style.setProperty(`--el-color-primary-light-${i}`, ladder[`light${i}` as keyof PrimaryLadder])
+  }
+  el.style.setProperty('--el-color-primary-dark-2', ladder.dark2)
 }

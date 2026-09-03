@@ -645,7 +645,7 @@ function saveIcons() {
   border-color: var(--p-primary);
 }
 .im-cell.active {
-  background: rgba(91, 95, 241, 0.08);
+  background: color-mix(in srgb, var(--p-primary) 8%, transparent);
   border-color: var(--p-primary);
 }
 .im-main {
@@ -717,7 +717,7 @@ function saveIcons() {
   transition: background 0.12s, color 0.12s;
 }
 .im-op:hover {
-  background: rgba(91, 95, 241, 0.18);
+  background: color-mix(in srgb, var(--p-primary) 18%, transparent);
   color: var(--p-primary);
 }
 .im-op.danger:hover {

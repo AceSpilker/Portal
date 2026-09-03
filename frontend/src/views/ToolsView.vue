@@ -180,7 +180,7 @@ const copyText = async (text: string) => {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(91, 95, 241, 0.05);
+  background: color-mix(in srgb, var(--p-primary) 5%, transparent);
   border: 1px solid var(--p-card-border);
   border-radius: 8px;
   padding: 10px 12px;
@@ -199,7 +199,7 @@ const copyText = async (text: string) => {
   min-height: 32px;
   display: flex;
   align-items: center;
-  background: rgba(91, 95, 241, 0.05);
+  background: color-mix(in srgb, var(--p-primary) 5%, transparent);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 13px;

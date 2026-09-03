@@ -13,12 +13,21 @@ describe('resolveDark', () => {
 })
 
 describe('deriveColors', () => {
-  it('从主题色派生亮/暗变体；非法输入原样返回', () => {
-    const { light3, dark2 } = deriveColors('#4f6ef7')
-    expect(light3).toMatch(/^#[0-9a-f]{6}$/)
-    expect(dark2).toMatch(/^#[0-9a-f]{6}$/)
-    expect(light3).not.toBe(dark2)
-    expect(deriveColors('not-a-color')).toEqual({ light3: 'not-a-color', dark2: 'not-a-color' })
+  it('派生 EP 全套色阶（light-1..9 + dark-2）；非法输入原样返回', () => {
+    const ladder = deriveColors('#4f6ef7')
+    // 与 Element Plus 官方 mix 规则一致（亮色向白、dark-2 向黑）
+    expect(ladder.light3).toBe('#849af9')
+    expect(ladder.light9).toBe('#edf1fe')
+    expect(ladder.dark2).toBe('#3f58c6')
+    expect(ladder.light1).toMatch(/^#[0-9a-f]{6}$/)
+    expect(deriveColors('not-a-color').light3).toBe('not-a-color')
+    expect(deriveColors('not-a-color').dark2).toBe('not-a-color')
+  })
+  it('暗色模式色阶向 EP 暗底 #141414 混合、dark-2 向白混合', () => {
+    const ladder = deriveColors('#4f6ef7', true)
+    expect(ladder.light3).toBe('#3d53b3')
+    expect(ladder.light9).toBe('#1a1d2b')
+    expect(ladder.dark2).toBe('#728bf9')
   })
 })
 

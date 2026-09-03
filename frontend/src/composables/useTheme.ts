@@ -16,7 +16,7 @@ export function useTheme() {
   function current(): AppearanceSettings {
     const map = settingsStore.map
     return {
-      themeColor: (map['appearance.theme_color'] as string) || '#4f6ef7',
+      themeColor: (map['appearance.theme_color'] as string) || '#5b5ff1',
       darkMode: (map['appearance.dark_mode'] as DarkMode) || 'auto',
       wallpaperType: (map['appearance.wallpaper_type'] as WallpaperType) || 'none',
       wallpaperValue: (map['appearance.wallpaper_value'] as string) || '',

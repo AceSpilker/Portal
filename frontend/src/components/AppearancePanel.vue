@@ -15,7 +15,7 @@ const settingsStore = useSettingsStore()
 const saving = ref(false)
 
 const darkMode = ref<'auto' | 'light' | 'dark'>('auto')
-const themeColor = ref('#4f6ef7')
+const themeColor = ref('#5b5ff1')
 const wallpaperType = ref<'none' | 'solid' | 'gradient' | 'image'>('none')
 const wallpaperValue = ref('')
 const wallpaperBlur = ref(0)
@@ -33,7 +33,7 @@ onMounted(async () => {
   await settingsStore.load()
   const map = settingsStore.map
   darkMode.value = (map['appearance.dark_mode'] as 'auto' | 'light' | 'dark') || 'auto'
-  themeColor.value = (map['appearance.theme_color'] as string) || '#4f6ef7'
+  themeColor.value = (map['appearance.theme_color'] as string) || '#5b5ff1'
   wallpaperType.value = (map['appearance.wallpaper_type'] as typeof wallpaperType.value) || 'none'
   wallpaperValue.value = (map['appearance.wallpaper_value'] as string) || ''
   wallpaperBlur.value = (map['appearance.wallpaper_blur'] as number) ?? 0
