@@ -621,7 +621,7 @@ onMounted(async () => {
           <div v-for="s in temps" :key="s.name" class="disk-row">
             <div class="disk-head">
               <span class="mount">{{ s.name }}</span>
-              <span class="usage" v-if="s.high !== null">≥ {{ s.high }}°C 注意</span>
+              <span class="usage" v-if="s.high !== null">{{ t('monitor.tempHigh', { temp: s.high }) }}</span>
               <span class="pct temp" :class="{ hot: s.critical !== null && s.current !== null && s.current >= s.critical }">
                 {{ s.current !== null ? `${s.current.toFixed(1)}°C` : '-' }}
               </span>

@@ -355,7 +355,7 @@ function saveMonitor() {
         </header>
         <el-form label-position="top" class="panel-body">
                   <el-form-item label="Logo URL">
-          <el-input v-model="logoUrl" placeholder="https://…/logo.png（留空显示站点名）" clearable />
+          <el-input v-model="logoUrl" :placeholder="t('settings.logoUrlPh')" clearable />
         </el-form-item>
         <el-form-item :label="t('settings.timezone')">
           <el-select v-model="timezone" style="max-width: 320px">
