@@ -195,6 +195,18 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- AI 助手（M05/P13）----
+    "err.provider_not_found": {"zh-CN": "AI Provider 不存在", "en": "AI provider not found"},
+    "err.conversation_not_found": {"zh-CN": "会话不存在", "en": "Conversation not found"},
+    "err.ai_no_provider": {
+        "zh-CN": "请先在 设置 → AI 中配置 Provider",
+        "en": "Configure an AI provider in Settings → AI first",    },
+
+    "err.ai_upstream": {"zh-CN": "上游调用失败：", "en": "Upstream error: "},
+    "err.ai_bad_draft": {
+        "zh-CN": "AI 未返回有效的应用草稿",
+        "en": "AI returned no valid app draft",
+    },
     # ---- Docker 管理（M08/P12，可选模块）----
     "err.docker_disabled": {
         "zh-CN": "Docker 管理未启用（需开启 DOCKER_SOCK_ENABLED 并挂载 sock）",

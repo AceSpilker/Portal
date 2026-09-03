@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
+from app.api.v1.ai import ai_chat_ws
 from app.api.v1.monitor import cleanup_job, monitor_ws, sampler_job
 from app.api.v1.ports import ports_job
 from app.api.v1.probe import notify_ws, probe_job
@@ -101,6 +102,12 @@ async def locale_middleware(request: Request, call_next):
 async def ws_notify(websocket: WebSocket):
     """状态变化广播（P6.3；api-spec §5）。"""
     await notify_ws(websocket)
+
+
+@app.websocket("/ws/ai-chat")
+async def ws_ai_chat(websocket: WebSocket):
+    """AI 流式对话（M05-6；P13.2）：query token 鉴权，双向 JSON 帧流。"""
+    await ai_chat_ws(websocket)
 
 
 @app.websocket("/ws/monitor")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    ai,
     apps,
     auth,
     categories,
@@ -40,3 +41,4 @@ api_router.include_router(system.router, tags=["system"])
 api_router.include_router(notify.router, tags=["notify"])
 api_router.include_router(ports.router, tags=["ports"])
 api_router.include_router(docker.router, tags=["docker"])
+api_router.include_router(ai.router, tags=["ai"])

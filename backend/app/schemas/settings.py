@@ -29,6 +29,10 @@ WRITABLE_KEYS: set[str] = {
     "monitor.push_interval",
     # 证书监控域名（P10.5）：["example.com", …] ≤20
     "monitor.cert_hosts",
+    # AI 助手（P13/M05）
+    "ai.context_rounds",
+    "ai.context_aware",
+    "ai.active_provider_id",
 }
 
 
@@ -87,6 +91,16 @@ class SettingsUpdate(BaseModel):
                 raise ValueError(t("err.monitor_range"))
             if key == "monitor.push_interval" and (
                 not isinstance(value, int) or not 1 <= value <= 60
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "ai.context_rounds" and (
+                not isinstance(value, int) or not 0 <= value <= 20
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key in ("ai.context_aware",) and not isinstance(value, bool):
+                raise ValueError(t("err.monitor_range"))
+            if key == "ai.active_provider_id" and (
+                not isinstance(value, int) or value < 0
             ):
                 raise ValueError(t("err.monitor_range"))
             if key == "monitor.cert_hosts" and (
