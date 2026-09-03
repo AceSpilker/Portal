@@ -8,7 +8,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -20,10 +19,9 @@ from app.core.config import settings
 from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
+from app.core.scheduler import scheduler as _scheduler
 from app.db.session import init_db
 from app.services.monitor import prime_cpu_counters, refresh_gpu_cache, setup_host_sources
-
-_scheduler = AsyncIOScheduler(timezone="UTC")
 
 
 @asynccontextmanager

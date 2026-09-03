@@ -6,8 +6,12 @@ services:
     ports:
       - "8080:8000"
     environment:
+      # 时区：影响采样时间戳展示与定时任务（api-spec §6.1）
       - TZ=Asia/Shanghai
+      # JWT 签名密钥：部署前必须改为 ≥32 字节随机串（openssl rand -hex 32）
       - SECRET_KEY=please-change-me
+      # 数据目录：数据库/图标/上传/备份全部持久化在宿主 ./data，升级镜像不丢数据
+      # - DATA_DIR=/app/data
       # 可选：MySQL 镜像推送（SQLite 为主库，见 dev-plan P23 / api-spec §6.1）
       # - SYNC__ENABLED=true
       # - SYNC__INTERVAL_MIN=30
@@ -18,7 +22,7 @@ services:
       # - SYNC__MYSQL__DATABASE=portal
       # 可选：Docker 容器管理模块（有安全权衡，默认不开）
       # - DOCKER_SOCK_ENABLED=true
-      # 可选：读取宿主机资源做监控（NAS 支持 mount 时开启）
+      # 可选：读取宿主机资源做监控（NAS 支持 mount 时开启，见 dev-plan P5.1）
       # - HOST_PROC=/host/proc
       # - HOST_SYS=/host/sys
     volumes:
@@ -27,3 +31,14 @@ services:
       # - /proc:/host/proc:ro
       # - /sys:/host/sys:ro
     restart: unless-stopped
+    healthcheck:
+      # /api/health 豁免传输加密与认证（api-spec §4 P0 行），供 Docker/负载均衡探活
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=3)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

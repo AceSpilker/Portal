@@ -1,17 +1,21 @@
-"""P0 测试关卡：健康检查 + 建表与默认设置（dev-plan P0 单元测试）。"""
+"""P0 测试关卡：健康检查 + 建表与默认设置（dev-plan P0 单元测试）。
 
+复用 conftest 的 session 级 client：自建 TestClient 退出时会触发 lifespan
+shutdown，把全局调度器关掉，导致后续模块（如 test_p8_system）读到
+scheduler_running=False。
+"""
+
+import sqlite3
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from app.main import app
 
 
-def test_health_ok():
+def test_health_ok(client: TestClient):
     """统一响应结构 + 服务状态（api-spec §1/§2）。"""
-    with TestClient(app) as client:
-        resp = client.get("/api/health")
+    resp = client.get("/api/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["code"] == 0
@@ -25,7 +29,6 @@ def test_settings_table_ready_with_defaults():
     db_file = Path(settings.data_dir) / "portal.db"
     assert db_file.is_file()
 
-    import sqlite3
 
     conn = sqlite3.connect(db_file)
     try:

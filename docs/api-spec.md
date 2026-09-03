@@ -324,7 +324,8 @@
 | POST | /api/backup/factory-reset | 恢复出厂（需密码二次确认） | M | M2 |
 | GET/POST/DELETE | /api/tokens… | API Token 管理 | M | M2 |
 | GET | /api/audit-logs?action=&range= | 审计日志 | M | M2 |
-| GET | /api/system/info · /health-report | 系统信息 / 健康自检报告 | M | P8/M2 |
+| GET | /api/system/health-report | 健康自检报告（P8.2 基础版）：数据卷可写、调度器运行状态与任务清单（含 app_probe/monitor_sample 的 next_run），返回 {data_dir, data_dir_writable, scheduler_running, tasks[], missing_tasks[], tasks_ok, checked_at}；完整版随 P17.3 扩展 | M | P8 |
+| GET | /api/system/info | 系统信息（版本/构建等） | M | M2 |
 | GET | /api/system/update/check | 立即检查更新：调 Gitee Releases API（settings update.repo 可配）对比本地版本，返回 {current, latest, changelog, has_update}；结果写站内通知 | M | M2 |
 | POST | /api/system/update/apply | 执行在线更新（源码部署路径）：自动备份 → fetch/checkout 新版本 → 依赖安装 → 重启自检，失败自动回滚；期间前端轮询 /api/health 等待恢复 | M | M2 |
 | GET | /api/system/update/status | 更新进度与最近一次结果（idle/checking/applying/ok/failed） | M | M2 |
