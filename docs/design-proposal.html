@@ -479,7 +479,7 @@
 <!-- ============ 04 数据模型 ============ -->
 <section id="s4">
   <h2><span class="no">04</span>数据模型设计</h2>
-  <p><strong>存储策略（v0.2）</strong>：以 <strong>SQLite 为运行主库</strong>（<code>/app/data/portal.db</code>，零依赖、低延迟），通过定时任务把业务数据<strong>镜像推送到 NAS 上的 MySQL</strong> 作为灾备与集中存储；MySQL 不可达不影响本地运行。<strong>字段级表结构（31 张表）的权威定义见《接口详述 api-spec》§3</strong>，此处列核心表概览：</p>
+  <p><strong>存储策略（v0.2）</strong>：以 <strong>SQLite 为运行主库</strong>（<code>/app/data/portal.db</code>，零依赖、低延迟），通过定时任务把业务数据<strong>镜像推送到 NAS 上的 MySQL</strong> 作为灾备与集中存储；MySQL 不可达不影响本地运行。<strong>字段级表结构（32 张表）的权威定义见《接口详述 api-spec》§3</strong>，此处列核心表概览：</p>
   <table>
     <thead><tr><th style="width:24%">表</th><th style="width:52%">关键字段</th><th>说明</th></tr></thead>
     <tbody>

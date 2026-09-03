@@ -83,7 +83,7 @@
   <nav class="toc">
     <a href="#intro">通用约定</a>
     <a href="#errors">错误码表</a>
-    <a href="#dm">数据模型（31 张表）</a>
+    <a href="#dm">数据模型（32 张表）</a>
     <a class="lv2" href="#dm-acc">3.1 账户与安全</a>
     <a class="lv2" href="#dm-core">3.2 门户核心</a>
     <a class="lv2" href="#dm-env">3.3 网络环境</a>
@@ -114,12 +114,12 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>接口与数据模型详述（API Spec）</h1>
-    <p class="tagline">后端建表与前后端联调的契约依据：31 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
+    <p class="tagline">后端建表与前后端联调的契约依据：32 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
     <div class="meta">
       <span class="chip">版本 v1.2</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">关联 feature-spec v1.3 · design-proposal v0.3</span>
-      <span class="chip">31 张表</span>
+      <span class="chip">32 张表</span>
       <span class="chip">90+ 端点</span><span class="chip">v1.1 新增：传输加密协议</span>
     </div>
   </div>
@@ -176,7 +176,7 @@
 
 <!-- ============ 数据模型 ============ -->
 <section id="dm">
-  <h2><span class="no">03</span>数据模型（31 张表）</h2>
+  <h2><span class="no">03</span>数据模型（32 张表）</h2>
   <p><strong>建表策略</strong>：随开发阶段建表（"建表"列），M1 建 12 张。所有表含 <code>created_at</code>，业务表含 <code>updated_at</code>（MySQL 同步依赖），各表不再重复列出。</p>
 
   <h3 id="dm-acc">3.1 账户与安全</h3>
