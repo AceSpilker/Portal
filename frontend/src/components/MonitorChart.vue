@@ -17,14 +17,15 @@ let ro: ResizeObserver | null = null
 
 onMounted(() => {
   chart = echarts.init(el.value!)
-  chart.setOption(props.option)
+  chart.setOption({ animation: false, ...props.option })
   ro = new ResizeObserver(() => chart?.resize())
   ro.observe(el.value!)
 })
 watch(
   () => props.option,
-  (opt) => chart?.setOption(opt, { notMerge: true }), // 整体替换：series 数量/名称变化时不得残留旧序列
-  { deep: true },
+  // 浅侦听（option 每次为整体新对象）；replaceMerge:series 在序列增减时清除残留，
+  // 且保留 merge 渲染性能；关闭动画——实时图表每 2s 重绘，动画是主要卡顿来源
+  (opt) => chart?.setOption({ animation: false, ...opt }, { replaceMerge: ['series'] }),
 )
 onBeforeUnmount(() => {
   ro?.disconnect()

@@ -265,7 +265,7 @@ const cpuOption = computed(() => ({
   xAxis: { type: 'category', data: [...rt.cpu.ts], axisLabel, splitLine },
   yAxis: { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } },
   series: [
-    { name: t('monitor.cpuTotal'), type: 'line', data: [...rt.cpu.total], smooth: true, showSymbol: false, lineWidth: 2 },
+    { name: t('monitor.cpuTotal'), type: 'line', data: [...rt.cpu.total], smooth: true, showSymbol: false, lineWidth: 2, sampling: 'lttb' },
     ...rt.cpu.cores.map((data, i) => ({
       name: `CPU${i + 1}`,
       type: 'line',
@@ -274,6 +274,7 @@ const cpuOption = computed(() => ({
       showSymbol: false,
       lineWidth: 1,
       opacity: 0.55,
+      sampling: 'lttb',
     })),
   ],
 }))
@@ -285,7 +286,7 @@ const memOption = computed(() => ({
   xAxis: { type: 'category', data: [...rt.mem.ts], axisLabel, splitLine },
   yAxis: { type: 'value', max: 100, axisLabel, splitLine, axisLine: { show: false } },
   series: [
-    { name: t('monitor.memPercent'), type: 'line', data: [...rt.mem.pct], smooth: true, showSymbol: false, areaStyle: { opacity: 0.15 } },
+    { name: t('monitor.memPercent'), type: 'line', data: [...rt.mem.pct], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.15 } },
   ],
 }))
 
@@ -297,8 +298,8 @@ const netOption = computed(() => ({
   xAxis: { type: 'category', data: [...rt.net.ts], axisLabel, splitLine },
   yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
   series: [
-    { name: t('monitor.down'), type: 'line', data: [...rt.net.rx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
-    { name: t('monitor.up'), type: 'line', data: [...rt.net.tx], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.down'), type: 'line', data: [...rt.net.rx], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.up'), type: 'line', data: [...rt.net.tx], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
   ],
 }))
 
@@ -316,6 +317,7 @@ const gpuOption = computed(() => ({
     smooth: true,
     showSymbol: false,
     lineWidth: 2,
+    sampling: 'lttb',
     areaStyle: { opacity: 0.12 },
   })),
 }))
@@ -328,8 +330,8 @@ const ioOption = computed(() => ({
   xAxis: { type: 'category', data: [...rt.io.ts], axisLabel, splitLine },
   yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
   series: [
-    { name: t('monitor.read'), type: 'line', data: [...rt.io.read], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
-    { name: t('monitor.write'), type: 'line', data: [...rt.io.write], smooth: true, showSymbol: false, areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.read'), type: 'line', data: [...rt.io.read], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
+    { name: t('monitor.write'), type: 'line', data: [...rt.io.write], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
   ],
 }))
 
@@ -384,6 +386,7 @@ const historyOption = computed(() => {
     lineWidth: thin ? 1 : 2,
     opacity: thin ? 0.55 : 1,
     connectNulls: false,
+    sampling: 'lttb', // 1440 点级历史曲线降采样绘制
   })
   const legendScroll = { top: 4, type: 'scroll', textStyle: axisLabel }
   if (multiSeriesMeta) {
