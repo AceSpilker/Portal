@@ -1,7 +1,7 @@
 """传输加密中间件（dev-plan P24.3；api-spec §7）——纯 ASGI 实现。
 
 /api/* 的请求体、响应体、Authorization 头全部密文传输。
-豁免：/api/health、/api/crypto/*（公钥下发与握手本身）、静态资源。
+豁免：/api/health、/api/crypto/*（公钥下发与握手本身）、/api/public/*（访客免认证）、静态资源。
 中间件自身产生的错误（缺会话/解密失败/重放）以明文最小信息返回（1100/1101/1102），
 不含任何业务数据，前端据此重新握手。
 """
@@ -11,7 +11,12 @@ import json
 from app.core.config import settings
 from app.core.crypto import transport_crypto
 
-EXEMPT_PATHS = {"/api/health", "/api/crypto/public-key", "/api/crypto/handshake"}
+EXEMPT_PATHS = {
+    "/api/health",
+    "/api/crypto/public-key",
+    "/api/crypto/handshake",
+    "/api/public/apps",  # 访客免认证端点（P7.5）
+}
 
 
 class TransportEncryptionMiddleware:

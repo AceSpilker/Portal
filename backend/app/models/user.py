@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -18,6 +18,7 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(default=True)
     totp_secret: Mapped[str | None] = mapped_column(String(64), default=None)  # M2 启用
     prefs: Mapped[str] = mapped_column(String(1024), default="{}")  # JSON 个人偏好
+    remark: Mapped[str] = mapped_column(Text, default="", server_default="")  # 管理员备注（M01-11）
     # 密码修改时间（审计用）；token_version 早于当前版本的 token 一律失效（改密踢会话）
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     token_version: Mapped[int] = mapped_column(default=0)

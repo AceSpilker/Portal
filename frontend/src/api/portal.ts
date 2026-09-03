@@ -3,7 +3,7 @@ import request from './request'
 export type AccessType = 'domain' | 'lan' | 'ssh' | 'vpn' | 'custom'
 export type IconType = 'url' | 'upload' | 'emoji' | 'element'
 export type OpenMode = 'newtab' | 'current' | 'iframe'
-export type Visibility = 'all' | 'admin' | 'users'
+export type Visibility = 'all' | 'users' | 'admin' | 'public'
 export type HealthType = '' | 'http' | 'tcp' | 'keyword'
 
 export interface Category {
@@ -41,6 +41,7 @@ export interface PortalApp {
   health_interval: number
   open_mode: OpenMode
   visibility: Visibility
+  visible_users?: number[]
   favorite: boolean
   tags: string[]
   remark: string
@@ -69,6 +70,7 @@ export interface AppPayload {
   health_interval?: number
   open_mode?: OpenMode
   visibility?: Visibility
+  visible_users?: number[]
   favorite?: boolean
   tags?: string[]
   remark?: string

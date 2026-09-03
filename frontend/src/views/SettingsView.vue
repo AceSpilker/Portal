@@ -12,11 +12,13 @@ import {
   Setting as IconGeneral,
   Brush as IconAppearance,
   Odometer as IconMonitor,
+  User as IconUsers,
 } from '@element-plus/icons-vue'
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
 import AccessPanel from '../components/AccessPanel.vue'
+import UsersPanel from '../components/UsersPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import type { IconItem } from '../api/icons'
 import { getHealth } from '../api/health'
@@ -27,7 +29,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'usermgmt' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -309,6 +311,10 @@ function saveMonitor() {
           <el-icon><component :is="IconMonitor" /></el-icon>
           <span>{{ t('settings.menuMonitor') }}</span>
         </el-menu-item>
+        <el-menu-item index="usermgmt">
+          <el-icon><component :is="IconUsers" /></el-icon>
+          <span>{{ t('settings.menuUsers') }}</span>
+        </el-menu-item>
         <el-menu-item index="about">
           <el-icon><component :is="IconInfo" /></el-icon>
           <span>{{ t('settings.menuAbout') }}</span>
@@ -515,6 +521,11 @@ function saveMonitor() {
             {{ t('common.save') }}
           </el-button>
         </el-form>
+      </template>
+      <template v-else-if="active === 'usermgmt'">
+        <h3>{{ t('settings.menuUsers') }}</h3>
+        <p class="panel-hint">{{ t('settings.usersHint') }}</p>
+        <UsersPanel />
       </template>
       <template v-else-if="active === 'about'">
           <header class="panel-head">

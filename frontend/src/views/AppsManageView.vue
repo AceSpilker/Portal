@@ -9,6 +9,7 @@ import {
   Upload as IconImport,
 } from '@element-plus/icons-vue'
 import { portalApi } from '../api/portal'
+import { usersApi } from '../api/users'
 import type {
   AccessType,
   Category,
@@ -109,6 +110,7 @@ const VISIBILITY_LABEL = computed<Record<Visibility, string>>(() => ({
   all: t('apps.visibility.all'),
   admin: t('apps.visibility.admin'),
   users: t('apps.visibility.users'),
+  public: t('apps.visibility.public'),
 }))
 const OPEN_LABEL = computed<Record<OpenMode, string>>(() => ({
   newtab: t('apps.openMode.newtab'),
@@ -137,6 +139,7 @@ const draft = ref({
   icon_type: 'url' as IconType,
   open_mode: 'newtab' as OpenMode,
   visibility: 'all' as Visibility,
+  visible_users: [] as number[],
   enabled: true,
   health_type: '' as HealthType,
   health_target: '',
@@ -150,8 +153,10 @@ const removedUrlIds = ref<number[]>([])
 let urlKey = 1
 
 function openCreate() {
+  void loadUserOptions()
   draft.value = {
     id: undefined,
+    visible_users: [],
     name: '',
     description: '',
     category_id: null,
@@ -174,6 +179,7 @@ function openCreate() {
 }
 
 function openEdit(app: PortalApp) {
+  void loadUserOptions()
   draft.value = {
     id: app.id,
     name: app.name,
@@ -183,6 +189,7 @@ function openEdit(app: PortalApp) {
     icon_type: app.icon_type,
     open_mode: app.open_mode,
     visibility: app.visibility,
+    visible_users: app.visible_users ?? [],
     enabled: app.enabled,
     health_type: app.health_type,
     health_target: app.health_target ?? '',
@@ -244,6 +251,7 @@ async function saveApp() {
       health_type: draft.value.health_type,
       health_target: draft.value.health_target.trim() || null,
       health_interval: draft.value.health_interval,
+      visible_users: draft.value.visible_users,
       tags: [...draft.value.tags],
       remark: draft.value.remark,
       doc_url: draft.value.doc_url.trim() || null,
@@ -304,6 +312,15 @@ async function removeApp(app: PortalApp) {
 
 // ============ 图标（URL / 上传 / Emoji + favicon 抓取）============
 const faviconSource = ref('')
+const userOptions = ref<{ id: number; username: string }[]>([])
+async function loadUserOptions() {
+  try {
+    const data = await usersApi.list('', 1, 100)
+    userOptions.value = data.items.map((u) => ({ id: u.id, username: u.username }))
+  } catch {
+    userOptions.value = []
+  }
+}
 const iconFileInput = ref<HTMLInputElement>()
 
 async function onIconFile(ev: Event) {
@@ -719,11 +736,29 @@ async function doExport() {
               </el-select>
             </el-form-item>
             <el-form-item :label="t('apps.fieldVisibility')">
-              <el-select v-model="draft.visibility" style="width: 100%">
-                <el-option :label="t('apps.visibility.all')" value="all" />
-                <el-option :label="t('apps.visibility.admin')" value="admin" />
-                <el-option :label="t('apps.visibility.users')" value="users" />
-              </el-select>
+              <div style="width: 100%">
+                <el-select v-model="draft.visibility" style="width: 100%">
+                  <el-option :label="t('apps.visibility.all')" value="all" />
+                  <el-option :label="t('apps.visibility.users')" value="users" />
+                  <el-option :label="t('apps.visibility.admin')" value="admin" />
+                  <el-option :label="t('apps.visibility.public')" value="public" />
+                </el-select>
+                <el-select
+                  v-if="draft.visibility === 'users'"
+                  v-model="draft.visible_users"
+                  multiple
+                  filterable
+                  :placeholder="t('apps.visibleUsersPh')"
+                  style="width: 100%; margin-top: 8px"
+                >
+                  <el-option
+                    v-for="u in userOptions"
+                    :key="u.id"
+                    :label="u.username"
+                    :value="u.id"
+                  />
+                </el-select>
+              </div>
             </el-form-item>
             <el-form-item :label="t('apps.fieldHealthType')">
               <el-select v-model="draft.health_type" style="width: 100%">

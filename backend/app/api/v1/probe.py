@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -18,6 +20,7 @@ from app.core.deps import get_current_user
 from app.core.response import ok
 from app.core.security import decode_token
 from app.db.session import SessionLocal, get_session
+from app.models.portal import App
 from app.models.probe import AppStatus, Notification
 from app.models.user import User
 from app.services import probe
@@ -63,6 +66,36 @@ async def probe_status(
 
 class StatusBroadcast(BaseModel):
     data: dict
+
+
+@router.get("/public/apps")
+async def public_apps(session: AsyncSession = Depends(get_session)):
+    """访客首页数据（M01-10；P7.5）：免认证，仅 visibility=public 的启用应用。
+
+    设置键 guest.enabled=0（默认）时返回 404。
+    """
+    from app.models.setting import Setting
+
+    row = await session.get(Setting, "guest.enabled")
+    enabled = bool(json.loads(row.value)) if row else False
+    if not enabled:
+        from app.core.i18n import t as _t
+        from app.core.response import CODE_NOT_FOUND, fail
+
+        return fail(CODE_NOT_FOUND, _t("err.guest_disabled"), 404)
+    apps = (
+        await session.execute(
+            select(App)
+            .where(App.deleted.is_(False), App.enabled.is_(True), App.visibility == "public")
+            .order_by(App.sort, App.id)
+        )
+    ).scalars()
+    return ok(
+        [
+            {"id": a.id, "name": a.name, "icon": a.icon, "icon_type": a.icon_type}
+            for a in apps
+        ]
+    )
 
 
 @router.get("/notifications")

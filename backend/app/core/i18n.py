@@ -144,6 +144,19 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "监控设置取值超出允许范围",
         "en": "Monitor setting value out of allowed range",
     },
+    "err.username_dup": {"zh-CN": "用户名已存在", "en": "Username already exists"},
+    "err.user_not_found": {"zh-CN": "用户不存在", "en": "User not found"},
+    "err.guest_disabled": {"zh-CN": "访客模式未开启", "en": "Guest mode is disabled"},
+    "err.user_self_action": {"zh-CN": "不能对自己执行{action}", "en": "Cannot {action} yourself"},
+    "err.last_admin": {
+        "zh-CN": "需至少保留一个启用中的管理员，无法{action}",
+        "en": "At least one enabled admin must remain, cannot {action}",
+    },
+    "ok.user_password_reset": {
+        "zh-CN": "密码已重置，该用户需重新登录",
+        "en": "Password reset; the user must sign in again",
+    },
+    "ok.user_kicked": {"zh-CN": "已强制下线", "en": "User kicked"},
     # ---- 校验（schemas 校验器）----
     "v.category_empty": {"zh-CN": "分组名不能为空", "en": "Group name must not be empty"},
     "v.app_name_empty": {"zh-CN": "应用名不能为空", "en": "App name must not be empty"},

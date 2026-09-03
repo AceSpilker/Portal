@@ -21,6 +21,7 @@ WRITABLE_KEYS: set[str] = {
     "sync.enabled",
     "sync.interval_min",
     # 监控（P5）：采样/推送间隔与保留天数
+    "guest.enabled",
     "monitor.retention_days",
     "monitor.sample_interval",
     "monitor.push_interval",
@@ -77,6 +78,8 @@ class SettingsUpdate(BaseModel):
             if key == "monitor.sample_interval" and (
                 not isinstance(value, int) or not 10 <= value <= 3600
             ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "guest.enabled" and not isinstance(value, bool):
                 raise ValueError(t("err.monitor_range"))
             if key == "monitor.push_interval" and (
                 not isinstance(value, int) or not 1 <= value <= 60

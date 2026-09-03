@@ -39,6 +39,9 @@ async def init_db() -> None:
             "ALTER TABLE monitor_samples ADD COLUMN cpu_cores TEXT",
             # P5 增强：GPU 采集列（io 列建表即有）
             "ALTER TABLE monitor_samples ADD COLUMN gpu TEXT",
+            # P7.4/P7.5：用户备注、应用可见性授权用户
+            "ALTER TABLE users ADD COLUMN remark TEXT DEFAULT ''",
+            "ALTER TABLE apps ADD COLUMN visible_users TEXT DEFAULT '[]'",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

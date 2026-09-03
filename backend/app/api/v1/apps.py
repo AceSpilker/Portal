@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import String, cast, delete, func, select
+from sqlalchemy import String, and_, cast, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -194,6 +194,18 @@ async def fetch_site_favicon(url: str, _: User = Depends(require_admin)):
 # ============ 列表与 CRUD ============
 
 
+def _visible_to(user: User, app: App) -> bool:
+    """非管理员的应用可见性判定（M03-10）：all / public / users(授权列表含自己)。"""
+    if app.visibility in ("all", "public"):
+        return True
+    if app.visibility == "users":
+        try:
+            return user.id in (json.loads(app.visible_users or "[]"))
+        except ValueError:
+            return False
+    return False
+
+
 @router.get("/apps")
 async def list_apps(
     keyword: str = "",
@@ -205,7 +217,22 @@ async def list_apps(
     """应用列表：关键词（名称/描述/标签）、分组、标签过滤 + 可见性过滤。"""
     stmt = select(App).options(selectinload(App.urls)).where(App.deleted.is_(False))
     if user.role != "admin":
-        stmt = stmt.where(App.visibility == "all")
+        # 可见性四级：all=所有登录用户 / users=授权列表 / admin=仅管理员 / public=含访客
+        # JSON1 精确匹配授权用户 id（避免字符串子串误命中）
+        uid = str(user.id)
+        stmt = stmt.where(
+            or_(
+                App.visibility == "all",
+                App.visibility == "public",
+                and_(
+                    App.visibility == "users",
+                    text(
+                        "EXISTS (SELECT 1 FROM json_each(apps.visible_users)"
+                        " WHERE CAST(json_each.value AS INTEGER) = :uid)"
+                    ).bindparams(uid=uid),
+                ),
+            )
+        )
     if keyword.strip():
         kw = f"%{keyword.strip()}%"
         stmt = stmt.where(
@@ -226,7 +253,10 @@ async def create_app(
     session: AsyncSession = Depends(get_session),
 ):
     await _ensure_category(session, body.category_id)
-    app = App(**body.model_dump())
+    data = body.model_dump()
+    if data.get("visible_users") is not None:
+        data["visible_users"] = json.dumps(data["visible_users"])
+    app = App(**data)
     app.urls = []  # 预加载空关系，避免响应序列化触发异步惰性加载
     session.add(app)
     await session.commit()  # flush 已回填自增 id；不 refresh 以免 urls 关系被置回未加载态
@@ -240,7 +270,7 @@ async def get_app(
     session: AsyncSession = Depends(get_session),
 ):
     app = await _get_app(session, app_id)
-    if user.role != "admin" and app.visibility != "all":
+    if user.role != "admin" and not _visible_to(user, app):
         raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
     return ok(AppOut.model_validate(app).model_dump())
 
@@ -256,6 +286,8 @@ async def update_app(
     changes = body.model_dump(exclude_unset=True)
     if "category_id" in changes:
         await _ensure_category(session, changes["category_id"])
+    if "visible_users" in changes and changes["visible_users"] is not None:
+        changes["visible_users"] = json.dumps(changes["visible_users"])
     for key, value in changes.items():
         setattr(app, key, value)
     await session.commit()
@@ -399,7 +431,7 @@ async def resolve_app(
 ):
     """按当前环境的入口优先级返回推荐入口 + 备选列表（api-spec §4.2）。"""
     app = await _get_app(session, app_id)
-    if user.role != "admin" and app.visibility != "all":
+    if user.role != "admin" and not _visible_to(user, app):
         raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
     profile = await _effective_profile(session, user, env, request)
     prefer = (profile.prefer_types if profile else []) or []

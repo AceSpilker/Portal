@@ -47,7 +47,9 @@ class App(Base, TimestampMixin):
     health_target: Mapped[str | None] = mapped_column(String(512), default=None)  # URL 或 host:port
     health_interval: Mapped[int] = mapped_column(Integer, default=60)
     open_mode: Mapped[str] = mapped_column(String(16), default="newtab")  # newtab/current/iframe
-    visibility: Mapped[str] = mapped_column(String(16), default="all")  # all/admin/users
+    visibility: Mapped[str] = mapped_column(String(16), default="all")  # all/users/admin/public
+    # visibility=users 时生效：可访问的用户 id 数组（JSON）
+    visible_users: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
     favorite: Mapped[bool] = mapped_column(default=False)  # P4 收藏置顶使用
     tags: Mapped[list] = mapped_column(JSON, default=list)  # M2 标签；JSON 跨库兼容（P23）
     remark: Mapped[str] = mapped_column(Text, default="")

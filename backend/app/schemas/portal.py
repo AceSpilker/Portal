@@ -102,7 +102,8 @@ class AppCreate(BaseModel):
     health_target: str | None = Field(default=None, max_length=512)
     health_interval: int = Field(default=60, ge=10, le=86400)
     open_mode: str = Field(default="newtab", pattern="^(newtab|current|iframe)$")
-    visibility: str = Field(default="all", pattern="^(all|admin|users)$")
+    visibility: str = Field(default="all", pattern="^(all|users|admin|public)$")
+    visible_users: list[int] | None = None
     tags: list[str] = []
     remark: str = ""
     doc_url: str | None = None
@@ -128,7 +129,8 @@ class AppUpdate(BaseModel):
     health_target: str | None = Field(default=None, max_length=512)
     health_interval: int | None = Field(default=None, ge=10, le=86400)
     open_mode: str | None = Field(default=None, pattern="^(newtab|current|iframe)$")
-    visibility: str | None = Field(default=None, pattern="^(all|admin|users)$")
+    visibility: str | None = Field(default=None, pattern="^(all|users|admin|public)$")
+    visible_users: list[int] | None = None
     favorite: bool | None = None
     tags: list[str] | None = None
     remark: str | None = None
@@ -195,7 +197,8 @@ class ExportApp(BaseModel):
     health_target: str | None = None
     health_interval: int = Field(default=60, ge=10, le=86400)
     open_mode: str = Field(default="newtab", pattern="^(newtab|current|iframe)$")
-    visibility: str = Field(default="all", pattern="^(all|admin|users)$")
+    visibility: str = Field(default="all", pattern="^(all|users|admin|public)$")
+    visible_users: list[int] | None = None
     favorite: bool = False
     tags: list[str] = []
     remark: str = ""

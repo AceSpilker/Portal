@@ -17,6 +17,7 @@ type Mode = 'loading' | 'login' | 'init'
 const mode = ref<Mode>('loading')
 const backendUp = ref(true)
 const submitting = ref(false)
+const guestAvailable = ref(false)
 
 const loginForm = reactive({ username: '', password: '' })
 const initForm = reactive({ username: '', password: '', confirm: '', site_name: 'Portal' })
@@ -26,6 +27,12 @@ onMounted(async () => {
     const info = await getHealth()
     backendUp.value = true
     mode.value = info.initialized ? 'login' : 'init'
+    // 访客模式开关探测（P7.5）：/api/public/apps 200 即开启
+    try {
+      guestAvailable.value = (await fetch('/api/public/apps')).status === 200
+    } catch {
+      guestAvailable.value = false
+    }
   } catch {
     backendUp.value = false
     mode.value = 'login'
@@ -279,5 +286,12 @@ async function handleInit() {
   .foot {
     margin-top: 14px;
   }
+}
+.guest-link {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--p-muted);
 }
 </style>
