@@ -195,6 +195,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "入口优先顺序不能重复",
         "en": "Entry preference must not contain duplicates",
     },
+    # ---- 通知中心（M09/P9）----
+    "err.channel_not_found": {"zh-CN": "通知渠道不存在", "en": "Notification channel not found"},
+    "notify.test_title": {"zh-CN": "Portal 测试消息", "en": "Portal test message"},
+    "notify.test_body": {
+        "zh-CN": "这是一条测试通知，收到即表示渠道配置可用",
+        "en": "This is a test notification. Receiving it means the channel works",
+    },
     # ---- 工具箱（M10）----
     "v.mac_invalid": {
         "zh-CN": "MAC 地址格式不正确",

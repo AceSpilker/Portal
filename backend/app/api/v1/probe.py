@@ -1,9 +1,9 @@
-"""探活与站内通知接口（M07-2/5；dev-plan P6.3/P6.4；api-spec §4.2/§5）。
+"""探活接口（M07-1/2；dev-plan P6.3/P6.4；api-spec §4.2/§5）。
 
 - POST /apps/{id}/check：立即探活一次（A）；
 - GET /probe/status：全部应用当前状态（A，首页磁贴初始加载）；
-- GET /notifications · PUT /notifications/{id}/read：站内通知最小集（A，P6.4；
-  完整通知中心在 P9）；
+- GET /public/apps：访客首页数据（P7.5）；
+- 站内通知（/notifications…）自 P9 起迁移至 api/v1/notify.py；
 - WS /ws/notify：状态变化广播（登录用户），挂在应用根路径（同 /ws/monitor）。
 """
 
@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +20,10 @@ from app.core.response import ok
 from app.core.security import decode_token
 from app.db.session import SessionLocal, get_session
 from app.models.portal import App
-from app.models.probe import AppStatus, Notification
+from app.models.probe import AppStatus
 from app.models.user import User
 from app.services import probe
+from app.services.wsbus import broadcast, register_ws, unregister_ws
 
 router = APIRouter()
 
@@ -64,10 +64,6 @@ async def probe_status(
     )
 
 
-class StatusBroadcast(BaseModel):
-    data: dict
-
-
 @router.get("/public/apps")
 async def public_apps(session: AsyncSession = Depends(get_session)):
     """访客首页数据（M01-10；P7.5）：免认证，仅 visibility=public 的启用应用。
@@ -98,48 +94,8 @@ async def public_apps(session: AsyncSession = Depends(get_session)):
     )
 
 
-@router.get("/notifications")
-async def list_notifications(
-    unread: int | None = Query(None),
-    _: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    """站内通知（P6.4 最小集；完整通知中心 P9）。"""
-    stmt = select(Notification).order_by(Notification.id.desc()).limit(50)
-    if unread:
-        stmt = stmt.where(Notification.is_read == 0)
-    rows = (await session.execute(stmt)).scalars().all()
-    return ok(
-        [
-        {
-            "id": n.id,
-            "title": n.title,
-            "body": n.body,
-            "level": n.level,
-            "source": n.source,
-            "is_read": bool(n.is_read),
-            "created_at": n.created_at.isoformat() + "Z",
-        }
-            for n in rows
-        ]
-    )
-
-
-@router.put("/notifications/{notification_id}/read")
-async def mark_read(
-    notification_id: int,
-    _: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    n = await session.get(Notification, notification_id)
-    if n:
-        n.is_read = 1
-        await session.commit()
-    return ok(True)
-
-
 async def notify_ws(websocket: WebSocket) -> None:
-    """WS /ws/notify（P6.3）：登录用户接收 app_status 变化广播。"""
+    """WS /ws/notify（P6.3）：登录用户接收 app_status / notification 广播。"""
     try:
         payload = decode_token(websocket.query_params.get("token", ""), "access")
         async with SessionLocal() as session:
@@ -151,14 +107,14 @@ async def notify_ws(websocket: WebSocket) -> None:
         return
 
     await websocket.accept()
-    probe.register_ws(websocket)
+    register_ws(websocket)
     try:
         while True:
             await websocket.receive_text()  # 保活；客户端消息忽略
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        probe.unregister_ws(websocket)
+        unregister_ws(websocket)
 
 
 async def probe_job() -> None:
@@ -166,4 +122,4 @@ async def probe_job() -> None:
     async with SessionLocal() as session:
         events = await probe.run_due_checks(session)
     for ev in events:
-        await probe.broadcast(ev)
+        await broadcast(ev)

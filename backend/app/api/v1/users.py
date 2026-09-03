@@ -184,7 +184,9 @@ async def update_user(
     if user is None:
         raise BizError(CODE_FORBIDDEN, t("err.user_not_found"), 404)
     if user.id == admin.id and body.role != "admin":
-        raise BizError(CODE_FORBIDDEN, t("err.user_self_action", action=t("u.action.change_role")), 403)
+        raise BizError(
+            CODE_FORBIDDEN, t("err.user_self_action", action=t("u.action.change_role")), 403
+        )
     if user.role == "admin" and body.role != "admin":
         await _guard_keep_admin(session, user, t("u.action.demote"))
     user.role = body.role

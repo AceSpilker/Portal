@@ -1,4 +1,4 @@
-"""应用探活服务（M07-1/2/5；dev-plan P6.1/P6.2/P6.4）。
+"""应用探活服务（M07-1/2/5；dev-plan P6.1/P6.2/P6.4/P9 接入）。
 
 三种探测方式（apps.health_type）：
 - http：HTTP GET，2xx/3xx 视为 up；
@@ -7,7 +7,8 @@
   （target 格式 `url::关键字`；未含 `::` 时以 url 为目标、关键字为空视为 http）。
 
 状态翻转去抖：仅与 app_status 中现行状态不同时才记 probe_events 并更新 since；
-相同状态只刷新 checked_at/latency。状态变化写 notifications（P6.4，渠道接入在 P9）。
+相同状态只刷新 checked_at/latency。状态变化经 services.notify.dispatch 走
+通知编排（站内 + 路由渠道，P9），WS 广播经 services.wsbus。
 """
 
 from __future__ import annotations
@@ -21,29 +22,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.portal import App
-from app.models.probe import AppStatus, Notification, ProbeEvent
+from app.models.probe import AppStatus, ProbeEvent
+from app.services import notify
 
 PROBE_TIMEOUT = 5.0  # 单次探测超时（秒）
 SLOW_MS = 2000  # 超过该延迟记 slow 事件
-
-_WS_CLIENTS: set = set()  # /ws/notify 连接集合（由 api 层维护）
-
-
-def register_ws(ws) -> None:
-    _WS_CLIENTS.add(ws)
-
-
-def unregister_ws(ws) -> None:
-    _WS_CLIENTS.discard(ws)
-
-
-async def broadcast(event: dict) -> None:
-    """向所有 /ws/notify 连接广播事件；发送失败静默移除连接。"""
-    for ws in list(_WS_CLIENTS):
-        try:
-            await ws.send_json(event)
-        except Exception:
-            _WS_CLIENTS.discard(ws)
 
 
 async def _probe_http(
@@ -134,13 +117,19 @@ async def apply_result(
         return None
 
     await session.merge(ProbeEvent(app_id=app.id, event=state, latency_ms=latency))
+    await session.commit()
     level = "error" if state == "down" else "info"
     title = f"{app.name} 已恢复" if state == "up" else f"{app.name} 已下线"
     dedup = f"app-{state}-{app.id}-{now.strftime('%Y%m%d%H%M')}"
-    session.add(
-        Notification(title=title, body=message, level=level, source="probe", dedup_key=dedup)
+    await notify.dispatch(
+        session,
+        event="app_down" if state == "down" else "app_up",
+        source="probe",
+        title=title,
+        body=message,
+        level=level,
+        dedup_key=dedup,
     )
-    await session.commit()
     return {
         "type": "app_status",
         "data": {"app_id": app.id, "state": state, "latency": latency, "message": message},

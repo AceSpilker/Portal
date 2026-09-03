@@ -208,4 +208,6 @@ def test_05_check_endpoint_and_permission(client: TestClient):
 
     resp = client.get("/api/notifications", headers=_admin(client))
     assert resp.status_code == 200
-    assert isinstance(resp.json()["data"], list)
+    # P9 起 /notifications 为分页对象 {items, total, unread}（api-spec §4.9）
+    data = resp.json()["data"]
+    assert isinstance(data["items"], list) and data["unread"] >= 1
