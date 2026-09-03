@@ -57,6 +57,9 @@ async def init_db() -> None:
         except Exception:
             pass  # 旧表不存在（全新库）
     async with SessionLocal() as session:
+        # 默认设置只补缺（INSERT if missing）：不能用 merge——
+        # merge 会在每次启动时把用户已修改的设置重置回默认值
         for key, value in DEFAULT_SETTINGS.items():
-            await session.merge(Setting(key=key, value=value))
+            if await session.get(Setting, key) is None:
+                session.add(Setting(key=key, value=value))
         await session.commit()

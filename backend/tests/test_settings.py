@@ -141,3 +141,36 @@ def test_07_element_icon_type(client: TestClient):
         headers=_admin(client),
     )
     assert resp.status_code == 422
+
+
+def test_init_db_does_not_reset_user_settings():
+    """P0.3 回归：默认设置只补缺，不得在重启(init_db)时覆盖用户已修改的值。"""
+    import asyncio
+    import json
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from app.models import DEFAULT_SETTINGS, Base, Setting
+
+    async def _run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with maker() as s:
+            for key, value in DEFAULT_SETTINGS.items():
+                if await s.get(Setting, key) is None:
+                    s.add(Setting(key=key, value=value))
+            await s.commit()
+            # 用户修改主题色
+            await s.merge(Setting(key="appearance.theme_color", value=json.dumps("#f59e0b")))
+            await s.commit()
+            # 模拟再次启动：默认设置只补缺
+            for key, value in DEFAULT_SETTINGS.items():
+                if await s.get(Setting, key) is None:
+                    s.add(Setting(key=key, value=value))
+            await s.commit()
+            row = await s.get(Setting, "appearance.theme_color")
+            return row.get_value()
+
+    assert asyncio.run(_run()) == "#f59e0b"
