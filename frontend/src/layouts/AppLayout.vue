@@ -8,6 +8,7 @@ import { useEnvStore } from '../stores/env'
 import { useProbeStore } from '../stores/probe'
 import { useMediaQuery } from '@vueuse/core'
 import CommandPalette from '../components/CommandPalette.vue'
+import NotificationCenter from '../components/NotificationCenter.vue'
 import {
   Grid as IconApps,
   Monitor as IconMonitor,
@@ -142,6 +143,8 @@ function logout() {
       <header class="topbar">
         <h2>{{ pageTitle }}</h2>
         <div class="topbar-right">
+          <!-- 通知中心（M09-1；P9.2）：铃铛 + 角标 + 下拉列表，实时经 WS -->
+          <NotificationCenter />
           <!-- 全局命令面板（M02-6）：Ctrl/Cmd+K 或点击唤起 -->
           <button type="button" class="palette-trigger" @click="paletteVisible = true">
             <el-icon :size="13"><IconSearch /></el-icon>

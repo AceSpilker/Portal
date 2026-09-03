@@ -12,6 +12,7 @@ import {
   Setting as IconGeneral,
   Brush as IconAppearance,
   Odometer as IconMonitor,
+  Bell as IconNotify,
   User as IconUsers,
 } from '@element-plus/icons-vue'
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
@@ -19,6 +20,7 @@ import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
 import AccessPanel from '../components/AccessPanel.vue'
 import UsersPanel from '../components/UsersPanel.vue'
+import NotifyPanel from '../components/NotifyPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import type { IconItem } from '../api/icons'
 import { getHealth } from '../api/health'
@@ -29,7 +31,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'usermgmt' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -337,6 +339,10 @@ function saveMonitor() {
           <el-icon><component :is="IconMonitor" /></el-icon>
           <span>{{ t('settings.menuMonitor') }}</span>
         </el-menu-item>
+        <el-menu-item index="notify">
+          <el-icon><component :is="IconNotify" /></el-icon>
+          <span>{{ t('settings.menuNotify') }}</span>
+        </el-menu-item>
         <el-menu-item index="usermgmt">
           <el-icon><component :is="IconUsers" /></el-icon>
           <span>{{ t('settings.menuUsers') }}</span>
@@ -564,6 +570,13 @@ function saveMonitor() {
             {{ t('common.save') }}
           </el-button>
         </el-form>
+      </template>
+      <template v-else-if="active === 'notify'">
+        <header class="panel-head">
+          <h3>{{ t('settings.menuNotify') }}</h3>
+          <p>{{ t('settings.notifyHint') }}</p>
+        </header>
+        <NotifyPanel />
       </template>
       <template v-else-if="active === 'usermgmt'">
         <header class="panel-head">

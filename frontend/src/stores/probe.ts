@@ -7,6 +7,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { probeApi, type ProbeState, type ProbeStatus } from '../api/probe'
+import { useNotifyStore } from './notify'
 
 export const useProbeStore = defineStore('probe', () => {
   const statusMap = ref<Record<string, ProbeStatus>>({})
@@ -36,6 +37,8 @@ export const useProbeStore = defineStore('probe', () => {
       try {
         const msg = JSON.parse(ev.data)
         if (msg.type === 'app_status') apply(msg.data)
+        // 通知中心实时推送（M09-1；P9.2）转发到 notify store
+        else if (msg.type === 'notification') useNotifyStore().onWsEvent(msg.data)
       } catch {
         /* 忽略坏帧 */
       }
