@@ -178,7 +178,6 @@ def test_04_chat_ws_stream_and_navigate(client: TestClient):
 
     def patched_init(self, *a, **kw):
         kw["transport"] = httpx.MockTransport(handler)
-        httpx.Client.__init__ = httpx.AsyncClient.__init__  # noqa 防误改
         original_async(self, *a, **kw)
 
     original_async = httpx.AsyncClient.__init__

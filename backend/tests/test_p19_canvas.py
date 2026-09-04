@@ -236,16 +236,16 @@ def test_06_ssh_docker_ai_nodes(client: TestClient, monkeypatch):
             return _c().__await__()
 
     import asyncio
+    import importlib
     import sys
     import types
 
     from app.services import flow_svc
 
-    real_module = sys.modules.get("asyncssh")
+    real_module = importlib.import_module("asyncssh")  # 确保真实模块已加载
     sys.modules["asyncssh"] = types.SimpleNamespace(
         connect=lambda *a, **k: FakeConnect(), Error=Exception,
     )
-
 
     async def _main():
         try:
@@ -298,6 +298,8 @@ def test_06_ssh_docker_ai_nodes(client: TestClient, monkeypatch):
         monkeypatch.setattr(ai_mod, "active_provider", fake_provider)
         out3 = await flow_svc._run_ai_action(None, {"prompt": "检查"}, {"prev": {"status_code": 200}})
         assert "一切正常" in out3["reply"]
+        import sys as _sys
+        assert not isinstance(_sys.modules.get("asyncssh"), types.SimpleNamespace), "asyncssh 未恢复"
 
     asyncio.run(_main())
 

@@ -135,6 +135,20 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
     "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
     "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "v.credential_secret_required": {
+        "zh-CN": "密码与私钥至少填写一项", "en": "Password or private key required"
+    },
+    "err.credential_not_found": {
+        "zh-CN": "SSH 凭据不存在", "en": "SSH credential not found"
+    },
+    "err.tunnel_not_found": {"zh-CN": "隧道不存在", "en": "Tunnel not found"},
+    "err.tunnel_not_running": {"zh-CN": "隧道未在运行", "en": "Tunnel is not running"},
+    "err.tunnel_start_failed": {
+        "zh-CN": "隧道启动失败：{reason}", "en": "Tunnel start failed: {reason}"
+    },
+    "ok.tunnel_started": {"zh-CN": "隧道已启动", "en": "Tunnel started"},
+    "ok.tunnel_stopped": {"zh-CN": "隧道已停止", "en": "Tunnel stopped"},
+    "ok.tunnel_running": {"zh-CN": "隧道运行中", "en": "Tunnel already running"},
     "err.flow_bad_graph": {"zh-CN": "画布图不合法：{reason}", "en": "Invalid flow graph: {reason}"},
     "v.flow_import_invalid": {
         "zh-CN": "导入的 Flow 数据不合法", "en": "Invalid flow import payload"

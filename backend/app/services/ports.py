@@ -207,12 +207,18 @@ async def probe_port(host: str, port: int) -> tuple[str, int | None]:
 async def apply_result(
     session: AsyncSession, m: PortMonitor, state: str, latency: int | None
 ) -> dict | None:
-    """落库：翻转才记事件/更新 since 语义字段，并 dispatch port_down/port_up。"""
+    """落库：翻转才记事件/更新 since 语义字段，并 dispatch port_down/port_up。
+
+    P20.3：每次探测同时落 port_probe_samples（延迟曲线）。
+    """
+    from app.models.port import PortProbeSample
+
     prev = m.state
     changed = prev != state
     m.state = state
     m.last_latency_ms = latency
     m.last_checked_at = datetime.utcnow()
+    session.add(PortProbeSample(monitor_id=m.id, state=state, latency_ms=latency))
     await session.commit()
 
     if not changed:
@@ -303,3 +309,217 @@ async def events_with_names(
             }
         )
     return out
+
+
+# ---------- 端口进阶（M18-8~12；dev-plan P20.3） ----------
+
+SAMPLE_RETENTION_DAYS = 7
+LISTEN_HISTORY_KEEP = 100
+
+
+async def record_listen_snapshot(session: AsyncSession) -> dict | None:
+    """监听快照差异（M18-9）：与上次快照比对，变化记 PortListenHistory。"""
+    import json as _json
+
+    from app.models.port import PortListenHistory
+    from app.models.setting import Setting
+
+    current = listen_list()
+    fp = sorted((f"{e.get('host')}|{e.get('port')}|{e.get('process', '')}" for e in current))
+    last = await session.get(Setting, "ports.last_listen")
+    last_fp = None
+    if last:
+        try:
+            last_fp = sorted(_json.loads(_json.loads(last.value)))
+        except (ValueError, TypeError):
+            last_fp = None
+    if last_fp == fp:
+        return None
+    prev_set = set(last_fp or [])
+    curr_set = set(fp)
+
+    def _split(item: str):
+        host, port, process = item.split("|", 2)
+        return {"host": host, "port": int(port) if port.isdigit() else port, "process": process}
+
+    added = [_split(i) for i in sorted(curr_set - prev_set)]
+    removed = [_split(i) for i in sorted(prev_set - curr_set)]
+    if added or removed:
+        session.add(
+            PortListenHistory(
+                added=_json.dumps(added, ensure_ascii=False),
+                removed=_json.dumps(removed, ensure_ascii=False),
+            )
+        )
+        # 只保留最近 LISTEN_HISTORY_KEEP 条
+        rows = (
+            await session.execute(
+                select(PortListenHistory).order_by(PortListenHistory.id.desc()).offset(LISTEN_HISTORY_KEEP)
+            )
+        ).scalars().all()
+        for r in rows:
+            await session.delete(r)
+        await session.merge(Setting(key="ports.last_listen", value=_json.dumps(fp)))
+        await session.commit()
+        return {"added": added, "removed": removed}
+    await session.merge(Setting(key="ports.last_listen", value=_json.dumps(fp)))
+    await session.commit()
+    return None
+
+
+async def listen_history(session: AsyncSession, limit: int = 20) -> list[dict]:
+    import json as _json
+
+    from app.models.port import PortListenHistory
+
+    rows = (
+        (
+            await session.execute(
+                select(PortListenHistory).order_by(PortListenHistory.id.desc()).limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "added": _json.loads(r.added),
+            "removed": _json.loads(r.removed),
+            "created_at": r.created_at.isoformat() + "Z",
+        }
+        for r in rows
+    ]
+
+
+async def exposed_ports(session: AsyncSession) -> list[dict]:
+    """裸露端口提示（M18-10）：通配监听且未被任何启用监控项覆盖的端口。"""
+    monitors = (
+        await session.execute(select(PortMonitor).where(PortMonitor.enabled.is_(True)))
+    ).scalars().all()
+    watched = {(m.host, m.port) for m in monitors}
+    watched_ports = {m.port for m in monitors}
+    result = []
+    for e in listen_list():
+        host = str(e.get("host", ""))
+        port = int(e.get("port", 0) or 0)
+        if host not in ("0.0.0.0", "::", "*"):
+            continue
+        # 已被监控项覆盖（同端口任意 host）则不算裸露
+        if port in watched_ports:
+            continue
+        if any(h in ("127.0.0.1", "0.0.0.0", "::") and p == port for h, p in watched):
+            continue
+        result.append(
+            {
+                "port": port,
+                "process": e.get("process", ""),
+                "host": host,
+            }
+        )
+    return result
+
+
+async def public_reach(session: AsyncSession) -> dict:
+    """公网可达性对比（M18-11）：探测公网 IP 对本机启用监控端口的可达性。
+
+    依赖 NAT 回环（hairpin），路由器不支持时公网列恒 false——文档已注明。
+    公网 IP 经 stores 缓存 1h。
+    """
+    import httpx as _httpx
+
+    from app.core.stores import stores
+
+    ip = await stores.store.get("cache:public_ip")
+    if not ip:
+        try:
+            async with _httpx.AsyncClient(timeout=4.0) as client:
+                resp = await client.get("https://api.ipify.org")
+                ip = resp.text.strip()[:64] if resp.status_code == 200 else ""
+        except Exception:
+            ip = ""
+        if ip:
+            await stores.store.set("cache:public_ip", ip, ttl=3600)
+    monitors = (
+        await session.execute(
+            select(PortMonitor).where(
+                PortMonitor.enabled.is_(True),
+                PortMonitor.host.in_(("127.0.0.1", "localhost", "0.0.0.0", "::1")),
+            )
+        )
+    ).scalars().all()
+    items = []
+    for m in monitors:
+        reachable = False
+        if ip:
+            state, _lat = await probe_port(ip, m.port)
+            reachable = state == "up"
+        items.append(
+            {
+                "monitor_id": m.id,
+                "name": m.name or f"{m.host}:{m.port}",
+                "port": m.port,
+                "local_state": m.state,
+                "public_reachable": reachable if ip else None,
+            }
+        )
+    return {"public_ip": ip or None, "items": items}
+
+
+async def port_latency_history(
+    session: AsyncSession, monitor_id: int, range_: str = "24h"
+) -> dict:
+    """端口延迟曲线（M18-8）：port_probe_samples 趋势点。"""
+    from datetime import timedelta
+
+    from app.models.port import PortProbeSample
+
+    ranges = {"6h": 6 * 3600, "24h": 24 * 3600, "7d": 7 * 86400}
+    if range_ not in ranges:
+        ranges[range_] = 24 * 3600
+    start = datetime.utcnow() - timedelta(seconds=ranges[range_])
+    rows = (
+        (
+            await session.execute(
+                select(PortProbeSample)
+                .where(
+                    PortProbeSample.monitor_id == monitor_id,
+                    PortProbeSample.created_at >= start,
+                )
+                .order_by(PortProbeSample.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    lats = [r.latency_ms for r in rows if r.state == "up" and r.latency_ms is not None]
+    return {
+        "monitor_id": monitor_id,
+        "range": range_,
+        "points": [
+            {
+                "checked_at": r.created_at.isoformat() + "Z",
+                "state": r.state,
+                "latency_ms": r.latency_ms,
+            }
+            for r in rows
+        ],
+        "avg_ms": round(sum(lats) / len(lats)) if lats else None,
+        "max_ms": max(lats) if lats else None,
+        "up_pct": round(len(lats) / len(rows) * 100, 1) if rows else None,
+    }
+
+
+async def cleanup_port_samples(session: AsyncSession) -> int:
+    from datetime import timedelta
+
+    from sqlalchemy import delete as _delete
+
+    from app.models.port import PortProbeSample
+
+    cutoff = datetime.utcnow() - timedelta(days=SAMPLE_RETENTION_DAYS)
+    result = await session.execute(
+        _delete(PortProbeSample).where(PortProbeSample.created_at < cutoff)
+    )
+    await session.commit()
+    return result.rowcount or 0

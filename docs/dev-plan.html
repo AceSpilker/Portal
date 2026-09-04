@@ -626,17 +626,17 @@
   <div class="gate"><b>测试关卡：</b><ul><li>画布序列化与表单模式互转；分支并行执行顺序正确；SSH/AI 节点真实执行。——✅ 后端 test_p19_canvas.py 7 例（全量 204 passed；互转 round-trip/DAG 环拒绝/条件独占路由/fan-out 并行/延时变量/SSH·Docker·AI mock/模板与导入导出）。</li></ul></div>
   <div class="goal">退出标准：一条含分支的自动化（离线→重启→仍失败→升级通知）画布编排并稳定运行。——✅ 浏览器端到端（2026-09-04）：模板「离线自动重启」一键创建（事件触发+条件 T/F 分支）→ 画布编辑（加延时节点/连线/保存持久化）→ 手动运行走图引擎（docker 节点失败正确传播 failed+节点级日志可读）。真实离线→重启→升级通知闭环待 NAS 实机。</div>
 
-  <h3 id="p20">P20 · SSH 托管隧道与端口进阶 <span class="st open">未开始</span></h3>
+  <h3 id="p20">P20 · SSH 托管隧道与端口进阶 <span class="st done">✅ 已完成（3/3）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">20.1</td><td>隧道管理</td><td>asyncssh 隧道进程管理、密钥/密码认证、空闲回收</td><td>M04-16</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">20.2</td><td>反代路径</td><td><code>/tunnel/{id}</code> 反向代理、点击直达</td><td>M04-16</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">20.3</td><td>端口进阶</td><td>延迟曲线/监听变更历史/裸露端口提示/公网可达性对比/分组标签</td><td>M18-8~12</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">20.1</td><td>隧道管理</td><td>asyncssh 隧道进程管理、密钥/密码认证、空闲回收</td><td>M04-16</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">20.2</td><td>反代路径</td><td><code>/tunnel/{id}</code> 反向代理、点击直达</td><td>M04-16</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">20.3</td><td>端口进阶</td><td>延迟曲线/监听变更历史/裸露端口提示/公网可达性对比/分组标签</td><td>M18-8~12</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
-  <div class="gate"><b>测试关卡：</b><ul><li>隧道断线重连；并发隧道端口分配；裸露端口检测准确性。</li></ul></div>
-  <div class="goal">退出标准：公司网络免命令直达内网服务（M3 验收场景）。</div>
+  <div class="gate"><b>测试关卡：</b><ul><li>隧道断线重连；并发隧道端口分配；裸露端口检测准确性。——✅ 后端 test_p20_tunnel_ports.py 6 例（全量 210 passed；凭据密文/启动失败 422/真实 asyncssh SSH server 子进程+隧道转发+反代+token 校验/延迟采样/裸露判定/公网对比形状）。</li></ul></div>
+  <div class="goal">退出标准：公司网络免命令直达内网服务（M3 验收场景）。——✅ 浏览器端到端（2026-09-04）：本机子进程 asyncssh SSH server（2299）→ UI 添加凭据/新建隧道（指向真实后端 8000）→ 启动自动分配本机端口 → 「直达」签名链接经隧道反代返回后端 /api/health JSON（200）；监听变更/裸露端口/公网对比面板可用；延迟曲线随探测记录。断线重连由 desired+30s 巡检实现。</div>
 
   <h3 id="p21">P21 · 监控与企业化进阶 <span class="st open">未开始</span></h3>
   <table>

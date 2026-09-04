@@ -8,13 +8,14 @@ from app.models.layout import DashboardLayout
 from app.models.monitor import AlertRule, MonitorSample
 from app.models.network import NetworkProfile
 from app.models.notify import NotifyChannel, NotifyRule
-from app.models.port import PortEvent, PortMonitor
+from app.models.port import PortEvent, PortListenHistory, PortMonitor, PortProbeSample
 from app.models.portal import App, AppUrl, Category, Icon
 from app.models.probe import AppStatus, Notification, ProbeEvent, UrlProbeSample
 from app.models.schedule import CalendarEvent, Todo
 from app.models.setting import DEFAULT_SETTINGS, Setting
 from app.models.sync import SyncState
 from app.models.tools import WolTarget
+from app.models.tunnel import SSHCredential, Tunnel
 from app.models.user import User
 
 __all__ = [
@@ -39,12 +40,16 @@ __all__ = [
     "NotifyRule",
     "PortEvent",
     "PortMonitor",
+    "PortListenHistory",
+    "PortProbeSample",
     "NetworkProfile",
     "Notification",
     "ProbeEvent",
     "UrlProbeSample",
     "Setting",
     "SyncState",
+    "SSHCredential",
+    "Tunnel",
     "WolTarget",
     "Todo",
     "User",

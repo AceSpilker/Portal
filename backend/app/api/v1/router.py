@@ -27,6 +27,7 @@ from app.api.v1 import (
     system,
     tokens,
     tools,
+    tunnels,
     users,
 )
 
@@ -57,4 +58,5 @@ api_router.include_router(flows.router, tags=["flows"])
 api_router.include_router(tokens.router, tags=["tokens"])
 api_router.include_router(sync.router, tags=["sync"])
 api_router.include_router(redis.router, tags=["redis"])
+api_router.include_router(tunnels.router, tags=["tunnels"])
 api_router.include_router(audit.router, tags=["audit"])

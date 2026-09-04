@@ -274,11 +274,13 @@
   <h3 id="dm-port">3.5 端口监控 ★</h3>
   <p><strong>port_monitors</strong>（M2）：id；name；host（默认 127.0.0.1）；port；app_id FK NULL（与应用关联）；interval 60；enabled；state（up/down/unknown）；last_latency_ms；last_checked_at。<br>
   <strong>port_events</strong>（M2）：id；monitor_id FK；event（up/down）；latency_ms；created_at。索引 (monitor_id, created_at)。<br>
-  <strong>port_listen_history</strong>（M3）：id；ts；added(JSON)；removed(JSON)（监听快照差异）。</p>
+  <strong>port_listen_history</strong>（M3，P20.3 实现）：id；added(JSON)；removed(JSON)（监听快照差异，保留 100 条）。<br>
+  <strong>port_probe_samples</strong>（M3，P20.3 实现）：id；monitor_id 索引；state；latency_ms；created_at 索引（延迟曲线，保留 7 天）。<br>
+  <strong>port_monitors.tags</strong>（P20.3）：TEXT(JSON) 分组标签数组。</p>
 
-  <h3 id="dm-ssh">3.6 SSH 凭据与隧道</h3>
-  <p><strong>credentials</strong>（M2）：id；name；type（password/key）；host；port 22；username；secret（加密存储，只回掩码）。<br>
-  <strong>tunnels</strong>（M2）：id；url_id FK；credential_id FK；local_port；status（running/stopped/error）；pid；last_active_at；auto_close_min 30。</p>
+  <h3 id="dm-ssh">3.6 SSH 凭据与隧道（P20 实现）</h3>
+  <p><strong>ssh_credentials</strong>：id；name；host；port 22；username；secret（Fernet 加密存储：密码或私钥，只回掩码）。<br>
+  <strong>tunnels</strong>：id；credential_id FK；remote_host；remote_port；local_port 0（自动分配空闲端口）；auto_close_min 30（空闲回收）；status（stopped/running/error/degraded）；last_error；last_active_at（反代请求刷新）；desired（期望运行态，30s 巡检自动重连）。直链 /tunnel/{id}?t= 签名 30 分钟（豁免信封；TLS 为基线）。</p>
 
   <h3 id="dm-flow">3.7 Flow</h3>
   <p><strong>flows</strong>（M2；P19.1 补 graph 列）：id；name；description；trigger_type（cron/webhook/manual/event）；trigger_config(JSON)；actions(JSON)（表单动作数组；画布模式=线性投影）；graph(JSON) NULL（画布图 {nodes,edges}：节点类型 trigger/condition/http/notify/ssh/docker/ai/delay/variable，DAG 校验，fan-out 并行分支）；enabled；webhook_token UNIQUE；retry；retry_interval；last_run_at。<br>

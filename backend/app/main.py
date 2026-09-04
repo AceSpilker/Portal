@@ -69,6 +69,23 @@ async def mysql_sync_job() -> None:
         await session.commit()
 
 
+async def tunnel_reaper_job() -> None:
+    """隧道巡检（P20.1）：断线重连 + 空闲回收。"""
+    from app.services import tunnel_svc
+
+    async with SessionLocal() as session:
+        await tunnel_svc.reap_and_reconnect(session)
+
+
+async def ports_advanced_job() -> None:
+    """端口进阶（P20.3）：监听快照差异 + 采样清理。"""
+    from app.services.ports import cleanup_port_samples, record_listen_snapshot
+
+    async with SessionLocal() as session:
+        await record_listen_snapshot(session)
+        await cleanup_port_samples(session)
+
+
 async def redis_recheck_job() -> None:
     """Redis 健康回切（P25.4）：每 30s PING；断连降级内存、恢复自动回切。"""
 
@@ -224,6 +241,15 @@ async def lifespan(_: FastAPI):
         mysql_sync_job, "interval", seconds=60, id="mysql_sync",
         max_instances=1, replace_existing=True,
     )
+    # 隧道巡检（P20.1）与端口进阶（P20.3）
+    _scheduler.add_job(
+        tunnel_reaper_job, "interval", seconds=30, id="tunnel_reaper",
+        max_instances=1, replace_existing=True,
+    )
+    _scheduler.add_job(
+        ports_advanced_job, "interval", seconds=60, id="ports_advanced",
+        max_instances=1, replace_existing=True,
+    )
     # Redis 健康回切（P25.4）
     _scheduler.add_job(
         redis_recheck_job, "interval", seconds=30, id="redis_recheck",
@@ -263,6 +289,85 @@ async def locale_middleware(request: Request, call_next):
     """按 Accept-Language 设置本请求的文案语言（api-spec §1）。"""
     set_locale(request.headers.get("accept-language", ""))
     return await call_next(request)
+
+
+async def _tunnel_proxy(request: Request, tunnel_id: int, path: str):
+    """隧道反代（P20.2）：签名 token/cookie 校验 → 经本地转发端口反代 HTTP。"""
+
+    from app.core.security import decode_token
+    from app.services import tunnel_svc
+
+    token = request.query_params.get("t", "")
+    mode = "query"
+    if not token:
+        cookie = request.cookies.get(f"ptun_{tunnel_id}", "")
+        mode = "cookie" if cookie else ""
+        token = cookie
+    valid = False
+    if token:
+        try:
+            payload = decode_token(token, "tunnel")
+            valid = int(payload.get("tid", -1)) == tunnel_id
+        except Exception:
+            valid = False
+    if not valid:
+        return fail(4001, "tunnel link invalid", 404)
+    port = await tunnel_svc.open_local_port(tunnel_id)
+    if port is None:
+        return fail(4004, "tunnel not running", 404)
+    tunnel_svc.touch(tunnel_id)
+
+    import httpx
+
+    target = f"http://127.0.0.1:{port}/{path}"
+    if request.url.query:
+        target += "?" + request.url.query
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in ("host", "cookie", "authorization", "x-session-id")
+    }
+    body = await request.body()
+    client = httpx.AsyncClient(
+        base_url=f"http://127.0.0.1:{port}", timeout=30.0,
+    )
+    try:
+        query = ("?" + request.url.query) if request.url.query else ""
+        resp = await client.request(
+            request.method,
+            f"/{path}{query}",
+            headers=headers,
+            content=body if request.method not in ("GET", "HEAD") else None,
+            follow_redirects=False,
+        )
+        resp_headers = {
+            k: v for k, v in resp.headers.items()
+            if k.lower() not in ("content-length", "transfer-encoding", "connection")
+        }
+        from starlette.responses import Response as StarletteResponse
+
+        response = StarletteResponse(
+            content=resp.content, status_code=resp.status_code,
+            headers=resp_headers, media_type=resp.headers.get("content-type"),
+        )
+        if mode == "query":
+            response.set_cookie(
+                f"ptun_{tunnel_id}", token,
+                max_age=1800, httponly=True, samesite="lax", path="/",
+            )
+        return response
+    except httpx.HTTPError as exc:
+        return fail(4004, f"tunnel upstream error: {str(exc)[:120]}", 502)
+    finally:
+        await client.aclose()
+
+
+_TUNNEL_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+
+
+@app.api_route("/tunnel/{tunnel_id}/{path:path}", methods=_TUNNEL_METHODS)
+@app.api_route("/tunnel/{tunnel_id}", methods=_TUNNEL_METHODS)
+async def tunnel_proxy_entry(request: Request, tunnel_id: int, path: str = ""):
+    return await _tunnel_proxy(request, tunnel_id, path)
 
 
 @app.get("/files/raw")

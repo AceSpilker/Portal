@@ -16,6 +16,14 @@ import {
   type PortMonitorItem,
 } from '../api/ports'
 import { portalApi, type PortalApp } from '../api/portal'
+import { portsAdvancedApi, type ExposedPort, type ListenChange, type PortLatencyHistory, type PublicReach } from '../api/ports'
+import TunnelsPanel from '../components/TunnelsPanel.vue'
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const { t } = useI18n()
 const router = useRouter()
@@ -27,7 +35,96 @@ const events = ref<PortEventItem[]>([])
 const apps = ref<PortalApp[]>([])
 const loading = ref(false)
 const filter = ref<'all' | 'down' | 'up'>('all')
-const tab = ref<'monitors' | 'listen' | 'events'>('monitors')
+const tab = ref<'monitors' | 'listen' | 'events' | 'tunnels'>('monitors')
+
+// ---------- 端口进阶（P20.3/M18-8~12） ----------
+const latDialog = ref(false)
+const latTarget = ref<PortMonitorItem | null>(null)
+const latData = ref<PortLatencyHistory | null>(null)
+const latLoading = ref(false)
+let latChart: echarts.ECharts | null = null
+
+const histDialog = ref(false)
+const listenChanges = ref<ListenChange[]>([])
+
+const expDialog = ref(false)
+const exposed = ref<ExposedPort[]>([])
+
+const reachDialog = ref(false)
+const reach = ref<PublicReach | null>(null)
+const reachLoading = ref(false)
+
+async function showLatency(row: PortMonitorItem) {
+  latTarget.value = row
+  latDialog.value = true
+  latLoading.value = true
+  try {
+    latData.value = await portsAdvancedApi.latency(row.id, '24h')
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    latLoading.value = false
+  }
+  setTimeout(renderLatencyChart, 60)
+}
+
+function renderLatencyChart() {
+  const el = document.getElementById('port-latency-chart')
+  if (!el || !latData.value) return
+  if (!latChart) latChart = echarts.init(el)
+  const pts = latData.value.points
+  latChart.setOption({
+    grid: { left: 44, right: 12, top: 14, bottom: 26 },
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: pts.map((p) => p.checked_at.slice(11, 16)), axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: '{value}ms' } },
+    series: [
+      {
+        type: 'line',
+        data: pts.map((p) => (p.state === 'up' ? p.latency_ms : null)),
+        connectNulls: false,
+        smooth: true,
+        symbolSize: 4,
+      },
+    ],
+  })
+  latChart.resize()
+}
+
+async function openListenHistory() {
+  histDialog.value = true
+  try {
+    listenChanges.value = await portsAdvancedApi.listenHistory(20)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function openExposed() {
+  expDialog.value = true
+  try {
+    exposed.value = await portsAdvancedApi.exposed()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function openPublicReach() {
+  reachDialog.value = true
+  reachLoading.value = true
+  try {
+    reach.value = await portsAdvancedApi.publicReach()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    reachLoading.value = false
+  }
+}
+
+onUnmounted(() => {
+  latChart?.dispose()
+  latChart = null
+})
 let timer: number | undefined
 
 const sorted = computed(() => {
@@ -234,15 +331,28 @@ function timeLabel(iso: string): string {
             </template>
           </el-table-column>
           <el-table-column prop="interval" :label="t('ports.colInterval')" width="80" align="right" />
-          <el-table-column :label="t('ports.colActions')" width="130" align="right">
+          <el-table-column :label="t('ports.colTags')" min-width="110">
+            <template #default="{ row }">
+              <el-tag v-for="tg in row.tags || []" :key="tg" size="small" class="tag-item">{{ tg }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('ports.colActions')" width="180" align="right">
             <template #default="{ row }">
               <el-switch :model-value="row.enabled" size="small" @update:model-value="toggleEnabled(row, $event)" />
+              <el-button link size="small" @click="showLatency(row)">{{ t('ports.curve') }}</el-button>
               <el-button link size="small" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
               <el-button link size="small" type="danger" :icon="Delete" @click="remove(row)" />
             </template>
           </el-table-column>
           <template #empty>{{ t('ports.empty') }}</template>
         </el-table>
+
+        <!-- 端口进阶工具（M18-9~11；P20.3） -->
+        <div class="adv-row">
+          <el-button size="small" @click="openListenHistory">{{ t('ports.listenHistory') }}</el-button>
+          <el-button size="small" @click="openExposed">{{ t('ports.exposed') }}</el-button>
+          <el-button size="small" @click="openPublicReach">{{ t('ports.publicReach') }}</el-button>
+        </div>
       </el-tab-pane>
 
       <!-- ======== 监听清单 ======== -->
@@ -258,6 +368,9 @@ function timeLabel(iso: string): string {
       </el-tab-pane>
 
       <!-- ======== 事件流水 ======== -->
+      <el-tab-pane :label="t('ports.tabTunnels')" name="tunnels" lazy>
+        <TunnelsPanel />
+      </el-tab-pane>
       <el-tab-pane :label="t('ports.tabEvents')" name="events">
         <div v-if="!events.length" class="empty">{{ t('ports.noEvents') }}</div>
         <div v-else class="event-list">
@@ -313,6 +426,68 @@ function timeLabel(iso: string): string {
         <el-button @click="importDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" class="btn-gradient" @click="doImport">{{ t('apps.importBtn') }}</el-button>
       </template>
+    </el-dialog>
+
+    <!-- 延迟曲线（P20.3/M18-8） -->
+    <el-dialog append-to-body v-model="latDialog" :title="t('ports.latencyTitle', { name: latTarget?.name ?? '' })" width="640px">
+      <p class="muted">
+        {{ t('ports.latencyStats', {
+          avg: latData?.avg_ms ?? '-', max: latData?.max_ms ?? '-', up: latData?.up_pct ?? '-' }) }}
+      </p>
+      <div id="port-latency-chart" style="width: 100%; height: 220px" />
+    </el-dialog>
+
+    <!-- 监听变更历史（M18-9） -->
+    <el-dialog append-to-body v-model="histDialog" :title="t('ports.listenHistoryTitle')" width="620px">
+      <div v-if="!listenChanges.length" class="muted">{{ t('common.noData') }}</div>
+      <div v-for="h in listenChanges" :key="h.id" class="hist-card">
+        <div class="hist-ts">{{ h.created_at.replace('T', ' ').slice(0, 19) }}</div>
+        <div v-if="h.added.length" class="hist-added">
+          + {{ h.added.map((a) => `${a.host}:${a.port}(${a.process})`).join('、') }}
+        </div>
+        <div v-if="h.removed.length" class="hist-removed">
+          − {{ h.removed.map((a) => `${a.host}:${a.port}(${a.process})`).join('、') }}
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 裸露端口（M18-10） -->
+    <el-dialog append-to-body v-model="expDialog" :title="t('ports.exposedTitle')" width="520px">
+      <el-table :data="exposed" size="small">
+        <el-table-column prop="port" label="Port" width="100" />
+        <el-table-column prop="process" :label="t('ports.colProcess')" min-width="160" />
+        <el-table-column prop="host" label="Host" width="140" />
+        <template #empty>{{ t('ports.exposedNone') }}</template>
+      </el-table>
+      <p class="muted" style="margin-top: 8px">{{ t('ports.exposedTip') }}</p>
+    </el-dialog>
+
+    <!-- 公网可达性对比（M18-11） -->
+    <el-dialog append-to-body v-model="reachDialog" :title="t('ports.reachTitle')" width="560px">
+      <div v-loading="reachLoading">
+        <p v-if="reach" class="muted">
+          {{ t('ports.reachIp', { ip: reach.public_ip ?? t('ports.reachUnknown') }) }}
+        </p>
+        <el-table :data="reach?.items ?? []" size="small">
+          <el-table-column prop="name" :label="t('security.colName')" min-width="140" />
+          <el-table-column prop="port" label="Port" width="90" />
+          <el-table-column :label="t('ports.reachLocal')" width="110">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.local_state === 'up' ? 'success' : 'danger'">{{ row.local_state }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('ports.reachPublic')" width="110">
+            <template #default="{ row }">
+              <el-tag v-if="row.public_reachable !== null" size="small" :type="row.public_reachable ? 'success' : 'danger'">
+                {{ row.public_reachable ? '✓' : '✗' }}
+              </el-tag>
+              <span v-else class="muted">—</span>
+            </template>
+          </el-table-column>
+          <template #empty>{{ t('common.noData') }}</template>
+        </el-table>
+        <p class="muted" style="margin-top: 8px">{{ t('ports.reachTip') }}</p>
+      </div>
     </el-dialog>
   </div>
 </template>

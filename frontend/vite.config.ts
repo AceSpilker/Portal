@@ -47,6 +47,8 @@ export default defineConfig({
       '/ws': { target: apiTarget.replace(/^http/, 'ws'), ws: true },
       // 上传图标静态托管（P2.4，豁免加密的静态资源）
       '/icons': { target: apiTarget, changeOrigin: true },
+      // SSH 隧道反代直达（P20.2，豁免加密的签名直链）
+      '/tunnel': { target: apiTarget, changeOrigin: true },
     },
   },
   test: {

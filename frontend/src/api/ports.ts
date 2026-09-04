@@ -68,3 +68,49 @@ export const portsApi = {
   events: (limit = 50) => request.get<never, PortEventItem[]>('/ports/events', { params: { limit } }),
   monitorEvents: (id: number) => request.get<never, PortEventItem[]>(`/ports/monitors/${id}/events`),
 }
+
+// ---- 端口进阶（M18-8~12；P20.3）----
+
+export interface PortLatencyPoint {
+  checked_at: string
+  state: string
+  latency_ms: number | null
+}
+
+export interface PortLatencyHistory {
+  monitor_id: number
+  range: string
+  points: PortLatencyPoint[]
+  avg_ms: number | null
+  max_ms: number | null
+  up_pct: number | null
+}
+
+export interface ListenChange {
+  id: number
+  added: Array<{ host: string; port: number | string; process: string }>
+  removed: Array<{ host: string; port: number | string; process: string }>
+  created_at: string
+}
+
+export interface ExposedPort {
+  port: number
+  process: string
+  host: string
+}
+
+export interface PublicReach {
+  public_ip: string | null
+  items: Array<{ monitor_id: number; name: string; port: number; local_state: string; public_reachable: boolean | null }>
+}
+
+export const portsAdvancedApi = {
+  latency: (monitorId: number, range = '24h') =>
+    request.get<never, PortLatencyHistory>(`/ports/monitors/${monitorId}/latency`, { params: { range } }),
+  checkNow: (monitorId: number) =>
+    request.post<never, { state: string; latency_ms: number | null }>(`/ports/monitors/${monitorId}/check`),
+  listenHistory: (limit = 20) =>
+    request.get<never, ListenChange[]>('/ports/listen-history', { params: { limit } }),
+  exposed: () => request.get<never, ExposedPort[]>('/ports/exposed'),
+  publicReach: () => request.get<never, PublicReach>('/ports/public-reach'),
+}

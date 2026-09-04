@@ -49,6 +49,8 @@ async def init_db() -> None:
             "ALTER TABLE users ADD COLUMN totp_recovery TEXT DEFAULT '[]'",
             # P19.1：Flow 画布图（NULL=表单模式）
             "ALTER TABLE flows ADD COLUMN graph TEXT",
+            # P20.3：端口监控分组标签
+            "ALTER TABLE port_monitors ADD COLUMN tags TEXT DEFAULT '[]'",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

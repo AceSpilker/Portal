@@ -135,7 +135,10 @@
 
 **flows**（M2）：id；name NOT NULL；description ''；trigger_type TEXT（cron/webhook/manual/event）；trigger_config TEXT(JSON)；actions TEXT(JSON)（动作数组，含条件节点；画布模式下为线性投影）；graph TEXT(JSON) NULL（P19.1 画布图 {nodes,edges}，NULL=表单模式）；enabled INT 0；webhook_token TEXT NULL UNIQUE；retry INT 0；retry_interval INT 60；last_run_at NULL。动作/画布节点类型：http/notify/condition（P14）+ ssh/docker/ai/delay/variable（P19.2）；画布校验：DAG 无环、≤60 节点、类型白名单；分支并行=节点多出边 asyncio.gather（各支线独立变量副本与 DB 会话）。
 
-**flow_runs**（M2）：id；flow_id FK；trigger TEXT（cron/webhook/manual/event）；status TEXT（running/success/failed）；steps_log TEXT(JSON)（每步输入输出）；started_at；finished_at NULL；duration_ms INT NULL。
+**flow_runs**（M2）：id；flow_id FK；trigger TEXT（cron/webhook/manual/event）；status TEXT（running/success/failed）；steps_log TEXT(JSON)（每步输入输出；画布模式含 node id）；started_at；finished_at NULL；duration_ms INT NULL。
+
+**port_probe_samples**（M3，P20.3 实现）：id；monitor_id 索引；state；latency_ms NULL；created_at 索引。每次探测记录（延迟曲线），保留 7 天。
+**port_listen_history**（M3，P20.3 实现）：id；added TEXT(JSON)；removed TEXT(JSON)；created_at。监听快照差异（保留最近 100 条）。
 
 ### 3.8 通知
 
@@ -274,8 +277,15 @@
 | GET | /api/ports/lookup?port=8080 | 端口占用检索（进程/命令行/用户） | A | P11 |
 | GET | /api/ports/events?limit= · /monitors/{id}/events | 通断事件流水（附监控项名与应用名） | A | P11 |
 | WS | /ws/notify（既有） | 新增 `{"type":"port_status","data":{monitor_id,name,state,latency}}` | — | P11 |
-| GET | /api/ports/security-scan | 裸露端口（0.0.0.0 监听无入口）检查 | M | M3 |
-| GET | /api/ports/security-scan | 裸露端口（0.0.0.0 监听无入口）检查 | M | M3 |
+| GET | /api/ports/exposed | 裸露端口提示（M18-10：通配监听且无监控覆盖） | A | P20 |
+| POST | /api/ports/monitors/{id}/check | 立即探测一次（写延迟采样） | M | P20 |
+| GET | /api/ports/monitors/{id}/latency?range=6h\|24h\|7d | 端口延迟曲线（M18-8） | A | P20 |
+| GET | /api/ports/listen-history?limit= | 监听变更历史（M18-9，快照差异） | A | P20 |
+| GET | /api/ports/public-reach | 公网可达性对比（M18-11，公网 IP 缓存 1h） | A | P20 |
+| GET | /api/ports/monitors?tag= | 按分组标签过滤监控项（M18-12，tags JSON 列） | A | P20 |
+| CRUD | /api/ssh-credentials（secret Fernet 加密脱敏） | SSH 凭据库 | M | P20 |
+| GET/POST | /api/tunnels · POST /{id}/start · /stop · DELETE /{id} | SSH 隧道管理（local_port 0=自动分配；断线重连/空闲回收由巡检执行） | M | P20 |
+| GET | /api/tunnels/{id}/open-url | 直达短链：/tunnel/{id}?t= 签名 30 分钟（反代，豁免信封；TLS 为基线） | M | P20 |
 
 ### 4.6 Docker 管理（可选模块）
 

@@ -27,6 +27,8 @@ class PortMonitor(Base):
     state: Mapped[str] = mapped_column(Text, default="unknown")  # up/down/unknown
     last_latency_ms: Mapped[int | None] = mapped_column(Integer, default=None)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    # P20.3 分组标签（JSON 数组）
+    tags: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
 
 
 class PortEvent(Base):
@@ -39,3 +41,26 @@ class PortEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (Index("ix_port_events_monitor_ts", "monitor_id", "created_at"),)
+
+
+class PortProbeSample(Base):
+    """端口探测采样（M18-8；dev-plan P20.3）：每次探测记录，供延迟曲线。"""
+
+    __tablename__ = "port_probe_samples"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    monitor_id: Mapped[int] = mapped_column(Integer, index=True)
+    state: Mapped[str] = mapped_column(Text, default="unknown")
+    latency_ms: Mapped[int | None] = mapped_column(Integer, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class PortListenHistory(Base):
+    """监听变更历史（M18-9；dev-plan P20.3）：监听快照差异按次记录。"""
+
+    __tablename__ = "port_listen_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    added: Mapped[str] = mapped_column(Text, default="[]")  # JSON [{host,port,process}]
+    removed: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import json as _json
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -39,6 +41,7 @@ def _monitor_view(m: PortMonitor, app_name: str | None = None) -> dict:
         "state": m.state,
         "last_latency_ms": m.last_latency_ms,
         "last_checked_at": m.last_checked_at.isoformat() + "Z" if m.last_checked_at else None,
+        "tags": _json.loads(m.tags or "[]"),
     }
 
 
@@ -73,10 +76,14 @@ async def ports_lookup(
 
 @router.get("/ports/monitors")
 async def list_monitors(
+    tag: str = "",
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    return ok(await _monitors_with_apps(session))
+    views = await _monitors_with_apps(session)
+    if tag:
+        views = [v for v in views if tag in (v.get("tags") or [])]
+    return ok(views)
 
 
 class MonitorIn(BaseModel):
@@ -86,6 +93,7 @@ class MonitorIn(BaseModel):
     app_id: int | None = None
     interval: int = Field(60, ge=10, le=86400)
     enabled: bool = True
+    tags: list[str] | None = None
 
 
 async def _monitor_or_404(session: AsyncSession, monitor_id: int) -> PortMonitor:
@@ -107,6 +115,7 @@ async def create_monitor(
     m = PortMonitor(
         name=body.name, host=body.host, port=body.port, app_id=body.app_id,
         interval=body.interval, enabled=int(body.enabled),
+        tags=_json.dumps(body.tags or []),
     )
     session.add(m)
     await session.commit()
@@ -127,6 +136,8 @@ async def update_monitor(
     m.app_id = body.app_id
     m.interval = body.interval
     m.enabled = int(body.enabled)
+    if body.tags is not None:
+        m.tags = _json.dumps(body.tags)
     await session.commit()
     return ok(_monitor_view(m))
 
@@ -209,3 +220,60 @@ async def ports_job() -> None:
         events = await ports.run_due_checks(session)
     for ev in events:
         await broadcast(ev)
+
+
+@router.post("/ports/monitors/{monitor_id}/check")
+async def check_now(
+    monitor_id: int,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """立即探测一次（P20.3 延迟曲线数据源之一）。"""
+    m = await session.get(PortMonitor, monitor_id)
+    if m is None:
+        raise BizError(CODE_NOT_FOUND, t("err.tunnel_not_found").replace("隧道", "监控项"), 404)
+    state, latency = await ports.probe_port(m.host, m.port)
+    await ports.apply_result(session, m, state, latency)
+    return ok({"state": state, "latency_ms": latency})
+
+
+# ---- 端口进阶（M18-8~12；dev-plan P20.3）----
+
+
+@router.get("/ports/monitors/{monitor_id}/latency")
+async def port_latency(
+    monitor_id: int,
+    range_: str = Query("24h", alias="range"),
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """端口延迟曲线（M18-8）：port_probe_samples 趋势点与统计。"""
+    return ok(await ports.port_latency_history(session, monitor_id, range_))
+
+
+@router.get("/ports/listen-history")
+async def ports_listen_history(
+    limit: int = Query(20, ge=1, le=100),
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """监听变更历史（M18-9）。"""
+    return ok(await ports.listen_history(session, limit))
+
+
+@router.get("/ports/exposed")
+async def ports_exposed(
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """裸露端口提示（M18-10）：通配监听且无监控项覆盖。"""
+    return ok(await ports.exposed_ports(session))
+
+
+@router.get("/ports/public-reach")
+async def ports_public_reach(
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """公网可达性对比（M18-11）：公网 IP 对本机监控端口探测。"""
+    return ok(await ports.public_reach(session))
