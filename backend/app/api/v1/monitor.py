@@ -513,3 +513,135 @@ async def widgets_summary(_: User = Depends(get_current_user)):
         except Exception:
             out["docker"] = None
     return ok(out)
+
+
+# ---- 数据与报表（M17-16/20；dev-plan P21.1）----
+
+
+@router.get("/monitor/export")
+async def monitor_export(
+    metric: str = Query("cpu"),
+    range_: str = Query("7d", alias="range"),
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """监控数据 CSV 导出（M17-16）：复用历史聚合口径，csv 字段回传。"""
+    import csv as _csv
+    import io as _io
+
+    try:
+        hist = await build_history(session, metric, range_)
+    except ValueError as exc:
+        from app.core.response import BizError
+
+        raise BizError(2001, str(exc), 422) from exc
+
+    buf = _io.StringIO()
+    writer = _csv.writer(buf)
+    # 展平 points（disk 为 mounts 结构时展开挂载点列）
+    rows_out = []
+
+    def _flatten(ts: str, data: dict):
+        base = {"ts": ts}
+        base.update({k: v for k, v in data.items() if not isinstance(v, (list, dict))})
+        for k, v in data.items():
+            if isinstance(v, list):
+                for item in v:
+                    if isinstance(item, dict):
+                        key = (
+                            item.get("mount")
+                            or item.get("iface")
+                            or item.get("name")
+                            or len(rows_out)
+                        )
+                        for kk, vv in item.items():
+                            if kk not in ("mount", "iface", "name"):
+                                base[f"{k}[{key}].{kk}"] = vv
+        rows_out.append(base)
+
+    points = hist.get("points") or []
+    for p in points:
+        if isinstance(p, dict) and "ts" in p:
+            _flatten(p["ts"], {k: v for k, v in p.items() if k != "ts"})
+    cols: list[str] = []
+    for r in rows_out:
+        for k in r:
+            if k not in cols:
+                cols.append(k)
+    writer.writerow(cols)
+    for r in rows_out:
+        writer.writerow([r.get(c, "") for c in cols])
+    return ok(
+        {
+            "filename": f"monitor-{metric}-{range_}.csv",
+            "csv": buf.getvalue(),
+        }
+    )
+
+
+@router.get("/monitor/report")
+async def monitor_report(
+    days: int = Query(7, ge=1, le=30),
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """性能报表（M17-20）：按天聚合 CPU/内存 min/avg/max。"""
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import select as _select
+
+    from app.models.monitor import MonitorSample
+
+    since = datetime.utcnow() - timedelta(days=days)
+    rows = (
+        (
+            await session.execute(
+                _select(MonitorSample)
+                .where(MonitorSample.ts >= since, MonitorSample.node == "")
+                .order_by(MonitorSample.ts)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    buckets: dict[str, list[float]] = {}
+    mem_buckets: dict[str, list[float]] = {}
+    for r in rows:
+        day = r.ts.strftime("%Y-%m-%d")
+        buckets.setdefault(day, []).append(r.cpu)
+        try:
+            mem = _json_mem(r.mem)
+        except Exception:
+            mem = None
+        if mem is not None:
+            mem_buckets.setdefault(day, []).append(mem)
+
+    def _stats(vals):
+        if not vals:
+            return {"min": None, "avg": None, "max": None}
+        return {
+            "min": round(min(vals), 1),
+            "avg": round(sum(vals) / len(vals), 1),
+            "max": round(max(vals), 1),
+        }
+
+    days_out = []
+    for day in sorted(set(buckets) | set(mem_buckets)):
+        days_out.append(
+            {
+                "date": day,
+                "cpu": _stats(buckets.get(day, [])),
+                "mem": _stats(mem_buckets.get(day, [])),
+            }
+        )
+    return ok({"days": days_out})
+
+
+def _json_mem(raw):
+    """mem JSON {total,used,swap_used} → 使用率 %。"""
+    import json as _json
+
+    data = _json.loads(raw) if isinstance(raw, str) else raw
+    if isinstance(data, dict) and data.get("total"):
+        return round(data.get("used", 0) / data["total"] * 100, 1)
+    return None

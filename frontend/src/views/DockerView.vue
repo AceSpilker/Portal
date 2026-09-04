@@ -7,7 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, InfoFilled, VideoPlay, VideoPause, RefreshRight } from '@element-plus/icons-vue'
-import { dockerApi, type DockerContainer, type DockerDetail } from '../api/docker'
+import { dockerApi, dockerAdvancedApi, type DockerContainer, type DockerDetail, type DockerImage } from '../api/docker'
 
 const { t } = useI18n()
 const rows = ref<DockerContainer[]>([])
@@ -23,6 +23,55 @@ async function load() {
     rows.value = await dockerApi.containers()
   } finally {
     loading.value = false
+  }
+}
+
+// ---------- Docker 增强（P21.4/M08-5~8） ----------
+const selected = ref<string[]>([])
+const imgDialog = ref(false)
+const images = ref<DockerImage[]>([])
+const updDialog = ref(false)
+const updates = ref<Array<{ tag: string; created_days_old: number }>>([])
+
+async function batchOp(op: 'start' | 'stop' | 'restart') {
+  if (!selected.value.length) {
+    ElMessage.warning(t('docker.batchEmpty'))
+    return
+  }
+  try {
+    const r = await dockerAdvancedApi.batch(selected.value, op)
+    ElMessage.success(t('docker.batchDone', { ok: r.ok_count, total: r.results.length }))
+    selected.value = []
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function openImages() {
+  imgDialog.value = true
+  try {
+    images.value = await dockerAdvancedApi.images()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function removeImage(img: DockerImage) {
+  try {
+    await dockerAdvancedApi.deleteImage(img.id, true)
+    images.value = await dockerAdvancedApi.images()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function openUpdates() {
+  updDialog.value = true
+  try {
+    updates.value = await dockerAdvancedApi.updates()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
   }
 }
 
@@ -103,11 +152,22 @@ async function openDetail(c: DockerContainer) {
   <div class="docker-page fade-up">
     <header class="page-head">
       <h2>{{ t('docker.title') }}</h2>
-      <el-button size="small" @click="load">{{ t('notify.cert.refresh') }}</el-button>
+      <div class="head-btns">
+        <el-button size="small" :disabled="!selected.length" @click="batchOp('restart')">
+          {{ t('docker.batchRestart') }} ({{ selected.length }})
+        </el-button>
+        <el-button size="small" :disabled="!selected.length" type="danger" plain @click="batchOp('stop')">
+          {{ t('docker.batchStop') }}
+        </el-button>
+        <el-button size="small" @click="openImages">{{ t('docker.images') }}</el-button>
+        <el-button size="small" @click="openUpdates">{{ t('docker.updates') }}</el-button>
+        <el-button size="small" @click="load">{{ t('notify.cert.refresh') }}</el-button>
+      </div>
     </header>
 
     <section class="glass list-card">
-      <el-table :data="sorted" size="default" v-loading="loading">
+      <el-table :data="sorted" size="default" v-loading="loading" @selection-change="(rows: DockerContainer[]) => (selected = rows.map((r) => r.name))">
+        <el-table-column type="selection" width="42" />
         <el-table-column :label="t('docker.colName')" min-width="150">
           <template #default="{ row }"><span class="c-name">{{ row.name }}</span></template>
         </el-table-column>
@@ -177,6 +237,35 @@ async function openDetail(c: DockerContainer) {
           <div v-for="e in detail.env" :key="e" class="kv mono">{{ e }}</div>
         </div>
       </template>
+    </el-dialog>
+    <!-- 镜像管理（M08-7） -->
+    <el-dialog append-to-body v-model="imgDialog" :title="t('docker.imagesTitle')" width="640px">
+      <el-table :data="images" size="small">
+        <el-table-column :label="t('docker.colImage')" min-width="220">
+          <template #default="{ row }">{{ (row.tags && row.tags[0]) || row.id }}</template>
+        </el-table-column>
+        <el-table-column :label="t('docker.imgCreated')" width="120">
+          <template #default="{ row }">
+            {{ new Date((row.created || 0) * 1000).toLocaleDateString() }}
+          </template>
+        </el-table-column>
+        <el-table-column width="90" align="right">
+          <template #default="{ row }">
+            <el-button link size="small" type="danger" @click="removeImage(row)">{{ t('common.delete') }}</el-button>
+          </template>
+        </el-table-column>
+        <template #empty>{{ t('common.noData') }}</template>
+      </el-table>
+    </el-dialog>
+
+    <!-- 更新检测（M08-8） -->
+    <el-dialog append-to-body v-model="updDialog" :title="t('docker.updatesTitle')" width="520px">
+      <div v-if="!updates.length" class="muted">{{ t('docker.updatesNone') }}</div>
+      <div v-for="u in updates" :key="u.tag" class="upd-row">
+        <span>{{ u.tag }}</span>
+        <el-tag size="small" type="warning">{{ t('docker.updateStale', { n: u.created_days_old }) }}</el-tag>
+      </div>
+      <p class="muted" style="margin-top: 8px">{{ t('docker.updatesTip') }}</p>
     </el-dialog>
   </div>
 </template>

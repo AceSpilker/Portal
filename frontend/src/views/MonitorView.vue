@@ -502,12 +502,82 @@ onMounted(async () => {
     apps.value = []
   }
 })
+
+// ---------- P21.1 数据与报表 / P21.3 多机纳管 ----------
+import { monitorEnterpriseApi, type DayReport } from '../api/monitor'
+
+const reportDialog = ref(false)
+const reportDays = ref<DayReport[]>([])
+const agentDialog = ref(false)
+const agentNodes = ref<Array<{ hostname: string; cpu_pct: number; mem_pct: number; disk_pct: number; online: boolean }>>([])
+const wallMode = ref(false)
+
+async function exportCsv() {
+  try {
+    const r = await monitorEnterpriseApi.exportCsv('cpu', '7d')
+    const blob = new Blob(['\ufeff' + r.csv], { type: 'text/csv;charset=utf-8' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = r.filename
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function openReport() {
+  reportDialog.value = true
+  try {
+    const r = await monitorEnterpriseApi.report(7)
+    reportDays.value = r.days
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function openAgents() {
+  agentDialog.value = true
+  try {
+    agentNodes.value = await monitorEnterpriseApi.agents()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function registerAgent() {
+  try {
+    const hostname = prompt(t('monitor.agentHostnamePrompt'))
+    if (!hostname) return
+    await monitorEnterpriseApi.registerAgent(hostname)
+    ElMessage.success(t('monitor.agentRegistered'))
+    await openAgents()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+function toggleWall() {
+  wallMode.value = !wallMode.value
+  const el = document.querySelector('.monitor')
+  if (el instanceof HTMLElement) {
+    el.classList.toggle('wall-mode', wallMode.value)
+    if (wallMode.value && el.requestFullscreen) void el.requestFullscreen()
+    else if (document.fullscreenElement) void document.exitFullscreen()
+  }
+}
 </script>
 
 <template>
   <div class="monitor">
     <header class="page-head">
       <h2>{{ t('monitor.title') }}</h2>
+      <div class="mon-tools">
+        <el-button size="small" @click="exportCsv">{{ t('monitor.exportCsv') }}</el-button>
+        <el-button size="small" @click="openReport">{{ t('monitor.report') }}</el-button>
+        <el-button v-if="auth.isAdmin" size="small" @click="agentDialog = true">{{ t('monitor.agents') }}</el-button>
+        <el-button size="small" @click="toggleWall">{{ t('monitor.wallMode') }}</el-button>
+      </div>
       <el-popover v-model:visible="settingsVisible" trigger="click" width="260">
         <template #reference>
           <button type="button" class="push-settings" :title="t('monitor.pushSettings')">
@@ -693,7 +763,52 @@ onMounted(async () => {
       <MonitorChart :option="historyOption" height="300px" />
     </section>
   </div>
-</template>
+
+    <!-- 性能报表（P21.1/M17-20） -->
+    <el-dialog append-to-body v-model="reportDialog" :title="t('monitor.reportTitle')" width="620px">
+      <el-table :data="reportDays" size="small">
+        <el-table-column prop="date" :label="t('ports.colTime')" width="120" />
+        <el-table-column :label="'CPU %'">
+          <template #default="{ row }">
+            min {{ row.cpu.min ?? '-' }} / avg {{ row.cpu.avg ?? '-' }} / max {{ row.cpu.max ?? '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="'MEM %'">
+          <template #default="{ row }">
+            min {{ row.mem.min ?? '-' }} / avg {{ row.mem.avg ?? '-' }} / max {{ row.mem.max ?? '-' }}
+          </template>
+        </el-table-column>
+        <template #empty>{{ t('common.noData') }}</template>
+      </el-table>
+    </el-dialog>
+
+    <!-- 多机纳管（P21.3/M17-18） -->
+    <el-dialog append-to-body v-model="agentDialog" :title="t('monitor.agentsTitle')" width="640px">
+      <div class="agent-ops">
+        <el-button size="small" type="primary" class="btn-gradient" @click="registerAgent">{{ t('monitor.agentRegister') }}</el-button>
+        <el-button size="small" @click="openAgents">{{ t('notify.cert.refresh') }}</el-button>
+      </div>
+      <el-table :data="agentNodes" size="small">
+        <el-table-column prop="hostname" :label="t('monitor.hostname')" min-width="140" />
+        <el-table-column label="CPU %" width="90">
+          <template #default="{ row }">{{ row.cpu_pct }}</template>
+        </el-table-column>
+        <el-table-column label="MEM %" width="90">
+          <template #default="{ row }">{{ row.mem_pct }}</template>
+        </el-table-column>
+        <el-table-column label="DISK %" width="90">
+          <template #default="{ row }">{{ row.disk_pct }}</template>
+        </el-table-column>
+        <el-table-column :label="t('tunnel.status')" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.online ? 'success' : 'info'">{{ row.online ? t('ports.reachLocal') : t('ports.state.down') }}</el-tag>
+          </template>
+        </el-table-column>
+        <template #empty>{{ t('common.noData') }}</template>
+      </el-table>
+      <p class="muted" style="margin-top: 8px">{{ t('monitor.agentScriptTip') }}</p>
+    </el-dialog>
+  </template>
 
 <style scoped>
 .monitor {
@@ -899,5 +1014,14 @@ onMounted(async () => {
   .chart-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.monitor.wall-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: auto;
+  background: #060b1c;
+  padding: 14px;
 }
 </style>

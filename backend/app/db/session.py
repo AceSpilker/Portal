@@ -51,6 +51,8 @@ async def init_db() -> None:
             "ALTER TABLE flows ADD COLUMN graph TEXT",
             # P20.3：端口监控分组标签
             "ALTER TABLE port_monitors ADD COLUMN tags TEXT DEFAULT '[]'",
+            # P21.3：多机纳管采样来源节点
+            "ALTER TABLE monitor_samples ADD COLUMN node TEXT DEFAULT ''",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

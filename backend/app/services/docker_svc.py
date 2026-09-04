@@ -9,6 +9,9 @@
 
 from __future__ import annotations
 
+import json
+import time
+
 import httpx
 
 from app.core.config import settings
@@ -175,3 +178,115 @@ async def container_detail(name: str) -> dict:
         "mounts": mounts,
         "env": mask_env(info.get("Config", {}).get("Env") or []),
     }
+
+
+# ---------- Docker 增强（M08-5~8；dev-plan P21.4） ----------
+
+IMAGE_STALE_DAYS = 30  # 更新检测：latest 镜像构建时间超过该天数提示更新
+
+
+async def batch_op(names: list[str], op: str) -> list[dict]:
+    """容器批量操作（M08-5）：逐个执行，单容器失败不影响其余。"""
+    results = []
+    for name in names:
+        try:
+            await container_op(name, op)
+            results.append({"name": name, "ok": True})
+        except (DockerDisabled, KeyError) as exc:
+            results.append({"name": name, "ok": False, "error": str(exc)[:120]})
+        except Exception as exc:  # noqa: BLE001
+            results.append({"name": name, "ok": False, "error": str(exc)[:120]})
+    return results
+
+
+async def list_images() -> list[dict]:
+    """镜像列表（M08-7）。"""
+    if not enabled():
+        raise DockerDisabled()
+    async with _client() as c:
+        resp = await c.get("/images/json")
+        resp.raise_for_status()
+        images = resp.json()
+    out = []
+    for img in images:
+        tags = img.get("RepoTags") or []
+        out.append(
+            {
+                "id": (img.get("Id") or "")[:19],
+                "tags": tags,
+                "created": img.get("Created"),
+                "size": img.get("Size"),
+            }
+        )
+    return out
+
+
+async def delete_image(image_id: str, force: bool = False) -> None:
+    if not enabled():
+        raise DockerDisabled()
+    async with _client() as c:
+        resp = await c.delete(f"/images/{image_id}", params={"force": str(force).lower()})
+        if resp.status_code == 404:
+            raise KeyError(image_id)
+        resp.raise_for_status()
+
+
+async def image_updates() -> list[dict]:
+    """更新检测（M08-8，本机口径）：latest 标签镜像构建超过 30 天提示可能的更新。
+
+    严格的 registry digest 对比需访问外部镜像仓库，列为预留。
+    """
+    from datetime import datetime, timedelta
+
+    if not enabled():
+        raise DockerDisabled()
+    async with _client() as c:
+        resp = await c.get("/images/json")
+        images = resp.json()
+    cutoff = (datetime.utcnow() - timedelta(days=IMAGE_STALE_DAYS)).timestamp()
+    out = []
+    for img in images:
+        for tag in img.get("RepoTags") or []:
+            if tag.endswith(":latest") and img.get("Created", 0) < cutoff:
+                age_days = int(
+                    (datetime.utcnow().timestamp() - img["Created"]) // 86400
+                )
+                out.append({"tag": tag, "created_days_old": age_days})
+    return out
+
+
+async def events_since(since: int) -> list[dict]:
+    """拉取 since 时间戳之后的容器事件（M08-6 事件通知，轮询口径）。"""
+    if not enabled():
+        raise DockerDisabled()
+    async with _client() as c:
+        resp = await c.get(
+            "/events",
+            params={
+                "since": since,
+                "until": int(time.time()),
+                "filters": '{"type":["container"]}',
+            },
+            timeout=20.0,
+        )
+        text = resp.text
+    events = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("Action") in ("die", "start", "destroy"):
+            actor = ev.get("Actor", {}).get("Attributes", {})
+            events.append(
+                {
+                    "action": ev.get("Action"),
+                    "container": actor.get("name", ""),
+                    "image": actor.get("image", ""),
+                    "time": ev.get("time"),
+                }
+            )
+    return events

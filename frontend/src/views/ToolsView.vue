@@ -4,6 +4,9 @@ import QRCode from 'qrcode'
 import { toolsApi } from '../api/tools'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
+import WebSshTerminal from '../components/WebSshTerminal.vue'
+
+const websshOpen = ref(false)
 import {
   base64Decode,
   base64Encode,
@@ -157,6 +160,17 @@ onMounted(loadWolTargets)
 
 <template>
   <div class="tools-page">
+    <!-- Web SSH 终端（P21.2/M17-17） -->
+    <section class="tool glass">
+      <header class="tool-head">
+        <h2>{{ t('webssh.title') }}</h2>
+        <el-button size="small" type="primary" class="btn-gradient" @click="websshOpen = true">
+          {{ t('webssh.open') }}
+        </el-button>
+      </header>
+      <p class="tool-desc">{{ t('webssh.desc') }}</p>
+    </section>
+    <WebSshTerminal v-model="websshOpen" />
     <section class="tool glass">
       <h3>{{ t('tools.codecTitle') }}</h3>
       <el-radio-group v-model="codecMode" size="small">
@@ -288,6 +302,20 @@ onMounted(loadWolTargets)
 </template>
 
 <style scoped>
+.tool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tool-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.tool-desc {
+  font-size: 12.5px;
+  color: var(--p-muted);
+}
 .tools-page {
   flex: 1;
   min-height: 0;

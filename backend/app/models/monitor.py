@@ -23,6 +23,8 @@ class MonitorSample(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ts: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # P21.3 多机纳管：采样来源节点（空=本机）
+    node: Mapped[str] = mapped_column(Text, default="", server_default="")
     cpu: Mapped[float] = mapped_column(Float)  # 总使用率 %
     # JSON [每核使用率 %]（P5.5 历史每核曲线）
     cpu_cores: Mapped[str | None] = mapped_column(Text, default=None)

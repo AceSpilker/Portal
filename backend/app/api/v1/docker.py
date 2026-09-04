@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -90,3 +91,53 @@ async def container_detail(
         return ok(await docker_svc.container_detail(name))
     except KeyError:
         raise BizError(404, t("err.docker_not_found"), 404)
+
+
+# ---- Docker 增强（M08-5~8；dev-plan P21.4）----
+
+
+class BatchBody(BaseModel):
+    names: list[str] = Field(min_length=1, max_length=50)
+    op: str = Field(pattern="^(start|stop|restart)$")
+
+
+@router.post("/docker/batch")
+async def docker_batch(
+    body: BatchBody, _: User = Depends(require_admin)
+):
+    """容器批量操作（M08-5）：逐个执行，返回逐容器结果。"""
+    from app.services import docker_svc
+
+    results = await docker_svc.batch_op(body.names, body.op)
+    return ok({"results": results, "ok_count": sum(1 for r in results if r["ok"])})
+
+
+@router.get("/docker/images")
+async def docker_images(_: User = Depends(require_admin)):
+    """镜像列表（M08-7）。"""
+    from app.services import docker_svc
+
+    return ok(await docker_svc.list_images())
+
+
+class ImageDeleteBody(BaseModel):
+    force: bool = False
+
+
+@router.delete("/docker/images/{image_id}")
+async def docker_delete_image(
+    image_id: str, force: bool = False, _: User = Depends(require_admin)
+):
+    """删除镜像（M08-7）。"""
+    from app.services import docker_svc
+
+    await docker_svc.delete_image(image_id, force=force)
+    return ok({"id": image_id}, t("ok.deleted"))
+
+
+@router.get("/docker/updates")
+async def docker_updates(_: User = Depends(require_admin)):
+    """更新检测（M08-8，本机口径）：latest 镜像构建超 30 天提示可能的更新。"""
+    from app.services import docker_svc
+
+    return ok(await docker_svc.image_updates())

@@ -195,3 +195,40 @@ export interface AlertEvent {
 }
 
 type HistoryMetricParam = 'cpu' | 'mem' | 'net' | 'disk' | 'temp' | 'io' | 'gpu'
+
+// ---- 数据与报表/多机纳管/SNMP（P21）----
+
+export interface AgentNodeItem {
+  hostname: string
+  cpu_pct: number
+  mem_pct: number
+  disk_pct: number
+  uptime_s: number
+  last_seen_at: string
+  online: boolean
+}
+
+export interface DayReport {
+  date: string
+  cpu: { min: number | null; avg: number | null; max: number | null }
+  mem: { min: number | null; avg: number | null; max: number | null }
+}
+
+export const monitorEnterpriseApi = {
+  exportCsv: (metric: string, range: string) =>
+    request.get<never, { filename: string; csv: string }>('/monitor/export', {
+      params: { metric, range },
+    }),
+  report: (days = 7) =>
+    request.get<never, { days: DayReport[] }>('/monitor/report', { params: { days } }),
+  agents: () => request.get<never, AgentNodeItem[]>('/monitor/agents'),
+  registerAgent: (hostname: string) =>
+    request.post<never, { hostname: string; token: string }>('/monitor/agents', { hostname }),
+  agentScript: () =>
+    request.get<never, { hostname: string; token: string; script: string }>('/monitor/agents/script'),
+  snmpTest: (payload: { host: string; community: string; oid: string }) =>
+    request.post<never, { ok: boolean; oid?: string; value?: string; error?: string }>(
+      '/monitor/snmp/test',
+      payload,
+    ),
+}

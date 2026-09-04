@@ -1,5 +1,6 @@
 """SQLAlchemy 模型集合（新增模型后在此导出以注册建表）。"""
 
+from app.models.agent import AgentNode
 from app.models.ai import AiConversation, AiMessage
 from app.models.api_token import ApiToken, UserSession
 from app.models.base import Base
@@ -28,6 +29,7 @@ __all__ = [
     "DashboardLayout",
     "DEFAULT_SETTINGS",
     "Icon",
+    "AgentNode",
     "AiConversation",
     "ApiToken",
     "UserSession",

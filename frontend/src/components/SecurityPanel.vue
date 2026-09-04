@@ -37,6 +37,16 @@ const qrUrl = ref('')
 const totpCode = ref('')
 const recoveryCodes = ref<string[]>([])
 const recoveryShow = ref(false)
+const websshEnabled = ref(false)
+
+async function saveWebssh() {
+  try {
+    await settingsApi.updateSettings({ 'security.webssh_enabled': websshEnabled.value })
+    ElMessage.success(t('common.save'))
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
 
 // ---- 会话 ----
 const sessions = ref<SessionRow[]>([])
@@ -53,6 +63,8 @@ async function loadAll() {
     totpEnabled.value = (s as unknown as { totp_enabled?: boolean }).totp_enabled === true
     sessions.value = sess
     tokens.value = toks
+    const all = await settingsApi.getSettings()
+    websshEnabled.value = all['security.webssh_enabled'] === true
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
@@ -210,6 +222,15 @@ onMounted(loadAll)
           <code v-for="c in recoveryCodes" :key="c">{{ c }}</code>
         </div>
       </el-dialog>
+    </section>
+
+    <section class="glass sec-card">
+      <h3>{{ t('security.websshTitle') }}</h3>
+      <p class="desc">{{ t('security.websshDesc') }}</p>
+      <div class="row-gap">
+        <el-switch v-model="websshEnabled" @change="saveWebssh" />
+        <span class="mono">{{ websshEnabled ? t('security.totpOn') : t('security.totpTurnOff') }}</span>
+      </div>
     </section>
 
     <section class="glass sec-card">

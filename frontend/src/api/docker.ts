@@ -32,3 +32,25 @@ export const dockerApi = {
     request.get<never, { logs: string }>(`/docker/containers/${name}/logs`, { params: { tail } }),
   detail: (name: string) => request.get<never, DockerDetail>(`/docker/containers/${name}/detail`),
 }
+
+// ---- Docker 增强（P21.4）----
+
+export interface DockerImage {
+  id: string
+  tags: string[]
+  created: number
+  size: number
+}
+
+export const dockerAdvancedApi = {
+  batch: (names: string[], op: 'start' | 'stop' | 'restart') =>
+    request.post<never, { results: Array<{ name: string; ok: boolean; error?: string }>; ok_count: number }>(
+      '/docker/batch',
+      { names, op },
+    ),
+  images: () => request.get<never, DockerImage[]>('/docker/images'),
+  deleteImage: (id: string, force = false) =>
+    request.delete<never, { id: string }>(`/docker/images/${encodeURIComponent(id)}`, { params: { force } }),
+  updates: () =>
+    request.get<never, Array<{ tag: string; created_days_old: number }>>('/docker/updates'),
+}

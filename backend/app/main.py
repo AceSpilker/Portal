@@ -5,10 +5,11 @@
 - /            前端构建产物（存在时托管，单容器部署）
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
@@ -370,6 +371,97 @@ async def tunnel_proxy_entry(request: Request, tunnel_id: int, path: str = ""):
     return await _tunnel_proxy(request, tunnel_id, path)
 
 
+async def ssh_terminal_ws(websocket: WebSocket):
+    """Web SSH 终端（M17-17；P21.2）：xterm.js 直连 NAS Shell。
+
+    开关：security.webssh_enabled（默认关）；凭据来自 P20 凭据库；
+    连接/断开写审计；JWT 鉴权（API Token 不允许开终端）。
+    """
+    import json as _json
+
+    import asyncssh
+
+    from app.core.secret_box import decrypt_secret as _ds
+    from app.core.security import decode_token as _decode
+    from app.models.setting import Setting
+    from app.models.tunnel import SSHCredential
+    from app.services.audit import write_audit as _write
+
+    async with SessionLocal() as session:
+        row = await session.get(Setting, "security.webssh_enabled")
+        enabled = bool(_json.loads(row.value)) if row else False
+    if not enabled:
+        await websocket.close(code=4403)
+        return
+
+    try:
+        payload = _decode(websocket.query_params.get("token", ""), "access")
+        user_id = int(payload["sub"])
+    except Exception:
+        await websocket.close(code=4401)
+        return
+
+    async with SessionLocal() as session:
+        cred_id = websocket.query_params.get("cred")
+        c = await session.get(SSHCredential, int(cred_id)) if cred_id else None
+        if c is None:
+            await websocket.close(code=4404)
+            return
+        c_secret = _ds(c.secret or "")
+        is_key = c_secret.startswith("-----BEGIN")
+        conn = await asyncssh.connect(
+            c.host,
+            port=c.port,
+            username=c.username,
+            password=None if is_key else c_secret,
+            client_keys=[asyncssh.import_private_key(c_secret)] if is_key else None,
+            known_hosts=None,
+            login_timeout=10,
+        )
+
+    await websocket.accept()
+    async with SessionLocal() as session:
+        await _write(
+            session,
+            user_id,
+            "webssh_open",
+            f"{c.username}@{c.host}:{c.port}",
+            "",
+        )
+
+    process = await conn.create_process(term_type="xterm", width=120, height=32)
+
+    async def _relay_out():
+        try:
+            while True:
+                data = await process.stdout.read(4096)
+                if not data:
+                    break
+                await websocket.send_text(data)
+        except Exception:
+            pass
+
+    out_task = asyncio.create_task(_relay_out())
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            try:
+                process.stdin.write(msg)
+            except Exception:
+                break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        out_task.cancel()
+        try:
+            process.close()
+        except Exception:
+            pass
+        conn.close()
+        async with SessionLocal() as session:
+            await _write(session, user_id, "webssh_close", f"{c.username}@{c.host}", "")
+
+
 @app.get("/files/raw")
 async def files_raw(token: str):
     """文件预览直链（P16.2/M11-4）：短时签名 token，/api 之外豁免信封。"""
@@ -380,6 +472,11 @@ async def files_raw(token: str):
 async def ws_notify(websocket: WebSocket):
     """状态变化广播（P6.3；api-spec §5）。"""
     await notify_ws(websocket)
+
+
+@app.websocket("/ws/ssh-terminal")
+async def ws_ssh_terminal(websocket: WebSocket):
+    await ssh_terminal_ws(websocket)
 
 
 @app.websocket("/ws/ai-chat")
