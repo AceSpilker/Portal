@@ -20,7 +20,10 @@ class Flow(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     trigger_type: Mapped[str] = mapped_column(Text, default="manual")
     trigger_config: Mapped[str] = mapped_column(Text, default="{}")  # JSON
-    actions: Mapped[str] = mapped_column(Text, default="[]")  # JSON 动作数组（含条件节点）
+    # JSON 动作数组（表单模式；画布模式下为线性投影）
+    actions: Mapped[str] = mapped_column(Text, default="[]")
+    # P19.1 画布图 JSON（{nodes,edges}），NULL=表单模式
+    graph: Mapped[str | None] = mapped_column(Text, default=None)
     enabled: Mapped[int] = mapped_column(Integer, default=0)
     webhook_token: Mapped[str | None] = mapped_column(Text, default=None, unique=True)
     retry: Mapped[int] = mapped_column(Integer, default=0)

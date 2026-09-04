@@ -119,7 +119,7 @@
       <span class="chip">关联 feature-spec v1.6</span>
       <span class="chip">26 阶段</span>
       <span class="chip">120 步骤</span>
-      <span class="chip">进度 109 / 120</span>
+      <span class="chip">进度 112 / 120</span>
       <span class="chip">M1 / M2 本机关闭</span>
       <span class="chip">v1.3~v1.5b：M1/M2 本机关闭 · MySQL 同步 · Redis 会话 · 7.4 用户管理 · 7.5 访客 · 17.5 在线更新</span>
     </div>
@@ -262,7 +262,7 @@
       <tr><td class="num">P23</td><td><a href="#p23">MySQL 数据同步（SQLite→MySQL）</a></td><td><span class="badge m2">M2</span></td><td>6</td><td><span class="st done">✅ 已完成（6/6）</span></td></tr>
       <tr><td class="num">P24</td><td><a href="#p24">传输加密（全链路密文化）<span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st done">✅ 已完成</span></td></tr>
       <tr><td class="num">P25</td><td><a href="#p25">Redis 缓存与会话</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st done">✅ 已完成（4/4）</span></td></tr>
-      <tr><td class="num">P19</td><td><a href="#p19">Flow 画布编排</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P19</td><td><a href="#p19">Flow 画布编排</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st done">✅ 已完成（3/3）</span></td></tr>
       <tr><td class="num">P20</td><td><a href="#p20">SSH 托管隧道与端口进阶</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P21</td><td><a href="#p21">监控与企业化进阶</a></td><td><span class="badge m3">M3</span></td><td>4</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P22</td><td><a href="#p22">其余远期项与 M3 验收</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
@@ -614,17 +614,17 @@
 <section id="m3">
   <h2><span class="no">04-C</span>M3 阶段明细 <span class="badge m3">M3 · 进阶</span></h2>
 
-  <h3 id="p19">P19 · Flow 画布编排 <span class="st open">未开始</span></h3>
+  <h3 id="p19">P19 · Flow 画布编排 <span class="st done">✅ 已完成（3/3）</span></h3>
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">19.1</td><td>画布编辑器</td><td>Vue Flow 拖拽节点/连线/分支并行</td><td>M06-3</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">19.2</td><td>进阶节点</td><td>SSH 命令、Docker 操作、AI 调用、延时/变量节点</td><td>M06-11~14</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">19.3</td><td>模板与分享</td><td>内置模板 + JSON 导入导出</td><td>M06-19</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">19.1</td><td>画布编辑器</td><td>Vue Flow 拖拽节点/连线/分支并行</td><td>M06-3</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">19.2</td><td>进阶节点</td><td>SSH 命令、Docker 操作、AI 调用、延时/变量节点</td><td>M06-11~14</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">19.3</td><td>模板与分享</td><td>内置模板 + JSON 导入导出</td><td>M06-19</td><td><span class="st done">✅</span></td></tr>
     </tbody>
   </table>
-  <div class="gate"><b>测试关卡：</b><ul><li>画布序列化与表单模式互转；分支并行执行顺序正确；SSH/AI 节点真实执行。</li></ul></div>
-  <div class="goal">退出标准：一条含分支的自动化（离线→重启→仍失败→升级通知）画布编排并稳定运行。</div>
+  <div class="gate"><b>测试关卡：</b><ul><li>画布序列化与表单模式互转；分支并行执行顺序正确；SSH/AI 节点真实执行。——✅ 后端 test_p19_canvas.py 7 例（全量 204 passed；互转 round-trip/DAG 环拒绝/条件独占路由/fan-out 并行/延时变量/SSH·Docker·AI mock/模板与导入导出）。</li></ul></div>
+  <div class="goal">退出标准：一条含分支的自动化（离线→重启→仍失败→升级通知）画布编排并稳定运行。——✅ 浏览器端到端（2026-09-04）：模板「离线自动重启」一键创建（事件触发+条件 T/F 分支）→ 画布编辑（加延时节点/连线/保存持久化）→ 手动运行走图引擎（docker 节点失败正确传播 failed+节点级日志可读）。真实离线→重启→升级通知闭环待 NAS 实机。</div>
 
   <h3 id="p20">P20 · SSH 托管隧道与端口进阶 <span class="st open">未开始</span></h3>
   <table>
@@ -668,7 +668,7 @@
 <section id="rules">
   <h2><span class="no">05</span>执行约定</h2>
   <ol>
-    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；当前排期：P0~P18、P23~P25 步骤全部完成，<strong>M1/M2 全部关闭</strong> → 下一步进入 M3：<strong>P19 Flow 画布编排</strong>（P20→P21→P22）；</li>
+    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；当前排期：P0~P18、P23~P25、P19 步骤全部完成，<strong>M1/M2 全部关闭，M3 进行中</strong> → 下一步 <strong>P20 SSH 托管隧道与端口进阶</strong>（随后 P21→P22 收官）；</li>
     <li><strong>契约同步</strong>：新增/修改接口、数据表、枚举、WebSocket 事件 → 同步 api-spec 对应小节（含权限列与阶段列）；</li>
     <li><strong>文档三处同步</strong>：完成步骤时，步骤状态/阶段看板/规模总览进度数字三处必须一致；</li>
     <li><strong>状态即真相</strong>：本文件的步骤状态就是开发进度，完成一步改一步，不写"记忆里的进度"；</li>

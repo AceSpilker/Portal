@@ -133,7 +133,7 @@
 
 ### 3.7 自动化（Flow）
 
-**flows**（M2）：id；name NOT NULL；description ''；trigger_type TEXT（cron/webhook/manual/event）；trigger_config TEXT(JSON)；actions TEXT(JSON)（动作数组，含条件节点）；enabled INT 0；webhook_token TEXT NULL UNIQUE；retry INT 0；retry_interval INT 60；last_run_at NULL。
+**flows**（M2）：id；name NOT NULL；description ''；trigger_type TEXT（cron/webhook/manual/event）；trigger_config TEXT(JSON)；actions TEXT(JSON)（动作数组，含条件节点；画布模式下为线性投影）；graph TEXT(JSON) NULL（P19.1 画布图 {nodes,edges}，NULL=表单模式）；enabled INT 0；webhook_token TEXT NULL UNIQUE；retry INT 0；retry_interval INT 60；last_run_at NULL。动作/画布节点类型：http/notify/condition（P14）+ ssh/docker/ai/delay/variable（P19.2）；画布校验：DAG 无环、≤60 节点、类型白名单；分支并行=节点多出边 asyncio.gather（各支线独立变量副本与 DB 会话）。
 
 **flow_runs**（M2）：id；flow_id FK；trigger TEXT（cron/webhook/manual/event）；status TEXT（running/success/failed）；steps_log TEXT(JSON)（每步输入输出）；started_at；finished_at NULL；duration_ms INT NULL。
 
@@ -290,9 +290,12 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| GET/POST | /api/flows · GET/PUT/DELETE /api/flows/{id} | Flow CRUD | A读 M写 | M2 |
+| GET/POST | /api/flows · GET/PUT/DELETE /api/flows/{id} | Flow CRUD（body 可带 graph 画布图） | A读 M写 | M2 |
 | POST | /api/flows/{id}/run · /dry-run | 手动执行 / 试运行 | M | M2 |
 | GET | /api/flows/{id}/runs · /api/flow-runs/{runId} | 执行历史/详情 | A读 | M2 |
+| GET | /api/flows/templates | 内置模板清单（离线自动重启/每日下载摘要/定时巡检） | A | P19 |
+| POST | /api/flows/from-template | 从模板一键创建（默认停用） | M | P19 |
+| GET | /api/flows/{id}/export · POST /api/flows/import | 单 Flow JSON 导出/导入（重生成 token，默认停用） | M | P19 |
 | POST | /api/hooks/flow/{token} | Webhook 触发入口 | P（token 鉴权） | M2 |
 
 ### 4.8 AI 助手

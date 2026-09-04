@@ -5,8 +5,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Plus, Sort } from '@element-plus/icons-vue'
-import { flowApi, type FlowAction, type FlowBody, type FlowItem, type FlowRunItem } from '../api/flow'
+import { Delete, Plus, Sort, Collection, Download, Upload as IconUpload } from '@element-plus/icons-vue'
+import FlowCanvas from '../components/FlowCanvas.vue'
+import { flowApi, type FlowAction, type FlowBody, type FlowItem, type FlowRunItem, type FlowTemplate } from '../api/flow'
+import { linearToGraph, type FlowGraph } from '../utils/canvas'
 
 const { t } = useI18n()
 
@@ -153,6 +155,104 @@ async function run(f: FlowItem, dry = false) {
   }
 }
 
+// ---------- 画布编排（P19.1） ----------
+const canvasDialog = ref(false)
+const canvasFlow = ref<FlowItem | null>(null)
+const canvasGraph = ref<FlowGraph | null>(null)
+const canvasSaving = ref(false)
+
+function openCanvas(f: FlowItem) {
+  canvasFlow.value = f
+  // 有画布用画布；表单 Flow 转换为画布（P19.1 互转）
+  canvasGraph.value = (f.graph as FlowGraph | null) ?? linearToGraph(f.actions)
+  canvasDialog.value = true
+}
+
+async function saveCanvas(graph: FlowGraph) {
+  if (!canvasFlow.value) return
+  canvasSaving.value = true
+  try {
+    await flowApi.update(canvasFlow.value.id, {
+      name: canvasFlow.value.name,
+      description: canvasFlow.value.description,
+      trigger_type: canvasFlow.value.trigger_type,
+      trigger_config: canvasFlow.value.trigger_config,
+      actions: canvasFlow.value.actions,
+      graph,
+      enabled: canvasFlow.value.enabled,
+      retry: canvasFlow.value.retry,
+      retry_interval: canvasFlow.value.retry_interval,
+    })
+    ElMessage.success(t('canvas.saved'))
+    canvasDialog.value = false
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    canvasSaving.value = false
+  }
+}
+
+// ---------- 模板与导入导出（P19.3） ----------
+const tplDialog = ref(false)
+const templates = ref<FlowTemplate[]>([])
+
+async function openTemplates() {
+  tplDialog.value = true
+  try {
+    templates.value = await flowApi.templates()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function createFromTemplate(tpl: FlowTemplate) {
+  try {
+    await flowApi.fromTemplate(tpl.key)
+    ElMessage.success(t('canvas.tplCreated', { name: tpl.name }))
+    tplDialog.value = false
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+const importInput = ref<HTMLInputElement | null>(null)
+
+function pickImport() {
+  importInput.value?.click()
+}
+
+async function onImportFile(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  try {
+    const text = await file.text()
+    const payload = JSON.parse(text) as Record<string, unknown>
+    await flowApi.importFlow(payload)
+    ElMessage.success(t('canvas.importDone'))
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function exportFlow(f: FlowItem) {
+  try {
+    const data = await flowApi.exportFlow(f.id)
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `flow-${f.name}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
 // ---------- 历史 ----------
 const historyDialog = ref(false)
 const history = ref<FlowRunItem[]>([])
@@ -192,9 +292,14 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
   <div class="flow-page fade-up">
     <header class="page-head">
       <p class="muted">{{ t('flow.hint') }}</p>
-      <el-button type="primary" class="btn-gradient" size="small" :icon="Plus" @click="openCreate">
-        {{ t('flow.add') }}
-      </el-button>
+      <div class="head-btns">
+        <el-button size="small" :icon="Collection" @click="openTemplates">{{ t('flow.templates') }}</el-button>
+        <el-button size="small" :icon="IconUpload" @click="pickImport">{{ t('flow.import') }}</el-button>
+        <el-button type="primary" class="btn-gradient" size="small" :icon="Plus" @click="openCreate">
+          {{ t('flow.add') }}
+        </el-button>
+      </div>
+      <input ref="importInput" type="file" accept="application/json,.json" class="hidden-input" @change="onImportFile" />
     </header>
 
     <section class="glass list-card">
@@ -222,12 +327,14 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
             <el-switch v-model="row.enabled" size="small" @change="toggleEnabled(row)" />
           </template>
         </el-table-column>
-        <el-table-column :label="t('ports.colActions')" width="230" align="right">
+        <el-table-column :label="t('ports.colActions')" width="300" align="right">
           <template #default="{ row }">
             <el-button link size="small" @click="run(row)">{{ t('flow.run') }}</el-button>
             <el-button link size="small" @click="run(row, true)">{{ t('flow.dryRun') }}</el-button>
             <el-button link size="small" @click="showHistory(row)">{{ t('flow.history') }}</el-button>
+            <el-button link size="small" type="primary" @click="openCanvas(row)">{{ t('flow.canvas') }}</el-button>
             <el-button link size="small" @click="openEdit(row)">{{ t('common.edit') }}</el-button>
+            <el-button link size="small" :icon="Download" @click="exportFlow(row)" />
             <el-button link size="small" type="danger" :icon="Delete" @click="remove(row)" />
           </template>
         </el-table-column>
@@ -319,6 +426,27 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
       </template>
     </el-dialog>
 
+    <!-- 模板库（P19.3） -->
+    <el-dialog append-to-body v-model="tplDialog" :title="t('flow.templates')" width="560px">
+      <div v-for="tpl in templates" :key="tpl.key" class="tpl-card">
+        <div>
+          <div class="tpl-name">{{ tpl.name }}</div>
+          <div class="tpl-desc">{{ tpl.description }}</div>
+        </div>
+        <el-button size="small" type="primary" class="btn-gradient" @click="createFromTemplate(tpl)">
+          {{ t('flow.tplUse') }}
+        </el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 画布编排（P19.1） -->
+    <el-dialog append-to-body v-model="canvasDialog" :title="t('flow.canvasTitle', { name: canvasFlow?.name ?? '' })" width="82%" top="3vh">
+      <FlowCanvas v-if="canvasDialog" v-model:visible="canvasDialog" :model-value="canvasGraph" @save="saveCanvas" />
+      <template #footer>
+        <span class="muted">{{ t('canvas.saveTip') }}</span>
+      </template>
+    </el-dialog>
+
     <!-- 运行历史 -->
     <el-dialog append-to-body v-model="historyDialog" :title="t('flow.historyTitle', { name: historyFlow })" width="680px">
       <div v-if="!history.length" class="muted">{{ t('flow.noRuns') }}</div>
@@ -343,6 +471,31 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+.head-btns {
+  display: flex;
+  gap: 8px;
+}
+.hidden-input {
+  display: none;
+}
+.tpl-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.tpl-name {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.tpl-desc {
+  font-size: 12px;
+  color: var(--p-muted);
 }
 .page-head {
   display: flex;

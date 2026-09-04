@@ -281,7 +281,7 @@
   <strong>tunnels</strong>（M2）：id；url_id FK；credential_id FK；local_port；status（running/stopped/error）；pid；last_active_at；auto_close_min 30。</p>
 
   <h3 id="dm-flow">3.7 Flow</h3>
-  <p><strong>flows</strong>（M2）：id；name；description；trigger_type（cron/webhook/manual/event）；trigger_config(JSON)；actions(JSON)；enabled；webhook_token UNIQUE；retry；retry_interval；last_run_at。<br>
+  <p><strong>flows</strong>（M2；P19.1 补 graph 列）：id；name；description；trigger_type（cron/webhook/manual/event）；trigger_config(JSON)；actions(JSON)（表单动作数组；画布模式=线性投影）；graph(JSON) NULL（画布图 {nodes,edges}：节点类型 trigger/condition/http/notify/ssh/docker/ai/delay/variable，DAG 校验，fan-out 并行分支）；enabled；webhook_token UNIQUE；retry；retry_interval；last_run_at。<br>
   <strong>flow_runs</strong>（M2）：id；flow_id FK；trigger；status（running/success/failed）；steps_log(JSON)（每步输入输出）；started_at；finished_at；duration_ms。</p>
 
   <h3 id="dm-notify">3.8 通知</h3>
@@ -396,7 +396,7 @@
   <h3 id="api-rest">4.6~4.12 其余模块</h3>
   <table><thead><tr><th style="width:22%">模块</th><th style="width:44%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
     <tr><td>Docker 管理</td><td class="c">GET /api/docker/containers · POST .../{name}/{op} · GET .../logs · /detail</td><td>容器列表 / 启停重启（审计）/ 日志 / 详情（脱敏）</td><td class="c">M</td><td class="c">M2</td></tr>
-    <tr><td>Flow</td><td class="c">CRUD /api/flows · POST /{id}/run · /dry-run · GET /{id}/runs</td><td>Flow CRUD / 执行 / 试运行 / 历史</td><td class="c">A读 M写</td><td class="c">M2</td></tr>
+    <tr><td>Flow</td><td class="c">CRUD /api/flows · POST /{id}/run · /dry-run · GET /{id}/runs · GET /api/flows/templates · POST /from-template · GET /{id}/export · POST /api/flows/import</td><td>Flow CRUD / 执行 / 试运行 / 历史 / 模板与导入导出（P19）</td><td class="c">A读 M写</td><td class="c">M2/M3</td></tr>
     <tr><td>Flow Webhook</td><td class="c">POST /api/hooks/flow/{token}</td><td>Webhook 触发入口</td><td class="c">P(token)</td><td class="c">M2</td></tr>
     <tr><td>AI</td><td class="c">CRUD /api/ai/providers · POST /api/ai/chat(SSE) · CRUD /api/ai/conversations · POST /api/ai/generate/app-draft</td><td>Provider/流式对话/会话/生成草稿</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>通知</td><td class="c">GET /api/notifications · PUT read-all · CRUD /api/notify-channels · /{id}/test · GET/PUT /api/notify-rules</td><td>站内通知 / 渠道 / 路由规则（GET 与已读的探活最小集 P6.4 已落地）</td><td class="c">A/M</td><td class="c">M2</td></tr>

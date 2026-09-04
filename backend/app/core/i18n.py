@@ -135,6 +135,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
     "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
     "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "err.flow_bad_graph": {"zh-CN": "画布图不合法：{reason}", "en": "Invalid flow graph: {reason}"},
+    "v.flow_import_invalid": {
+        "zh-CN": "导入的 Flow 数据不合法", "en": "Invalid flow import payload"
+    },
     "err.redis_not_configured": {"zh-CN": "Redis 未配置", "en": "Redis not configured"},
     "err.redis_unreachable": {
         "zh-CN": "Redis 连接失败，已保持内存模式", "en": "Redis unreachable, kept memory mode"

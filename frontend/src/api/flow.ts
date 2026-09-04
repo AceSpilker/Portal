@@ -1,9 +1,10 @@
 import request from './request'
+import type { FlowGraph } from '../utils/canvas'
 
-/** Flow 自动化·表单版（M06；dev-plan P14；api-spec §4.7）。 */
+/** Flow 自动化·表单版 + 画布（M06；dev-plan P14/P19；api-spec §4.7）。 */
 
 export type FlowTrigger = 'cron' | 'webhook' | 'manual' | 'event'
-export type FlowActionType = 'http' | 'notify' | 'condition'
+export type FlowActionType = 'http' | 'notify' | 'condition' | 'ssh' | 'docker' | 'ai' | 'delay' | 'variable'
 
 export interface FlowAction {
   type: FlowActionType
@@ -19,6 +20,7 @@ export interface FlowItem {
   trigger_type: FlowTrigger
   trigger_config: Record<string, unknown>
   actions: FlowAction[]
+  graph: FlowGraph | null
   enabled: boolean
   webhook_token: string | null
   retry: number
@@ -43,9 +45,19 @@ export interface FlowBody {
   trigger_type: FlowTrigger
   trigger_config: Record<string, unknown>
   actions: FlowAction[]
+  graph?: FlowGraph | null
   enabled: boolean
   retry: number
   retry_interval: number
+}
+
+export interface FlowTemplate {
+  key: string
+  name: string
+  description: string
+  trigger_type: FlowTrigger
+  trigger_config: Record<string, unknown>
+  has_canvas: boolean
 }
 
 export const flowApi = {
@@ -61,5 +73,12 @@ export const flowApi = {
     ),
   runs: (id: number, limit = 20) => request.get<never, FlowRunItem[]>(`/flows/${id}/runs`, { params: { limit } }),
   runDetail: (runId: number) => request.get<never, FlowRunItem>(`/flow-runs/${runId}`),
+  templates: () => request.get<never, FlowTemplate[]>('/flows/templates'),
+  fromTemplate: (key: string, name?: string) =>
+    request.post<never, FlowItem>('/flows/from-template', { key, name }),
+  exportFlow: (id: number) =>
+    request.get<never, Record<string, unknown>>(`/flows/${id}/export`),
+  importFlow: (payload: Record<string, unknown>) =>
+    request.post<never, FlowItem>('/flows/import', payload),
   resetToken: (id: number) => request.post<never, { webhook_token: string }>(`/flows/${id}/reset-token`),
 }
