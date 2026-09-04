@@ -135,6 +135,50 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
     "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
     "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "err.totp_code_required": {"zh-CN": "请输入两步验证码", "en": "TOTP code required"},
+    "err.totp_code_invalid": {
+        "zh-CN": "验证码或恢复码不正确", "en": "Invalid TOTP code or recovery code"
+    },
+    "err.totp_already": {"zh-CN": "两步验证已开启", "en": "TOTP already enabled"},
+    "err.totp_not_setup": {"zh-CN": "请先生成 TOTP 密钥", "en": "Run TOTP setup first"},
+    "err.totp_not_enabled": {"zh-CN": "两步验证未开启", "en": "TOTP not enabled"},
+    "err.register_disabled": {"zh-CN": "未开放注册", "en": "Registration is disabled"},
+    "err.username_taken": {"zh-CN": "用户名已存在", "en": "Username already taken"},
+    "err.session_not_found": {"zh-CN": "会话不存在", "en": "Session not found"},
+    "err.session_revoked_login": {
+        "zh-CN": "会话已被吊销，请重新登录", "en": "Session revoked, please sign in again"
+    },
+    "err.token_not_found": {"zh-CN": "Token 不存在", "en": "Token not found"},
+    "err.token_readonly": {
+        "zh-CN": "只读 Token 不允许写操作", "en": "Read-only token cannot write"
+    },
+    "err.update_not_git": {
+        "zh-CN": "当前部署不是源码仓库，无法在线更新", "en": "Not a git deployment"
+    },
+    "err.update_checkout_failed": {
+        "zh-CN": "切换版本失败，已保持原版本", "en": "Checkout failed, kept current version"
+    },
+    "err.update_rolled_back": {
+        "zh-CN": "更新失败已回滚，请查看状态", "en": "Update failed and rolled back"
+    },
+    "v.password_short": {"zh-CN": "密码低于最小长度要求", "en": "Password too short"},
+    "v.backup_invalid": {"zh-CN": "备份文件格式不正确", "en": "Invalid backup payload"},
+    "v.update_version_required": {"zh-CN": "请提供目标版本号", "en": "Target version required"},
+    "ok.registered": {"zh-CN": "注册成功，请登录", "en": "Registered, please sign in"},
+    "ok.totp_enabled": {"zh-CN": "两步验证已开启", "en": "TOTP enabled"},
+    "ok.totp_disabled": {"zh-CN": "两步验证已关闭", "en": "TOTP disabled"},
+    "ok.session_revoked": {"zh-CN": "会话已下线", "en": "Session revoked"},
+    "ok.token_created": {"zh-CN": "Token 已生成（仅显示一次）", "en": "Token created (shown once)"},
+    "ok.token_revoked": {"zh-CN": "Token 已吊销", "en": "Token revoked"},
+    "ok.factory_reset": {"zh-CN": "已恢复出厂设置", "en": "Factory reset done"},
+    "ok.update_applied": {"zh-CN": "更新已应用", "en": "Update applied"},
+    "ok.update_applied_reload": {
+        "zh-CN": "文件已更新，服务将在数秒内自动重载",
+        "en": "Files updated, service reloads in seconds",
+    },
+    "notify.update_available": {
+        "zh-CN": "发现新版本 {version}", "en": "New version {version} available"
+    },
     "err.event_not_found": {"zh-CN": "日程事件不存在", "en": "Event not found"},
     "err.todo_not_found": {"zh-CN": "待办不存在", "en": "Todo not found"},
     "err.file_root_not_found": {

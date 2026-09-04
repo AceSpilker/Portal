@@ -36,6 +36,44 @@ async def alerts_evaluate_job() -> None:
         await evaluate_alerts(session)
 
 
+async def backup_job() -> None:
+    """自动备份（P17.3/M15-8）：每日落盘 data/backups，保留 N 份。"""
+    import json as _json
+
+    from app.models.setting import Setting
+    from app.services.backup import write_disk_backup
+
+    async with SessionLocal() as session:
+        row = await session.get(Setting, "backup.enabled")
+        if row is None or _json.loads(row.value):
+            await write_disk_backup(session)
+
+
+async def update_check_job() -> None:
+    """版本更新定时检查（P17.5/M15-9）：默认 6h，仅提醒不自动更新。"""
+    import json as _json
+
+    from sqlalchemy import select as _select
+
+    from app.api.v1.system import update_check
+    from app.models.setting import Setting
+    from app.models.user import User
+
+    async with SessionLocal() as session:
+        row = await session.get(Setting, "update.auto_check")
+        if row is not None and not _json.loads(row.value):
+            return
+        admin = (
+            (await session.execute(_select(User).where(User.role == "admin"))).scalars().first()
+        )
+        if admin is None:
+            return
+        try:
+            await update_check(_=admin, session=session)  # 网络异常不打扰
+        except Exception:
+            pass
+
+
 async def schedule_reminder_job() -> None:
     """日程提醒扫描（M13-3；P16.1）：每 30s 检查到期事件，经 P9 通知。"""
     from datetime import datetime
@@ -118,6 +156,15 @@ async def lifespan(_: FastAPI):
     )
     _scheduler.add_job(
         downloads.downloads_job, "interval", seconds=60, id="downloads_poll",
+        max_instances=1, replace_existing=True,
+    )
+    # 自动备份（P17.3）与版本检查（P17.5）
+    _scheduler.add_job(
+        backup_job, "interval", hours=24, id="auto_backup",
+        max_instances=1, replace_existing=True,
+    )
+    _scheduler.add_job(
+        update_check_job, "interval", hours=6, id="update_check",
         max_instances=1, replace_existing=True,
     )
     # Flow cron 触发器（P14.1/M06-4）：恢复启用中的 cron Flow

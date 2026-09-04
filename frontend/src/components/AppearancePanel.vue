@@ -38,7 +38,11 @@ onMounted(async () => {
   wallpaperValue.value = (map['appearance.wallpaper_value'] as string) || ''
   wallpaperBlur.value = (map['appearance.wallpaper_blur'] as number) ?? 0
   wallpaperMask.value = (map['appearance.wallpaper_mask'] as number) ?? 35
+  customCss.value = (map['appearance.custom_css'] as string) ?? ''
 })
+
+/** 自定义 CSS（P17.2/M14-4）：随 appearance 保存一并写入 */
+const customCss = ref('')
 
 let saveTimer: number | undefined
 
@@ -55,6 +59,7 @@ function save(tip?: string) {
         'appearance.wallpaper_value': wallpaperValue.value,
         'appearance.wallpaper_blur': wallpaperBlur.value,
         'appearance.wallpaper_mask': wallpaperMask.value,
+        'appearance.custom_css': customCss.value,
       })
       if (tip) ElMessage.success(tip)
     } catch (e) {
@@ -172,10 +177,36 @@ function setWallpaperValue(v: string) {
         />
       </div>
     </section>
+
+    <!-- 自定义 CSS（P17.2/M14-4）：深度换装 -->
+    <section class="glass sec">
+      <h3>{{ t('settings.customCssTitle') }}</h3>
+      <el-input
+        v-model="customCss"
+        type="textarea"
+        :rows="6"
+        :placeholder="t('settings.customCssPh')"
+        class="mono-area"
+        spellcheck="false"
+      />
+      <p class="css-tip">{{ t('settings.customCssTip') }}</p>
+    </section>
   </div>
 </template>
 
 <style scoped>
+.sec {
+  margin-top: 12px;
+}
+.mono-area :deep(textarea) {
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+}
+.css-tip {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--p-muted);
+}
 .appearance-body {
   display: flex;
   flex-direction: column;

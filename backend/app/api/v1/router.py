@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     ai,
     apps,
+    audit,
     auth,
     categories,
     crypto,
@@ -22,6 +23,7 @@ from app.api.v1 import (
     schedule,
     settings,
     system,
+    tokens,
     tools,
     users,
 )
@@ -50,3 +52,5 @@ api_router.include_router(ports.router, tags=["ports"])
 api_router.include_router(docker.router, tags=["docker"])
 api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(flows.router, tags=["flows"])
+api_router.include_router(tokens.router, tags=["tokens"])
+api_router.include_router(audit.router, tags=["audit"])

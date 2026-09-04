@@ -1,6 +1,7 @@
 """SQLAlchemy 模型集合（新增模型后在此导出以注册建表）。"""
 
 from app.models.ai import AiConversation, AiMessage
+from app.models.api_token import ApiToken, UserSession
 from app.models.base import Base
 from app.models.flow import Flow, FlowRun
 from app.models.layout import DashboardLayout
@@ -26,6 +27,8 @@ __all__ = [
     "DEFAULT_SETTINGS",
     "Icon",
     "AiConversation",
+    "ApiToken",
+    "UserSession",
     "AiMessage",
     "AlertRule",
     "MonitorSample",

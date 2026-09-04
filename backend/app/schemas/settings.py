@@ -44,7 +44,29 @@ WRITABLE_KEYS: set[str] = {
     "downloads.qb_pass",
     "media.jellyfin_url",
     "media.jellyfin_key",
+    # 安全与系统完善（P17）
+    "security.allow_register",
+    "security.password_min_length",
+    "security.force_totp",
+    "backup.enabled",
+    "backup.keep",
+    "update.repo",
+    "update.channel",
+    "update.auto_check",
+    "update.auto_apply",
+    # 自定义 CSS（P17.2/M14-4）
+    "appearance.custom_css",
 }
+
+
+PASSWORD_MIN_DEFAULT = 8
+
+
+def _min_password_len(setting_value: int | None = None) -> int:
+    """密码最小长度（P17.3）：优先取设置键 security.password_min_length。"""
+    if setting_value is not None and 4 <= int(setting_value) <= 128:
+        return int(setting_value)
+    return PASSWORD_MIN_DEFAULT
 
 
 class SettingsUpdate(BaseModel):

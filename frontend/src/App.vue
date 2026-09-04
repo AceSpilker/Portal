@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { ElConfigProvider } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
@@ -7,6 +7,7 @@ import enLocale from 'element-plus/es/locale/lang/en'
 import i18n from './locales'
 import { useTheme } from './composables/useTheme'
 import { useOpenApp } from './composables/useOpenApp'
+import { useSettingsStore } from './stores/settings'
 import EntryPopup from './components/EntryPopup.vue'
 
 // Element Plus 组件内置文案跟随语言切换
@@ -15,6 +16,17 @@ const { t } = useI18n()
 
 // 外观主题（M02-18/19/20）：暗色/主题色/壁纸，全局监听即时生效
 useTheme()
+
+// 自定义 CSS（P17.2/M14-4）：动态注入 <style>（Vue 模板不允许 style 标签，手动挂 DOM）
+const settingsStore = useSettingsStore()
+watchEffect((onCleanup) => {
+  const css = (settingsStore.map['appearance.custom_css'] as string) || ''
+  const el = document.createElement('style')
+  el.id = 'p-custom-css'
+  el.textContent = css
+  document.head.appendChild(el)
+  onCleanup(() => el.remove())
+})
 
 // 应用打开编排的全局浮层（入口选择 + iframe 内嵌），首页/命令面板共享
 const { popupApp, popupVisible, iframeApp, iframeVisible, onChooseEntry } = useOpenApp()

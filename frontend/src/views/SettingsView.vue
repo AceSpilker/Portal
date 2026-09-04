@@ -9,6 +9,8 @@ import {
   Edit as IconEdit,
   InfoFilled as IconInfo,
   Calendar as IconEff,
+  Lock as IconLock,
+  Document as IconDoc,
   Plus as IconPlus,
   Picture as IconLib,
   Setting as IconGeneral,
@@ -18,6 +20,10 @@ import {
   User as IconUsers,
 } from '@element-plus/icons-vue'
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
+import SecurityPanel from '../components/SecurityPanel.vue'
+import AuditPanel from '../components/AuditPanel.vue'
+import { settingsApi } from '../api/settings'
+import type { UpdateInfo } from '../api/settings'
 import { useSettingsStore } from '../stores/settings'
 import { useIconLibraryStore } from '../stores/iconLibrary'
 import AccessPanel from '../components/AccessPanel.vue'
@@ -33,7 +39,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'audit' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -60,6 +66,44 @@ const aboutVersion = ref('')
 // ---- 应用配置 ----
 const tagOptions = ref<string[]>([])
 const newTag = ref('')
+
+// ---- 在线更新（P17.5/M15-9）----
+const checking = ref(false)
+const applying = ref(false)
+const updateInfo = ref<UpdateInfo | null>(null)
+
+async function checkUpdate() {
+  checking.value = true
+  try {
+    updateInfo.value = await settingsApi.updateCheck()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    checking.value = false
+  }
+}
+
+async function applyUpdate() {
+  if (!updateInfo.value?.latest) return
+  try {
+    await ElMessageBox.confirm(
+      t('settings.updateApplyConfirm', { version: updateInfo.value.latest }),
+      t('common.confirm'),
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  applying.value = true
+  try {
+    const r = await settingsApi.updateApply({ version: updateInfo.value.latest })
+    ElMessage.success(r.note || t('settings.updateDone'))
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    applying.value = false
+  }
+}
 
 // ---- 效率模块（P16：文件白名单 / 下载器 / 媒体库）----
 interface RootRow {
@@ -393,6 +437,14 @@ function saveMonitor() {
           <el-icon><component :is="IconUsers" /></el-icon>
           <span>{{ t('settings.menuUsers') }}</span>
         </el-menu-item>
+        <el-menu-item index="security">
+          <el-icon><component :is="IconLock" /></el-icon>
+          <span>{{ t('settings.menuSecurity') }}</span>
+        </el-menu-item>
+        <el-menu-item index="audit">
+          <el-icon><component :is="IconDoc" /></el-icon>
+          <span>{{ t('settings.menuAudit') }}</span>
+        </el-menu-item>
         <el-menu-item index="efficiency">
           <el-icon><component :is="IconEff" /></el-icon>
           <span>{{ t('settings.menuEfficiency') }}</span>
@@ -635,6 +687,22 @@ function saveMonitor() {
         </header>
         <UsersPanel />
       </template>
+      <template v-else-if="active === 'security'">
+        <header class="panel-head">
+          <h3>{{ t('settings.menuSecurity') }}</h3>
+          <p>{{ t('settings.securityDesc') }}</p>
+        </header>
+        <SecurityPanel class="panel-body" />
+      </template>
+
+      <template v-else-if="active === 'audit'">
+        <header class="panel-head">
+          <h3>{{ t('settings.menuAudit') }}</h3>
+          <p>{{ t('settings.auditDesc') }}</p>
+        </header>
+        <AuditPanel class="panel-body" />
+      </template>
+
       <template v-else-if="active === 'efficiency'">
         <header class="panel-head">
           <h3>{{ t('settings.effTitle') }}</h3>
@@ -691,13 +759,84 @@ function saveMonitor() {
               <span class="muted-tip">{{ t('settings.storageMode') }}</span>
               <b>SQLite</b>
             </div>
+
+            <!-- 在线更新（P17.5/M15-9） -->
+            <div class="update-box">
+              <div class="update-head">
+                <h4>{{ t('settings.updateTitle') }}</h4>
+                <el-button size="small" :loading="checking" @click="checkUpdate">
+                  {{ t('settings.updateCheckNow') }}
+                </el-button>
+              </div>
+              <p v-if="updateInfo" class="update-line">
+                <template v-if="updateInfo.has_update">
+                  <el-tag type="warning" size="small">{{ t('settings.updateHasNew') }}</el-tag>
+                  <b class="ver">{{ updateInfo.latest }}</b>
+                </template>
+                <template v-else-if="updateInfo.latest">
+                  <el-tag type="success" size="small">{{ t('settings.updateUpToDate') }}</el-tag>
+                  <span class="muted-tip">{{ updateInfo.latest }}</span>
+                </template>
+                <template v-else>
+                  <el-tag type="info" size="small">{{ t('settings.updateUnreachable') }}</el-tag>
+                  <span class="muted-tip">{{ updateInfo.error ?? '' }}</span>
+                </template>
+              </p>
+              <pre v-if="updateInfo?.changelog && updateInfo.has_update" class="changelog">{{ updateInfo.changelog.slice(0, 1200) }}</pre>
+              <div v-if="updateInfo?.has_update" class="row-gap">
+                <el-button size="small" type="primary" class="btn-gradient" :loading="applying" @click="applyUpdate">
+                  {{ t('settings.updateApply') }}
+                </el-button>
+                <span class="muted-tip">{{ t('settings.updateApplyTip') }}</span>
+              </div>
+            </div>
           </div>
-        </template>
+      </template>
     </section>
   </div>
 </template>
 
 <style scoped>
+.update-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 10px;
+}
+.update-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.update-head h4 {
+  margin: 0;
+  font-size: 13.5px;
+}
+.update-line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0;
+}
+.ver {
+  font-family: ui-monospace, monospace;
+}
+.changelog {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--p-primary) 5%, transparent);
+  border-radius: 8px;
+  font-size: 12px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.row-gap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .root-row {
   display: flex;
   gap: 8px;

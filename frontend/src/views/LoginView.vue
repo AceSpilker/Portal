@@ -19,8 +19,14 @@ const backendUp = ref(true)
 const submitting = ref(false)
 const guestAvailable = ref(false)
 
-const loginForm = reactive({ username: '', password: '' })
+const loginForm = reactive({ username: '', password: '', totp_code: '' })
 const initForm = reactive({ username: '', password: '', confirm: '', site_name: 'Portal' })
+// P17.1：服务端返回 1007 时展开两步验证码输入框
+const totpRequired = ref(false)
+// P17.3：开放注册入口
+const allowRegister = ref(false)
+const regForm = reactive({ username: '', password: '', confirm: '' })
+const regVisible = ref(false)
 
 onMounted(async () => {
   try {
@@ -32,6 +38,13 @@ onMounted(async () => {
       guestAvailable.value = (await fetch('/api/public/apps')).status === 200
     } catch {
       guestAvailable.value = false
+    }
+    // 开放注册探测（P17.3）
+    try {
+      const cfg = await fetch('/api/auth/config').then((r) => r.json())
+      allowRegister.value = cfg?.data?.allow_register === true
+    } catch {
+      allowRegister.value = false
     }
   } catch {
     backendUp.value = false
@@ -51,6 +64,36 @@ async function handleLogin() {
     auth.setSession(resp.access_token, resp.refresh_token, resp.user)
     ElMessage.success(t('login.welcomeBack', { name: resp.user.username }))
     router.push('/')
+  } catch (e) {
+    const err = e as Error & { code?: number }
+    if (err.code === 1007) {
+      totpRequired.value = true
+      ElMessage.warning(err.message)
+    } else {
+      ElMessage.error(err.message || t('login.failed'))
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleRegister() {
+  if (!regForm.username || !regForm.password) {
+    ElMessage.warning(t('login.needUserPass'))
+    return
+  }
+  if (regForm.password !== regForm.confirm) {
+    ElMessage.warning(t('login.passwordMismatch'))
+    return
+  }
+  submitting.value = true
+  try {
+    const cfg = await fetch('/api/auth/config').then((r) => r.json())
+    if (cfg?.data?.allow_register !== true) throw new Error(t('login.registerDisabled'))
+    await authApi.register(regForm)
+    ElMessage.success(t('login.registerDone'))
+    regVisible.value = false
+    loginForm.username = regForm.username
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : t('login.failed'))
   } finally {
@@ -125,8 +168,14 @@ async function handleInit() {
             <el-form-item>
               <el-input v-model="loginForm.password" size="large" type="password" show-password :placeholder="t('login.passwordPh')" :prefix-icon="IconLock" autocomplete="current-password" />
             </el-form-item>
+            <el-form-item v-if="totpRequired">
+              <el-input v-model="loginForm.totp_code" size="large" inputmode="numeric" maxlength="20" :placeholder="t('login.totpCodePh')" :prefix-icon="IconLock" autocomplete="one-time-code" />
+            </el-form-item>
             <el-button class="btn-gradient submit" size="large" type="primary" :loading="submitting" :disabled="!backendUp" native-type="submit">
               {{ t('login.loginBtn') }}
+            </el-button>
+            <el-button v-if="allowRegister" link type="primary" size="small" class="reg-link" @click="regVisible = true">
+              {{ t('login.registerLink') }}
             </el-button>
           </el-form>
 
@@ -150,6 +199,24 @@ async function handleInit() {
           </el-form>
 
           <p class="foot">{{ t('login.encTip') }}</p>
+
+          <!-- 注册对话框（P17.3：security.allow_register） -->
+          <el-dialog v-model="regVisible" :title="t('login.registerLink')" width="360px" append-to-body>
+            <el-form label-position="top" @submit.prevent="handleRegister">
+              <el-form-item :label="t('login.username')">
+                <el-input v-model="regForm.username" :prefix-icon="IconUser" />
+              </el-form-item>
+              <el-form-item :label="t('login.password')">
+                <el-input v-model="regForm.password" type="password" show-password :prefix-icon="IconLock" />
+              </el-form-item>
+              <el-form-item :label="t('login.confirm')">
+                <el-input v-model="regForm.confirm" type="password" show-password :prefix-icon="IconLock" />
+              </el-form-item>
+              <el-button class="btn-gradient submit" size="large" type="primary" native-type="submit" :loading="submitting">
+                {{ t('login.registerLink') }}
+              </el-button>
+            </el-form>
+          </el-dialog>
         </template>
       </div>
 
@@ -227,6 +294,9 @@ async function handleInit() {
 }
 :deep(.el-input__wrapper) {
   padding: 4px 14px;
+}
+.reg-link {
+  margin: 2px auto 0;
 }
 .foot {
   text-align: center;

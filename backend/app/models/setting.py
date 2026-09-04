@@ -59,6 +59,20 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "downloads.qb_pass": json.dumps(""),
     "media.jellyfin_url": json.dumps(""),
     "media.jellyfin_key": json.dumps(""),
+    # 安全策略（P17.3/M15-2/7）
+    "security.allow_register": json.dumps(False),
+    "security.password_min_length": json.dumps(8),
+    "security.force_totp": json.dumps(False),
+    # 自动备份（P17.3/M15-8）：每日落盘 data/backups，保留 N 份
+    "backup.enabled": json.dumps(True),
+    "backup.keep": json.dumps(7),
+    # 在线更新（P17.5/M15-9）：Gitee Releases
+    "update.repo": json.dumps("AceSpilker/Portal"),
+    "update.channel": json.dumps("stable"),
+    "update.auto_check": json.dumps(True),
+    "update.auto_apply": json.dumps(False),
+    # 自定义 CSS（P17.2/M14-4）：前端注入
+    "appearance.custom_css": json.dumps(""),
 }
 
 

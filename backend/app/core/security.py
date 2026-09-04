@@ -70,6 +70,26 @@ def create_refresh_token(user_id: int, token_version: int = 0) -> str:
     return token
 
 
+def refresh_jti(token: str) -> str | None:
+    """解出 refresh token 的 jti（会话清单定位用）；不校验签名也返回 None。"""
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        return payload.get("jti")
+    except Exception:
+        return None
+
+
+def refresh_exp(token: str) -> datetime | None:
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        if not exp:
+            return None
+        return datetime.fromtimestamp(float(exp), tz=timezone.utc).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
 def decode_token(token: str, expected_type: str) -> dict[str, Any]:
     """校验并解码；失败抛 jwt.PyJWTError，调用方转业务错误。"""
     payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])

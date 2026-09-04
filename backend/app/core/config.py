@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     secret_key: str = "dev-secret-change-me"  # 生产必改
+    app_version: str = "0.1.0"  # P17.5 在线更新对比基线
+    update_repo: str = "AceSpilker/Portal"  # Gitee Releases（settings update.repo 可覆盖）
     log_level: str = "info"
 
     # ---- 数据（SQLite 运行主库；MySQL 仅作镜像目标，见 dev-plan P23）----

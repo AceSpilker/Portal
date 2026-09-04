@@ -97,7 +97,7 @@ request.interceptors.response.use(
     const data = await decryptBody(resp.data)
     const body = data as ApiResponse
     if (body.code !== 0) {
-      return Promise.reject(new Error(body.message || i18n.global.t('request.failed', { code: body.code })))
+      return rejectWithCode(body.message, body.code)
     }
     return body.data as never
   },
@@ -136,8 +136,20 @@ request.interceptors.response.use(
       }
       logoutAndRedirect()
     }
-    return Promise.reject(new Error(friendlyMessage))
+    return Promise.reject(withCode(friendlyMessage, code))
   },
 )
+
+/** 业务错误对象：附后端 code（如 1007=TOTP 必填），供页面按码分支。 */
+export function withCode(message: string, code?: number): Error & { code?: number } {
+  const err = new Error(message) as Error & { code?: number }
+  err.code = code
+  return err
+}
+
+function rejectWithCode(message: string | undefined, code?: number) {
+  const msg = message || i18n.global.t('request.failed', { code: code ?? 0 })
+  return Promise.reject(withCode(msg, code))
+}
 
 export default request

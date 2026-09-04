@@ -34,6 +34,7 @@ class InitRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    totp_code: str | None = None  # 两步验证码 / 恢复码（P17.1）
 
 
 class PasswordChangeRequest(BaseModel):

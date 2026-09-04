@@ -44,6 +44,9 @@ async def init_db() -> None:
             "ALTER TABLE apps ADD COLUMN visible_users TEXT DEFAULT '[]'",
             # P15.2：仪表盘多标签页标题
             "ALTER TABLE dashboard_layouts ADD COLUMN title VARCHAR(64) DEFAULT ''",
+            # P17.1：TOTP 两步验证
+            "ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN totp_recovery TEXT DEFAULT '[]'",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

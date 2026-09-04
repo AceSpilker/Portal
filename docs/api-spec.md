@@ -37,6 +37,7 @@
 | 1003 | token 已过期（前端用 refresh 静默续期） | 401 |
 | 1004 | 系统未初始化（应跳转初始化向导） | 403 |
 | 1005 | 系统已初始化（重复初始化拒绝） | 403 |
+| 1007 | 需要两步验证码（TOTP） | 422（前端据此展开验证码输入框） |
 | 1006 | 登录失败次数过多，已锁定 | 429 |
 | 2001 | 参数校验失败（message 携带明细） | 422 |
 | 3001 | 无权限（未登录/角色不足） | 401/403 |
@@ -85,6 +86,10 @@
 **icons**（M1 增强，v2 统一实体）：id；name UNIQUE NOT NULL（≤32）；source（builtin/custom）；element_name UNIQUE NULL（内置渲染用）；path UNIQUE NULL（覆盖图/自定义图）；hidden BOOL（内置软删，播种不复活）。全部图标可改名/换图/删除；删除前校验 apps/categories 引用（被引用返回 4003）。
 
 **dashboard_layouts**（M1）：id；user_id FK；tab TEXT（标签页名）；title TEXT ''（M02-5 标签页显示名，default 空名=用 i18n）；sort INT；layout TEXT(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。
+
+**users（P17.1 增列）**：totp_enabled BOOL（两步验证开关）；totp_recovery TEXT(JSON)（恢复码 SHA-256 列表，单次有效）。
+**user_sessions**（M2/P17.1）：id；user_id FK；jti UNIQUE（refresh token 定位）；device（UA 截断）；ip；revoked BOOL（吊销后 refresh 拒绝）；last_seen_at；expires_at。
+**api_tokens**（M2/P17.2）：id；user_id FK；name；token_hash UNIQUE（SHA-256，明文 plt_ 前缀仅创建时返回一次）；token_prefix（展示）；scope（ro=仅安全方法/rw）；revoked；expires_at NULL；last_used_at；note。
 
 **calendar_events / todos**（M2/P16.1）：calendar_events：id；user_id FK（日程私有）；title；note；event_date DATE（重复基准）；event_time TIME NULL（空=全天不提醒）；repeat TEXT（none/daily/weekly/monthly/yearly/custom）；interval_days INT；lunar BOOL（农历口径：event_date 的月日视为农历月日，每年换算）；remind_minutes INT；last_remind_key（occurrence 去重）。todos：id；user_id FK；title；done；todo_date NULL；sort。
 
@@ -154,7 +159,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`media.*`（P16：jellyfin_url/jellyfin_key）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
 **sync_state**（M2）：id；table_name TEXT UNIQUE；last_push_at NULL；rows_pushed INT 0；status TEXT（idle/running/failed）；message TEXT ''。
 
