@@ -63,7 +63,9 @@ async def health_report(_: User = Depends(require_admin)):
 
 
 @router.get("/system/health-report/full")
-async def health_report_full(_: User = Depends(require_admin)):
+async def health_report_full(
+    _: User = Depends(require_admin), session: AsyncSession = Depends(get_session)
+):
     """健康自检完整版（M15-10）：基础项 + 外网连通 + 备份状态 + MySQL/Redis 预留。"""
     import httpx
 
@@ -86,15 +88,26 @@ async def health_report_full(_: User = Depends(require_admin)):
         internet = False
 
     from app.services.backup import last_backup_time
+    from app.services.mysql_sync import sync_status
 
     last_backup = await last_backup_time()
+    sync = await sync_status(session) if session else {"enabled": False, "tables": []}
+    last_push = next(
+        (t.get("last_push_at") for t in sync["tables"] if t.get("last_push_at")), None
+    )
     return ok(
         {
             "data_dir_writable": writable,
             "scheduler_running": scheduler.running,
             "internet_ok": internet,
             "last_backup_at": last_backup.isoformat() + "Z" if last_backup else None,
-            "mysql": None,  # P23 接入
+            "mysql": {
+                "enabled": sync.get("enabled", False),
+                "last_push_at": last_push,
+                "failed": [
+                    t["table"] for t in sync.get("tables", []) if t.get("status") == "failed"
+                ],
+            },
             "redis": None,  # P25 接入
             "ai": None,  # AI 连通性检查（Provider 已配置时）
             "checked_at": int(time.time()),

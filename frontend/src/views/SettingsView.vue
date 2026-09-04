@@ -11,6 +11,7 @@ import {
   Calendar as IconEff,
   Lock as IconLock,
   Document as IconDoc,
+  RefreshRight as IconRefreshSync,
   Plus as IconPlus,
   Picture as IconLib,
   Setting as IconGeneral,
@@ -22,6 +23,7 @@ import {
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import SecurityPanel from '../components/SecurityPanel.vue'
 import AuditPanel from '../components/AuditPanel.vue'
+import SyncPanel from '../components/SyncPanel.vue'
 import { settingsApi } from '../api/settings'
 import type { UpdateInfo } from '../api/settings'
 import { useSettingsStore } from '../stores/settings'
@@ -39,7 +41,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'audit' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'audit' | 'sync' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -449,6 +451,10 @@ function saveMonitor() {
           <el-icon><component :is="IconEff" /></el-icon>
           <span>{{ t('settings.menuEfficiency') }}</span>
         </el-menu-item>
+        <el-menu-item index="sync">
+          <el-icon><component :is="IconRefreshSync" /></el-icon>
+          <span>{{ t('settings.menuSync') }}</span>
+        </el-menu-item>
         <el-menu-item index="about">
           <el-icon><component :is="IconInfo" /></el-icon>
           <span>{{ t('settings.menuAbout') }}</span>
@@ -743,6 +749,14 @@ function saveMonitor() {
 
           <el-button type="primary" class="btn-gradient" @click="saveEfficiency">{{ t('common.save') }}</el-button>
         </el-form>
+      </template>
+
+      <template v-else-if="active === 'sync'">
+        <header class="panel-head">
+          <h3>{{ t('settings.menuSync') }}</h3>
+          <p>{{ t('settings.syncDesc') }}</p>
+        </header>
+        <SyncPanel class="panel-body" />
       </template>
 
       <template v-else-if="active === 'about'">

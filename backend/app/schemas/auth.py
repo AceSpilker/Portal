@@ -48,6 +48,7 @@ class UserInfo(BaseModel):
     id: int
     username: str
     role: str
+    totp_enabled: bool = False  # P17.1：前端安全面板据此显示两步验证状态
 
     model_config = {"from_attributes": True}
 

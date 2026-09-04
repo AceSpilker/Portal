@@ -135,6 +135,11 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
     "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
     "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "err.mysql_not_configured": {"zh-CN": "MySQL 未配置", "en": "MySQL not configured"},
+    "err.restore_confirm_required": {
+        "zh-CN": "缺少 confirm=true 覆盖确认", "en": "confirm=true required"
+    },
+    "ok.restored": {"zh-CN": "已从 MySQL 恢复", "en": "Restored from MySQL"},
     "err.totp_code_required": {"zh-CN": "请输入两步验证码", "en": "TOTP code required"},
     "err.totp_code_invalid": {
         "zh-CN": "验证码或恢复码不正确", "en": "Invalid TOTP code or recovery code"

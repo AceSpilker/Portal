@@ -22,6 +22,7 @@ from app.api.v1 import (
     probe,
     schedule,
     settings,
+    sync,
     system,
     tokens,
     tools,
@@ -53,4 +54,5 @@ api_router.include_router(docker.router, tags=["docker"])
 api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(flows.router, tags=["flows"])
 api_router.include_router(tokens.router, tags=["tokens"])
+api_router.include_router(sync.router, tags=["sync"])
 api_router.include_router(audit.router, tags=["audit"])

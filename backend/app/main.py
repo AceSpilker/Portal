@@ -36,6 +36,38 @@ async def alerts_evaluate_job() -> None:
         await evaluate_alerts(session)
 
 
+async def mysql_sync_job() -> None:
+    """MySQL 镜像推送（P23.3/23.4）：每 60s 醒来判断到期（成功按 interval，失败退避）。"""
+    import json as _json
+    from datetime import datetime, timedelta
+
+    from app.models.setting import Setting
+    from app.services.mysql_sync import push_all
+
+    async with SessionLocal() as session:
+        row = await session.get(Setting, "mysql.enabled")
+        if row is None or not _json.loads(row.value):
+            return
+        # 到期判定：最近一次成功推送 + interval，或失败退避由 push_all 内部处理
+        interval_row = await session.get(Setting, "mysql.interval_min")
+        interval_min = int(_json.loads(interval_row.value)) if interval_row else 30
+        due_row = await session.get(Setting, "sync.last_push")
+        due = None
+        if due_row:
+            try:
+                due = datetime.fromisoformat(_json.loads(due_row.value))
+            except (ValueError, TypeError):
+                due = None
+        now = datetime.utcnow()
+        if due is not None and now < due + timedelta(minutes=interval_min):
+            return
+        await push_all(session)
+        await session.merge(
+            Setting(key="sync.last_push", value=_json.dumps(now.isoformat()))
+        )
+        await session.commit()
+
+
 async def backup_job() -> None:
     """自动备份（P17.3/M15-8）：每日落盘 data/backups，保留 N 份。"""
     import json as _json
@@ -156,6 +188,11 @@ async def lifespan(_: FastAPI):
     )
     _scheduler.add_job(
         downloads.downloads_job, "interval", seconds=60, id="downloads_poll",
+        max_instances=1, replace_existing=True,
+    )
+    # MySQL 镜像同步（P23）：60s 心跳判断到期
+    _scheduler.add_job(
+        mysql_sync_job, "interval", seconds=60, id="mysql_sync",
         max_instances=1, replace_existing=True,
     )
     # 自动备份（P17.3）与版本检查（P17.5）

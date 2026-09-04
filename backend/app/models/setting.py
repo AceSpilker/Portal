@@ -73,6 +73,14 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "update.auto_apply": json.dumps(False),
     # 自定义 CSS（P17.2/M14-4）：前端注入
     "appearance.custom_css": json.dumps(""),
+    # MySQL 同步（P23/M15-12）：SQLite 运行主库 → MySQL 灾备镜像；密码 Fernet 加密存储
+    "mysql.host": json.dumps(""),
+    "mysql.port": json.dumps(3306),
+    "mysql.user": json.dumps("portal"),
+    "mysql.password": json.dumps(""),  # 密文（sync.key Fernet）
+    "mysql.database": json.dumps("portal"),
+    "mysql.interval_min": json.dumps(30),
+    "mysql.enabled": json.dumps(False),
 }
 
 

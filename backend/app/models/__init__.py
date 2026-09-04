@@ -13,6 +13,7 @@ from app.models.portal import App, AppUrl, Category, Icon
 from app.models.probe import AppStatus, Notification, ProbeEvent, UrlProbeSample
 from app.models.schedule import CalendarEvent, Todo
 from app.models.setting import DEFAULT_SETTINGS, Setting
+from app.models.sync import SyncState
 from app.models.tools import WolTarget
 from app.models.user import User
 
@@ -43,6 +44,7 @@ __all__ = [
     "ProbeEvent",
     "UrlProbeSample",
     "Setting",
+    "SyncState",
     "WolTarget",
     "Todo",
     "User",

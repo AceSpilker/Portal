@@ -56,6 +56,7 @@ WRITABLE_KEYS: set[str] = {
     "update.auto_apply",
     # 自定义 CSS（P17.2/M14-4）
     "appearance.custom_css",
+    # MySQL 同步（P23）：mysql.* 专由 /api/settings/sync 管理端点写入（密码加密）
 }
 
 

@@ -161,7 +161,7 @@
 
 **settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
-**sync_state**（M2）：id；table_name TEXT UNIQUE；last_push_at NULL；rows_pushed INT 0；status TEXT（idle/running/failed）；message TEXT ''。
+**sync_state**（M2，P23 落地）：id；table_name TEXT UNIQUE；last_push_at NULL；last_try_at NULL；rows_pushed INT 0；status TEXT（idle/running/ok/failed）；fail_count INT 0（失败退避：60s×2^n，上限 30min）；message TEXT ''。同步范围=业务表（categories/apps/app_urls/network_profiles/flows/settings/wol_targets/notify_channels/notify_rules），users/会话/Token/审计等敏感表排除；MySQL 端 DDL 由 ORM 元数据生成（TEXT 唯一键前缀 191、剥离 TEXT DEFAULT）。
 
 ---
 
