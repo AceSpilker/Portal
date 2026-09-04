@@ -97,6 +97,9 @@ export interface ImportResult {
 }
 
 export const portalApi = {
+  recentApps: () =>
+    request.get<never, Array<{ id: number; name: string; icon: string | null; icon_type: string }>>('/apps/recent'),
+  markOpened: (id: number) => request.post<never, { id: number }>(`/apps/${id}/opened`),
   // ---- 分组 ----
   listCategories: () => request.get<never, Category[]>('/categories'),
   createCategory: (payload: CategoryPayload) =>

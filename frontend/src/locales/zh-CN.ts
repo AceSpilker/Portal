@@ -151,7 +151,7 @@ export default {
   
   },
   login: {
-    totpCodePh: '两步验证码 / 恢复码',
+    oidcEntry: '企业账号登录 (OIDC)',    ldapEntry: '企业账号登录 (LDAP)',    totpCodePh: '两步验证码 / 恢复码',
     registerLink: '注册新账号',
     registerDone: '注册成功，请登录',
     registerDisabled: '当前未开放注册',
@@ -183,7 +183,7 @@ export default {
     initFailed: '初始化失败',
   },
   home: {
-    greeting: '你好，{name} 👋',
+    recentUsed: '最近使用',    greeting: '你好，{name} 👋',
     heroText: '这里是你的门户首页：拖拽磁贴自由编排，Ctrl+K 全局直达。',
     pill: 'P4 · 首页仪表盘已上线',
     greetMorning: '早上好',

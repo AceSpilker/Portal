@@ -53,6 +53,8 @@ async def init_db() -> None:
             "ALTER TABLE port_monitors ADD COLUMN tags TEXT DEFAULT '[]'",
             # P21.3：多机纳管采样来源节点
             "ALTER TABLE monitor_samples ADD COLUMN node TEXT DEFAULT ''",
+            # P22.2：应用最近使用时间
+            "ALTER TABLE apps ADD COLUMN last_opened_at DATETIME",
         ):
             try:
                 await conn.exec_driver_sql(stmt)

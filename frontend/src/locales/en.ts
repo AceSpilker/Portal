@@ -151,7 +151,7 @@ export default {
   
   },
   login: {
-    totpCodePh: '2FA code / recovery code',
+    oidcEntry: 'Sign in with OIDC',    ldapEntry: 'Sign in with LDAP',    totpCodePh: '2FA code / recovery code',
     registerLink: 'Create account',
     registerDone: 'Registered, please sign in',
     registerDisabled: 'Registration is disabled',
@@ -183,7 +183,7 @@ export default {
     initFailed: 'Setup failed',
   },
   home: {
-    greeting: 'Hello, {name} 👋',
+    recentUsed: 'Recently used',    greeting: 'Hello, {name} 👋',
     heroText: 'Your portal home: drag tiles to compose, Ctrl+K to jump anywhere.',
     pill: 'P4 · Dashboard live',
     greetMorning: 'Good morning',

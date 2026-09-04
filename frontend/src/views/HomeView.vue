@@ -248,6 +248,21 @@ const greetingKey = computed(() => {
   return 'home.greetEvening'
 })
 
+// 最近使用（P22.2/M02-8）
+const recent = ref<Array<{ id: number; name: string; icon: string | null; icon_type: string }>>([])
+
+async function loadRecent() {
+  try {
+    recent.value = await portalApi.recentApps()
+  } catch {
+    recent.value = []
+  }
+}
+
+function routerPush(id: number) {
+  void id
+}
+
 onMounted(async () => {
   try {
     await loadTabs()
@@ -255,6 +270,7 @@ onMounted(async () => {
     /* 标签页加载失败不阻塞首页 */
   }
   load()
+  loadRecent()
   clockTimer = window.setInterval(() => (now.value = new Date()), 1_000)
 })
 onBeforeUnmount(() => window.clearInterval(clockTimer))
@@ -278,6 +294,15 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
         </div>
       </div>
     </section>
+
+    <!-- 最近使用（P22.2/M02-8） -->
+    <div v-if="recent.length" class="recent-row glass">
+      <span class="recent-label">{{ t('home.recentUsed') }}</span>
+      <button v-for="a in recent" :key="a.id" type="button" class="recent-chip" @click="routerPush(a.id)">
+        <AppIcon :icon="a.icon" :icon-type="a.icon_type" :size="16" />
+        {{ a.name }}
+      </button>
+    </div>
 
     <!-- 多标签页（P15.2/M02-5）：切换独立布局 -->
     <div v-if="tabs.length" class="tabs-bar">
@@ -407,6 +432,32 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   gap: clamp(10px, 1.4vw, 16px);
   overflow-y: auto;
   padding-bottom: 4px;
+}
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+.recent-label {
+  font-size: 12px;
+  color: var(--p-muted);
+}
+.recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--p-card-border);
+  border-radius: 999px;
+  background: var(--p-card);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.recent-chip:hover {
+  border-color: var(--p-primary);
 }
 /* 多标签页栏（P15.2） */
 .tabs-bar {

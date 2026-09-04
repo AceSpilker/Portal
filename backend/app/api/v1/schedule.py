@@ -322,3 +322,45 @@ async def reminder_scan(session: AsyncSession, now: datetime) -> int:
     if sent:
         await session.commit()
     return sent
+
+
+@router.get("/calendar/ics")
+async def calendar_ics(
+    user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)
+):
+    """日历订阅导出（M13-6；P22.2）：全部事件生成 ICS 文本（RFC 5545 子集）。"""
+
+    def _ics_escape(text: str) -> str:
+        return (
+            text.replace("\\", "\\\\")
+            .replace(",", "\\,")
+            .replace(";", "\\;")
+            .replace("\n", "\\n")
+        )
+
+    rows = (
+        (
+            await session.execute(select(CalendarEvent).where(CalendarEvent.user_id == user.id)))
+        .scalars()
+        .all()
+    )
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Portal//Calendar//CN",
+        "CALSCALE:GREGORIAN",
+    ]
+    one_hour = timedelta(hours=1)
+    for e in rows:
+        start_dt = datetime.combine(e.event_date, e.event_time or dt_time(0, 0))
+        end_dt = start_dt + one_hour
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:portal-event-{e.id}@portal",
+            f"SUMMARY:{_ics_escape(e.title)}",
+            f"DTSTART:{start_dt.strftime('%Y%m%dT%H%M%S')}",
+            f"DTEND:{end_dt.strftime('%Y%m%dT%H%M%S')}",
+            "END:VEVENT",
+        ]
+    lines.append("END:VCALENDAR")
+    return ok("\r\n".join(lines))

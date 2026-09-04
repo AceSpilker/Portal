@@ -27,6 +27,34 @@ const totpRequired = ref(false)
 const allowRegister = ref(false)
 const regForm = reactive({ username: '', password: '', confirm: '' })
 const regVisible = ref(false)
+const oidcEnabled = ref(false)
+const ldapEnabled = ref(false)
+const ldapForm = reactive({ username: '', password: '' })
+const ldapVisible = ref(false)
+
+async function goOidc() {
+  try {
+    const cfg = await fetch('/api/auth/oidc/authorize').then((r) => r.json())
+    if (cfg?.data?.authorize_url) location.href = cfg.data.authorize_url
+    else ElMessage.error(cfg?.message ?? t('login.failed'))
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function ldapLogin() {
+  submitting.value = true
+  try {
+    const resp = await authApi.ldapLogin(ldapForm)
+    auth.setSession(resp.access_token, resp.refresh_token, resp.user)
+    ldapVisible.value = false
+    router.push('/')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('login.failed'))
+  } finally {
+    submitting.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -39,10 +67,12 @@ onMounted(async () => {
     } catch {
       guestAvailable.value = false
     }
-    // 开放注册探测（P17.3）
+    // 开放注册探测（P17.3）+ 企业登录入口（P22.1）
     try {
       const cfg = await fetch('/api/auth/config').then((r) => r.json())
       allowRegister.value = cfg?.data?.allow_register === true
+      oidcEnabled.value = cfg?.data?.oidc_enabled === true
+      ldapEnabled.value = cfg?.data?.ldap_enabled === true
     } catch {
       allowRegister.value = false
     }
@@ -177,6 +207,12 @@ async function handleInit() {
             <el-button v-if="allowRegister" link type="primary" size="small" class="reg-link" @click="regVisible = true">
               {{ t('login.registerLink') }}
             </el-button>
+            <el-button v-if="oidcEnabled" link size="small" class="reg-link" @click="goOidc">
+              {{ t('login.oidcEntry') }}
+            </el-button>
+            <el-button v-if="ldapEnabled" link size="small" class="reg-link" @click="ldapVisible = true">
+              {{ t('login.ldapEntry') }}
+            </el-button>
           </el-form>
 
           <!-- 初始化表单 -->
@@ -199,6 +235,21 @@ async function handleInit() {
           </el-form>
 
           <p class="foot">{{ t('login.encTip') }}</p>
+
+          <!-- LDAP 登录对话框（P22.1） -->
+          <el-dialog v-model="ldapVisible" :title="t('login.ldapEntry')" width="360px" append-to-body>
+            <el-form label-position="top" @submit.prevent="ldapLogin">
+              <el-form-item :label="t('login.username')">
+                <el-input v-model="ldapForm.username" :prefix-icon="IconUser" />
+              </el-form-item>
+              <el-form-item :label="t('login.password')">
+                <el-input v-model="ldapForm.password" type="password" show-password :prefix-icon="IconLock" />
+              </el-form-item>
+              <el-button class="btn-gradient submit" size="large" type="primary" native-type="submit" :loading="submitting">
+                {{ t('login.loginBtn') }}
+              </el-button>
+            </el-form>
+          </el-dialog>
 
           <!-- 注册对话框（P17.3：security.allow_register） -->
           <el-dialog v-model="regVisible" :title="t('login.registerLink')" width="360px" append-to-body>

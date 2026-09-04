@@ -321,6 +321,54 @@ async def purge_app(
     return ok(True)
 
 
+# ---- P22.2 远期子集：最近使用 ----
+
+
+@router.post("/apps/{app_id}/opened")
+async def mark_app_opened(
+    app_id: int,
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """记录应用被打开（M02-8 最近使用）。"""
+    from datetime import datetime
+
+    app = await session.get(App, app_id)
+    if app is None or app.deleted:
+        raise BizError(CODE_NOT_FOUND, t("err.app_not_found"), 404)
+    app.last_opened_at = datetime.utcnow()
+    await session.commit()
+    return ok({"id": app_id})
+
+
+@router.get("/apps/recent")
+async def recent_apps(
+    limit: int = 6,
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """最近使用的应用（M02-8）：按 last_opened_at 倒序。"""
+    rows = (
+        (
+            await session.execute(
+                select(App)
+                .where(App.deleted.is_(False), App.last_opened_at.is_not(None))
+                .order_by(App.last_opened_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return ok(
+        [
+            {"id": a.id, "name": a.name, "icon": a.icon, "icon_type": a.icon_type,
+             "last_opened_at": a.last_opened_at.isoformat() + "Z" if a.last_opened_at else None}
+            for a in rows
+        ]
+    )
+
+
 @router.get("/apps/recycle-bin")
 async def recycle_bin(
     _: User = Depends(require_admin),

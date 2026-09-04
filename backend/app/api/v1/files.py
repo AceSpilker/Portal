@@ -310,3 +310,85 @@ def _raw_session():
     from app.db.session import SessionLocal
 
     return SessionLocal()
+
+
+# ---- 文本编辑与空间分析（M11-5/7；dev-plan P22.2）----
+
+TEXT_SUFFIXES = (".txt", ".md", ".conf", ".json", ".yaml", ".yml", ".log", ".csv", ".py", ".sh")
+
+
+class ContentBody(BaseModel):
+    root: str
+    path: str
+    content: str
+
+
+@router.get("/files/text")
+async def read_text(
+    root: str,
+    path: str,
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """读取小文本文件内容（≤256KB）。"""
+    target = await _resolve(session, root, path)
+    if target.stat().st_size > 256 * 1024:
+        raise BizError(CODE_VALIDATION, t("err.file_too_large"), 422)
+    return ok({"content": target.read_text(encoding="utf-8", errors="replace")})
+
+
+@router.post("/files/content")
+async def write_text(
+    body: ContentBody,
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """保存文本文件内容（M11-5 文本编辑）。"""
+    target = await _resolve(session, body.root, body.path)
+    if target.is_dir():
+        raise BizError(CODE_VALIDATION, t("err.file_not_file"), 422)
+    if len(body.content.encode()) > 256 * 1024:
+        raise BizError(CODE_VALIDATION, t("err.file_too_large"), 422)
+    target.write_text(body.content, encoding="utf-8")
+    return ok({"path": body.path}, t("ok.saved"))
+
+
+async def _dir_size(path: Path, depth: int = 0, max_depth: int = 3) -> int:
+    if depth > max_depth:
+        return 0
+    total = 0
+    try:
+        for child in path.iterdir():
+            if child.is_dir() and not child.is_symlink():
+                total += await _dir_size(child, depth + 1, max_depth)
+            elif child.is_file():
+                total += child.stat().st_size
+    except OSError:
+        return total
+    return total
+
+
+@router.get("/files/analyze")
+async def analyze_dir(
+    root: str,
+    path: str = "",
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """空间分析（M11-7）：子目录/文件大小 Top 列表（递归深度 3）。"""
+    target = await _resolve(session, root, path)
+    if not target.is_dir():
+        raise BizError(CODE_VALIDATION, t("err.file_not_dir"), 422)
+    entries = []
+    try:
+        for child in target.iterdir():
+            if child.name.startswith("."):
+                continue
+            if child.is_dir():
+                entries.append({"name": child.name, "dir": True, "size": await _dir_size(child)})
+            else:
+                entries.append({"name": child.name, "dir": False, "size": child.stat().st_size})
+    except OSError as exc:
+        raise BizError(CODE_VALIDATION, t("err.file_read_failed"), 422) from exc
+    entries.sort(key=lambda e: e["size"], reverse=True)
+    return ok({"root": root, "path": path, "entries": entries[:30]})

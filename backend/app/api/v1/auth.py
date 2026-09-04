@@ -77,8 +77,11 @@ async def _setting_bool(session: AsyncSession, key: str) -> bool:
 
 @router.get("/auth/config")
 async def auth_config(session: AsyncSession = Depends(get_session)):
-    """公开配置（免认证）：注册开关（登录页显示注册入口用）。"""
-    return ok({"allow_register": await _setting_bool(session, "security.allow_register")})
+    """公开配置（免认证）：注册开关与登录页企业入口显示（P22.1）。"""
+    oidc = await _setting_bool(session, "auth.oidc_enabled")
+    ldap = await _setting_bool(session, "auth.ldap_enabled")
+    return ok({"allow_register": await _setting_bool(session, "security.allow_register"),
+               "oidc_enabled": oidc, "ldap_enabled": ldap})
 
 
 @router.post("/auth/register")

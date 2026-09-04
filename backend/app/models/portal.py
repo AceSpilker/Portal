@@ -51,6 +51,8 @@ class App(Base, TimestampMixin):
     # visibility=users 时生效：可访问的用户 id 数组（JSON）
     visible_users: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
     favorite: Mapped[bool] = mapped_column(default=False)  # P4 收藏置顶使用
+    # P22.2 最近使用
+    last_opened_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     tags: Mapped[list] = mapped_column(JSON, default=list)  # M2 标签；JSON 跨库兼容（P23）
     remark: Mapped[str] = mapped_column(Text, default="")
     doc_url: Mapped[str | None] = mapped_column(Text, default=None)

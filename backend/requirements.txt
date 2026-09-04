@@ -18,3 +18,4 @@ APScheduler>=3.10,<4
 aiomysql>=0.2
 redis>=5.0
 asyncssh>=2.14
+ldap3>=2.9

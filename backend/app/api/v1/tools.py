@@ -97,3 +97,33 @@ async def wol_targets_delete(
         await session.delete(t)
         await session.commit()
     return True
+
+
+@router.get("/tools/dns")
+async def dns_lookup(
+    host: str,
+    _: User = Depends(get_current_user),
+):
+    """DNS 查询（M10-4；P22.2）：getaddrinfo A/AAAA 解析。"""
+    import asyncio
+    import socket
+
+    if not host.strip():
+        return ok({"addresses": []})
+    loop = asyncio.get_event_loop()
+
+    def _lookup():
+        out = []
+        for family in (socket.AF_INET, socket.AF_INET6):
+            try:
+                infos = socket.getaddrinfo(host.strip(), None, family)
+            except socket.gaierror:
+                continue
+            for info in infos:
+                addr = info[4][0]
+                if addr not in out:
+                    out.append(addr)
+        return out
+
+    addresses = await loop.run_in_executor(None, _lookup)
+    return ok({"host": host, "addresses": addresses})

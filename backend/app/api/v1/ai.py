@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -407,3 +407,35 @@ async def ai_chat_ws(websocket) -> None:
             await websocket.close()
         except Exception:
             pass
+
+
+@router.get("/ai/usage")
+async def ai_usage(
+    days: int = Query(30, ge=1, le=365),
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """AI 用量统计（M05-15）：按日统计消息数与 token 数。"""
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+
+    rows = (
+        (
+            await session.execute(
+                select(AiMessage)
+                .where(AiMessage.role == "assistant")
+                .order_by(AiMessage.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    by_day: dict = defaultdict(lambda: {"messages": 0, "tokens": 0})
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    for m in rows:
+        if m.created_at < cutoff:
+            continue
+        day = m.created_at.strftime("%Y-%m-%d")
+        by_day[day]["messages"] += 1
+        by_day[day]["tokens"] += m.tokens or 0
+    return ok({"days": [{"date": d, **v} for d, v in sorted(by_day.items())]})

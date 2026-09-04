@@ -10,6 +10,7 @@ from app.api.v1 import (
     crypto,
     docker,
     downloads,
+    enterprise,
     files,
     flows,
     health,
@@ -61,4 +62,5 @@ api_router.include_router(sync.router, tags=["sync"])
 api_router.include_router(redis.router, tags=["redis"])
 api_router.include_router(tunnels.router, tags=["tunnels"])
 api_router.include_router(agents.router, tags=["agents"])
+api_router.include_router(enterprise.router, tags=["enterprise"])
 api_router.include_router(audit.router, tags=["audit"])

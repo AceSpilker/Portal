@@ -26,6 +26,9 @@ export const authApi = {
   /** 开放注册（P17.3：security.allow_register 开启时可用） */
   register: (payload: { username: string; password: string }) =>
     request.post<never, { id: number; username: string }>('/auth/register', payload),
+  /** LDAP 企业登录（P22.1） */
+  ldapLogin: (payload: { username: string; password: string }) =>
+    request.post<never, TokenResp>('/auth/ldap/login', payload),
   /** 公开配置（注册开关等） */
   config: () => request.get<never, { allow_register: boolean }>('/auth/config'),
   /** TOTP：生成密钥 / 启用 / 关闭（P17.1） */

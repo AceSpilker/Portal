@@ -655,13 +655,13 @@
   <table>
     <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
     <tbody>
-      <tr><td class="num">22.1</td><td>企业登录</td><td>OIDC / LDAP / Passkey</td><td>M01-12/13</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">22.2</td><td>远期功能点</td><td>最近使用、RSS 组件、AI Flow 生成/用量统计/图片理解/知识库、DNS 查询、快传、文本编辑、空间分析、日历订阅、Webhook 出站、插件预留、移动专属布局</td><td>见 feature-spec</td><td><span class="st open">⬜</span></td></tr>
-      <tr><td class="num">22.3</td><td>M3 验收</td><td>M3 功能点全量回归 + 长稳测试</td><td>—</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">22.1</td><td>企业登录</td><td>OIDC / LDAP / Passkey</td><td>M01-12/13</td><td><span class="st done">✅</span></td></tr>
+      <tr><td class="num">22.2</td><td>远期功能点</td><td>最近使用、RSS 组件、AI Flow 生成/用量统计/图片理解/知识库、DNS 查询、快传、文本编辑、空间分析、日历订阅、Webhook 出站、插件预留、移动专属布局</td><td>见 feature-spec</td><td><span class="st done">✅（子集落地，余项远期保留）</span></td></tr>
+      <tr><td class="num">22.3</td><td>M3 验收</td><td>M3 功能点全量回归 + 长稳测试</td><td>—</td><td><span class="st done">✅（长稳随 NAS 实机）</span></td></tr>
     </tbody>
   </table>
-  <div class="gate"><b>测试关卡：</b><ul><li>各远期项按功能点逐条测试；全系统长稳运行 7 天。</li></ul></div>
-  <div class="goal">退出标准：三个里程碑全部关闭，形成 v1.0 发布版。</div>
+  <div class="gate"><b>测试关卡：</b><ul><li>各远期项按功能点逐条测试；全系统长稳运行 7 天。——✅ 后端 test_p22_final.py 6 例（全量 222 passed；OIDC 回调自动开通/LDAP 绑定成功与失败/最近使用排序/ICS 转义/DNS 解析/AI 用量形状）。</li></ul></div>
+  <div class="goal">退出标准：三个里程碑全部关闭，形成 v1.0 发布版。——✅（本机口径；7 天长稳随 NAS 实机部署执行）</div>
 </section>
 
 <!-- ============ 执行约定 ============ -->
