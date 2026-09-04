@@ -10,6 +10,7 @@
 | [docs/feature-spec](docs/feature-spec.html) | 功能详述：18 模块 / 220 功能点，功能细节权威来源 | v1.6 |
 | [docs/api-spec](docs/api-spec.html) | 接口与数据模型详述：32 张表、90+ 端点、错误码、WS/SSE 协议 | v1.2 |
 | [docs/dev-plan](docs/dev-plan.html) | 开发计划：26 阶段 / 120 步骤，带完成状态与测试关卡 | v1.5b |
+| [docs/test-report](docs/test-report.html) | 全系统功能与 UI 测试报告：26 阶段功能点/交互/性能/安全全量结果 | v1.0 |
 
 > Markdown 版本在同名 `.md` 文件；开发进度以 dev-plan 内的状态为准（当前 **120 / 120 全部完成**：26 阶段全部落地，v1.0 发布版形成；P3/P8/P23/P25 等长稳与真机项随 NAS 实机部署执行；P3/P8 待真实环境验收，P9/P10 待渠道真机收包验收，P23/P25 的 72h 长稳随 NAS 实机部署）。
 

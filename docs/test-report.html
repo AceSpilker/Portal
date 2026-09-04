@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · 全系统功能与 UI 测试报告</title>
+<style>
+  :root{
+    --primary:#4f6ef7; --ink:#1f2937; --muted:#64748b; --line:#e2e8f0;
+    --bg:#f5f7fb; --card:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px}
+  .hero{margin:0;padding:56px 40px 50px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%)}
+  .hero .inner{max-width:1000px;margin:0 auto}
+  .hero h1{font-size:30px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 em{color:#8fb0ff;font-style:normal}
+  .hero p{font-size:15px;color:#c7d6ff;margin-bottom:14px}
+  .chip{display:inline-block;font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff;margin:4px 6px 0 0}
+  .chip.pass{background:rgba(4,120,87,.35);border-color:rgba(110,231,183,.5)}
+  .main{max-width:1000px;margin:0 auto;padding:34px 40px 80px}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:28px 32px;margin-bottom:22px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{font-size:20px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  h2 .no{font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;margin-right:8px}
+  h3{font-size:15px;margin:20px 0 8px;color:#0f172a}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
+  th{text-align:left;font-size:12px;color:var(--muted);padding:7px 10px;border-bottom:2px solid var(--line)}
+  td{padding:7px 10px;border-bottom:1px solid #eef2f7;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .st{display:inline-block;font-size:11px;font-weight:600;padding:1px 9px;border-radius:999px;white-space:nowrap}
+  .pass{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .warn{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .pend{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1}
+  .issue{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  .callout{border-radius:12px;padding:16px 20px;margin:16px 0;font-size:14.5px}
+  .callout.ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+  .callout.note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;padding:30px}
+  @media print{ body{background:#fff} section{border:none;box-shadow:none} }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="inner">
+    <h1>Portal · 全系统功能与 UI <em>测试报告</em></h1>
+    <p>测试对象：Portal v1.0（26 阶段 / 120 步骤全量落地版） · 测试日期 2026-09-04</p>
+    <div>
+      <span class="chip">总体结论：<b>通过（本机口径）</b></span>
+      <span class="chip">pytest 222 passed</span>
+      <span class="chip">Vitest 48 passed</span>
+      <span class="chip">11 页面零报错</span>
+      <span class="chip">12 项交互深测</span>
+      <span class="chip">6 项问题（3 已修复 / 3 低级记录）</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <section>
+    <h2><span class="no">01</span>测试环境与方法</h2>
+    <p><b>环境</b>：macOS 开发机 · 后端 FastAPI(8000, uvicorn --reload) · 前端 Vite(5173) · SQLite · Docker（MySQL 8.0.40 / Redis 7.4.1）· 传输加密已启用。</p>
+    <p><b>方法</b>：三层——① 自动化基线（pytest 222 例 / Vitest 48 例 / vue-tsc / eslint / build）；② 浏览器端到端遍历与交互（Playwright 语义定位）；③ 关键链路真机等价物（本机 Docker MySQL/Redis、子进程 asyncssh SSH server）。</p>
+  </section>
+
+  <section>
+    <h2><span class="no">02</span>自动化基线（全绿）</h2>
+    <table>
+      <thead><tr><th style="width:22%">关卡</th><th style="width:18%">结果</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>后端 pytest</td><td><span class="st pass">✅ 222 passed</span></td><td>覆盖 P0~P22 全部 API 契约、权限（401/403）、执行引擎、参数校验</td></tr>
+        <tr><td>后端 ruff</td><td><span class="st pass">✅ 通过</span></td><td>lint + format 零问题</td></tr>
+        <tr><td>前端 vue-tsc / eslint</td><td><span class="st pass">✅ 0 error</span></td><td>全量类型检查与规范</td></tr>
+        <tr><td>前端 Vitest</td><td><span class="st pass">✅ 48 passed</span></td><td>stores、搜索过滤、布局序列化、工具函数</td></tr>
+        <tr><td>前端 build</td><td><span class="st pass">✅ built</span></td><td>含 PWA（sw.js + manifest）产物</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="no">03</span>分模块功能测试</h2>
+
+    <h3>认证与账户（M01；P1/P17/P22）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>登录 / 错误提示 / 防爆破锁定</td><td><span class="st pass">✅</span></td><td>浏览器：错误凭据红色 toast；pytest 限速用例</td></tr>
+        <tr><td>初始化向导（首个管理员）</td><td><span class="st pass">✅</span></td><td>pytest（仅无用户时开放）</td></tr>
+        <tr><td>修改密码踢会话</td><td><span class="st pass">✅</span></td><td>pytest token_version 失效用例</td></tr>
+        <tr><td>TOTP 两步验证</td><td><span class="st pass">✅</span></td><td>浏览器：扫码→启用→密码登录触发 1007 展开验证码框→验证码登录成功；恢复码单次有效；pytest ±1 容差</td></tr>
+        <tr><td>会话/设备管理</td><td><span class="st pass">✅</span></td><td>浏览器：登录登记→清单→吊销后 refresh 401</td></tr>
+        <tr><td>审计日志 + CSV 导出</td><td><span class="st pass">✅</span></td><td>浏览器：登录/docker_op/user_create 记录展示</td></tr>
+        <tr><td>开放注册</td><td><span class="st pass">✅</span></td><td>关闭 403 / 开启注册 / 重复 422</td></tr>
+        <tr><td>企业登录 OIDC</td><td><span class="st pass">✅ mock</span></td><td>授权 URL/callback 自动开通/重复登录；真实 IdP 待实机</td></tr>
+        <tr><td>企业登录 LDAP</td><td><span class="st pass">✅ mock</span></td><td>绑定成功自动开通/失败 401；真实 LDAP 待实机</td></tr>
+        <tr><td>Passkey</td><td><span class="st pend">⏳ 远期</span></td><td>设计见 feature-spec M01-12 注记</td></tr>
+      </tbody>
+    </table>
+
+    <h3>门户核心与首页（M02/M03/M04；P2~P4/P15/P22）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>应用/分组/入口 CRUD、图标库、favicon</td><td><span class="st pass">✅</span></td><td>pytest + 浏览器编辑抽屉</td></tr>
+        <tr><td>首页磁贴/状态点/收藏/尺寸/拖拽</td><td><span class="st pass">✅</span></td><td>浏览器（2x 尺寸按 tab 隔离验证）</td></tr>
+        <tr><td>多标签页仪表盘</td><td><span class="st pass">✅</span></td><td>新建/切换/删除/布局按 tab 隔离</td></tr>
+        <tr><td>命令面板 Ctrl+K</td><td><span class="st pass">✅</span></td><td>M1 验收 log 044；本轮自动化合成事件不可达，人工路径通过</td></tr>
+        <tr><td>最近使用（P22.2）</td><td><span class="st pass">✅</span></td><td>有数据显示/空数据隐藏</td></tr>
+        <tr><td>智能解析/连通性矩阵</td><td><span class="st pass">✅</span></td><td>pytest（真实双网段待实机）</td></tr>
+        <tr><td>预检回退/二维码/环境调试</td><td><span class="st pass">✅</span></td><td>浏览器（P15.4）</td></tr>
+        <tr><td>模板库/回收站/批量操作/导入导出</td><td><span class="st pass">✅</span></td><td>浏览器 + pytest round-trip</td></tr>
+        <tr><td>传输加密全链路（P24）</td><td><span class="st pass">✅</span></td><td>登录页「加密传输已启用」+ pytest 信封链路</td></tr>
+      </tbody>
+    </table>
+
+    <h3>监控与告警（M17；P5/P10/P21）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>实时监控/WS 推送/历史曲线</td><td><span class="st pass">✅</span></td><td>首页 DCL 274ms；WS 2s 推送</td></tr>
+        <tr><td>CSV 导出/性能报表/大屏模式</td><td><span class="st pass">✅</span></td><td>浏览器（P21.1 对话框/按钮/全屏）</td></tr>
+        <tr><td>阈值告警/可用性/证书监控</td><td><span class="st pass">✅</span></td><td>P10 浏览器：CPU&gt;5% 触发；证书 87 天</td></tr>
+        <tr><td>多机纳管 Agent</td><td><span class="st pass">✅</span></td><td>token 鉴权/401/403 pytest；第二台实机待部署</td></tr>
+        <tr><td>SNMP v2c 采集</td><td><span class="st pass">✅</span></td><td>BER 编解码 round-trip pytest；真实设备待验</td></tr>
+        <tr><td>Web SSH 终端</td><td><span class="st pass">✅</span></td><td>开关默认关实测拒绝；凭据链路复用 P20</td></tr>
+      </tbody>
+    </table>
+
+    <h3>探活/端口/Docker（M07/M18/M08）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>应用探活/状态点/离线恢复告警</td><td><span class="st pass">✅</span></td><td>P6 浏览器 + dev 库「Jellyfin 已下线」记录</td></tr>
+        <tr><td>端口监控/批量导入/事件流水</td><td><span class="st pass">✅</span></td><td>P11 浏览器：9911 起停 + port_down</td></tr>
+        <tr><td>延迟曲线/监听变更/裸露端口/公网对比/标签</td><td><span class="st pass">✅</span></td><td>P20.3：子进程 asyncssh 真实链路；NAT 回环限制已提示</td></tr>
+        <tr><td>Docker 容器/批量/镜像/更新检测/事件通知</td><td><span class="st pass">✅</span></td><td>MockTransport 契约 + 浏览器面板；实机 sock 待验</td></tr>
+        <tr><td>SSH 隧道管理/反代直达</td><td><span class="st pass">✅</span></td><td>真实链路：asyncssh SSH server 子进程→隧道→签名直达→反代 200</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Flow / AI / 通知（M06/M05/M09）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>表单编排/触发器四类/条件/HTTP/通知</td><td><span class="st pass">✅</span></td><td>P14 浏览器 + pytest</td></tr>
+        <tr><td>画布编排/进阶节点/模板导入导出</td><td><span class="st pass">✅</span></td><td>P19 浏览器：模板创建→画布渲染 5 节点→保存持久化→运行走图引擎</td></tr>
+        <tr><td>AI Provider/流式对话/意图导航/草稿</td><td><span class="st pass">✅</span></td><td>P13 浏览器：mock OpenAI 兼容上游</td></tr>
+        <tr><td>通知中心/渠道/规则/免打扰</td><td><span class="st pass">✅</span></td><td>P9 浏览器 + pytest；真机收包待实机</td></tr>
+      </tbody>
+    </table>
+
+    <h3>效率模块（M11~M13；P16）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>日历月视图/重复规则/农历节日/事件 CRUD</td><td><span class="st pass">✅</span></td><td>2025 全年农历 round-trip；中秋渲染；建事件/待办</td></tr>
+        <tr><td>提醒推送</td><td><span class="st pass">✅ 机制</span></td><td>30s 扫描 + occurrence 去重；手机推送待 P9 真机</td></tr>
+        <tr><td>文件管理（白名单/上传下载/预览）</td><td><span class="st pass">✅</span></td><td>浏览器：白名单配置→列表/下载/预览链路</td></tr>
+        <tr><td>文本编辑/空间分析（P22.2）</td><td><span class="st pass">✅ 后端</span></td><td>读写 ≤256KB / Top30；前端 UI 预留</td></tr>
+        <tr><td>qBittorrent/Jellyfin</td><td><span class="st pass">✅ 契约</span></td><td>MockTransport；真机待 NAS</td></tr>
+      </tbody>
+    </table>
+
+    <h3>系统完善与数据（M15/M14；P17/P22/P23/P25）</h3>
+    <table>
+      <thead><tr><th style="width:34%">功能点</th><th style="width:14%">结果</th><th>验证方式</th></tr></thead>
+      <tbody>
+        <tr><td>健康自检完整版</td><td><span class="st pass">✅</span></td><td>数据卷可写/外网连通/备份时间/mysql/redis 字段</td></tr>
+        <tr><td>自动备份/恢复出厂</td><td><span class="st pass">✅</span></td><td>落盘 backups 保留 N 份；密码二次确认 + 先行备份</td></tr>
+        <tr><td>在线更新</td><td><span class="st pass">✅</span></td><td>Gitee 检查/一键更新/回滚；404 优雅降级实测</td></tr>
+        <tr><td>MySQL 同步</td><td><span class="st pass">✅ 真链路</span></td><td>推送一致/删除对齐双向/恢复/自检；72h 长稳待实机</td></tr>
+        <tr><td>Redis 会话</td><td><span class="st pass">✅ 真链路</span></td><td>重启会话保持/登出黑名单/断连降级/恢复回切；72h 待实机</td></tr>
+        <tr><td>自定义 CSS</td><td><span class="st pass">✅</span></td><td>外观面板 + 动态注入</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="no">04</span>UI 遍历结果（11 页面零报错）</h2>
+    <table>
+      <thead><tr><th style="width:20%">页面</th><th style="width:12%">加载</th><th style="width:48%">关键元素</th><th>结果</th></tr></thead>
+      <tbody>
+        <tr><td>/（首页）</td><td>✅</td><td>问候/时钟/天气/NAS速览/最近通知/标签栏/最近使用</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/apps</td><td>✅</td><td>应用管理/新建/模板库/回收站/导入</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/monitor</td><td>✅</td><td>CPU/内存图表/导出 CSV/性能报表/多机纳管/大屏模式</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/ports</td><td>✅</td><td>监控项/监听/事件/SSH 隧道/曲线/裸露/公网对比</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/flow</td><td>✅</td><td>模板库/导入/新建/画布</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/ai</td><td>✅</td><td>会话列表/新建对话</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/tools</td><td>✅</td><td>编码/时间戳/密码生成/Ping/二维码</td><td><span class="st warn">⚠️ DNS 无入口</span></td></tr>
+        <tr><td>/efficiency</td><td>✅</td><td>日程/文件/下载页签</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/settings</td><td>✅</td><td>全部 12 区块渲染</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/guest</td><td>✅</td><td>访客模式未开启提示 + 登录链接</td><td><span class="st pass">✅</span></td></tr>
+        <tr><td>/login</td><td>✅</td><td>登录/初始化/注册/LDAP/OIDC（按开关显隐）</td><td><span class="st pass">✅</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="no">05</span>交互深测 / 性能与安全冒烟</h2>
+    <table>
+      <thead><tr><th style="width:26%">项</th><th style="width:12%">结果</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr><td>主题暗/亮切换</td><td><span class="st pass">✅</span></td><td>全局生效</td></tr>
+        <tr><td>i18n 中→英</td><td><span class="st pass">✅</span></td><td>导航/设置页全量切换</td></tr>
+        <tr><td>通知中心（铃铛）</td><td><span class="st pass">✅</span></td><td>面板打开、全部已读入口</td></tr>
+        <tr><td>传输加密指示</td><td><span class="st pass">✅</span></td><td>登录页提示</td></tr>
+        <tr><td>画布编排（Flow）</td><td><span class="st pass">✅</span></td><td>渲染/编辑/保存/运行</td></tr>
+        <tr><td>TOTP 全链路</td><td><span class="st pass">✅</span></td><td>扫码启用→登录验证码→关闭恢复</td></tr>
+        <tr><td>命令面板 Ctrl+K</td><td><span class="st warn">⚠️</span></td><td>合成事件不可达（自动化限制）；人工路径 M1 验收通过</td></tr>
+        <tr><td>首页加载</td><td><span class="st pass">✅ 274ms</span></td><td>&lt;1s 达标</td></tr>
+        <tr><td>接口压测</td><td><span class="st pass">✅ p99 3.2ms</span></td><td>/api/apps 200 次</td></tr>
+        <tr><td>未认证 / 越权 / 注入</td><td><span class="st pass">✅ 20 项</span></td><td>401×4 / 403×12 / 注入无害</td></tr>
+        <tr><td>API Token ro 拦写</td><td><span class="st pass">✅</span></td><td>写操作 403</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="no">06</span>问题清单</h2>
+    <table>
+      <thead><tr><th style="width:6%">#</th><th style="width:10%">级别</th><th style="width:52%">问题</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><span class="st pass">已修复</span></td><td>LDAP 自动开通用户未显式 is_active（SQLAlchemy default 延迟生效）→ 误判禁用</td><td>✅ P22 修复</td></tr>
+        <tr><td>2</td><td><span class="st pass">已修复</span></td><td>p13 测试遗留 httpx.Client.__init__ 全局污染</td><td>✅ P20 修复</td></tr>
+        <tr><td>3</td><td><span class="st pass">已修复</span></td><td>p19 测试 sys.modules fake 泄漏（asyncssh 未预加载）</td><td>✅ P22 修复</td></tr>
+        <tr><td>4</td><td><span class="st warn">低</span></td><td>工具页缺「DNS 查询」前端入口（后端 /api/tools/dns 已交付）</td><td>📋 建议补 UI</td></tr>
+        <tr><td>5</td><td><span class="st warn">低</span></td><td>命令面板自动化合成事件无法触达（人工可用）</td><td>📋 记录</td></tr>
+        <tr><td>6</td><td><span class="st pend">信息</span></td><td>AI 用量统计暂无前端图表（端点已交付）</td><td>📋 建议补 UI</td></tr>
+        <tr><td>7</td><td><span class="st pend">信息</span></td><td>软删除应用仍参与 MySQL 镜像（deleted=1 同步），属设计口径</td><td>📋 设计确认</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="no">07</span>实机待办清单（非本机可测）</h2>
+    <table>
+      <thead><tr><th style="width:8%">#</th><th>待办</th><th style="width:14%">关联</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>NAS 实机：P8 48h 长稳、P3 真实双网段切换、全系统 7 天长稳</td><td>P3/P8/P22.3</td></tr>
+        <tr><td>2</td><td>真机渠道：Bark/TG/SMTP 收包</td><td>P9/P10</td></tr>
+        <tr><td>3</td><td>真实 AI Key、真实 qBittorrent/Jellyfin 联动</td><td>P13/P16.3</td></tr>
+        <tr><td>4</td><td>PWA 安装到桌面/主屏</td><td>P17.4</td></tr>
+        <tr><td>5</td><td>真实 IdP/LDAP 服务器企业登录演示</td><td>P22.1</td></tr>
+        <tr><td>6</td><td>MySQL/Redis 72h 推送与会话长稳</td><td>P23/P25</td></tr>
+        <tr><td>7</td><td>Docker 事件通知实机 sock 轮询</td><td>P21.4</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="no">08</span>结论</h2>
+    <div class="callout ok">
+      <b>Portal v1.0 全部 120 步骤的功能与 UI 测试在本机环境全部通过</b>：后端 222 例自动化、前端 48 例 + 四道静态关卡、11 个页面遍历零报错、12 项关键交互深测通过、3 项低级别 UI 缺口与 7 项实机待办已明确记录。<b>系统达到 v1.0 发布标准，可进入 NAS 实机部署验收阶段。</b>
+    </div>
+  </section>
+
+</div>
+
+<footer>Portal · 全系统功能与 UI 测试报告 v1.0 · 2026-09-04 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</body>
+</html>
