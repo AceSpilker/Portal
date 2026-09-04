@@ -12,7 +12,9 @@ from fastapi import FastAPI, Request, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
+from app.api.v1 import downloads
 from app.api.v1.ai import ai_chat_ws
+from app.api.v1.files import serve_raw
 from app.api.v1.monitor import cleanup_job, monitor_ws, sampler_job
 from app.api.v1.ports import ports_job
 from app.api.v1.probe import notify_ws, probe_job
@@ -32,6 +34,16 @@ async def alerts_evaluate_job() -> None:
     """阈值告警评估（P10.3）：每 30s 对启用规则跑一次状态机。"""
     async with SessionLocal() as session:
         await evaluate_alerts(session)
+
+
+async def schedule_reminder_job() -> None:
+    """日程提醒扫描（M13-3；P16.1）：每 30s 检查到期事件，经 P9 通知。"""
+    from datetime import datetime
+
+    from app.api.v1.schedule import reminder_scan
+
+    async with SessionLocal() as session:
+        await reminder_scan(session, datetime.utcnow())
 
 
 async def urls_probe_job() -> None:
@@ -99,6 +111,15 @@ async def lifespan(_: FastAPI):
         urls_probe_cleanup_job, "interval", hours=1, id="url_probe_cleanup",
         max_instances=1, replace_existing=True,
     )
+    # 日程提醒（P16.1/M13-3）与下载完成轮询（P16.3/M12-4）
+    _scheduler.add_job(
+        schedule_reminder_job, "interval", seconds=30, id="schedule_reminder",
+        max_instances=1, replace_existing=True,
+    )
+    _scheduler.add_job(
+        downloads.downloads_job, "interval", seconds=60, id="downloads_poll",
+        max_instances=1, replace_existing=True,
+    )
     # Flow cron 触发器（P14.1/M06-4）：恢复启用中的 cron Flow
     await flow_restore(_scheduler)
     # 端口探活（P11.2/M18-2）：每 10s 巡检到期监控项
@@ -124,6 +145,12 @@ async def locale_middleware(request: Request, call_next):
     """按 Accept-Language 设置本请求的文案语言（api-spec §1）。"""
     set_locale(request.headers.get("accept-language", ""))
     return await call_next(request)
+
+
+@app.get("/files/raw")
+async def files_raw(token: str):
+    """文件预览直链（P16.2/M11-4）：短时签名 token，/api 之外豁免信封。"""
+    return await serve_raw(token)
 
 
 @app.websocket("/ws/notify")

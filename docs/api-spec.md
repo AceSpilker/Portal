@@ -86,6 +86,8 @@
 
 **dashboard_layouts**（M1）：id；user_id FK；tab TEXT（标签页名）；title TEXT ''（M02-5 标签页显示名，default 空名=用 i18n）；sort INT；layout TEXT(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。
 
+**calendar_events / todos**（M2/P16.1）：calendar_events：id；user_id FK（日程私有）；title；note；event_date DATE（重复基准）；event_time TIME NULL（空=全天不提醒）；repeat TEXT（none/daily/weekly/monthly/yearly/custom）；interval_days INT；lunar BOOL（农历口径：event_date 的月日视为农历月日，每年换算）；remind_minutes INT；last_remind_key（occurrence 去重）。todos：id；user_id FK；title；done；todo_date NULL；sort。
+
 **url_probe_samples**（M2/P15.4）：id；url_id（app_urls FK 语义）；app_id（冗余索引）；state TEXT（up/down/unknown）；latency_ms INT NULL；checked_at TIMESTAMP 索引。来源：预检（precheck）/连通性矩阵/定时轮询（每 5min），保留 7 天。
 
 ### 3.3 网络环境与访问解析
@@ -152,7 +154,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`media.*`（P16：jellyfin_url/jellyfin_key）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
 **sync_state**（M2）：id；table_name TEXT UNIQUE；last_push_at NULL；rows_pushed INT 0；status TEXT（idle/running/failed）；message TEXT ''。
 
@@ -316,16 +318,22 @@
 | POST | /api/tools/api-test | 迷你 API 测试器 | A | M2 |
 | GET/POST/DELETE | /api/tools/short-links… | 门户短链 | A | M2 |
 
-### 4.11 效率模块（M2）
+### 4.11 效率模块（M2，P16 落地）
 
-| 方法 | 路径 | 说明 | 阶段 |
-|---|---|---|---|
-| GET/POST/PUT/DELETE | /api/calendar/events… | 日历事件 CRUD | M2 |
-| GET/POST/PUT/DELETE | /api/todos… | 待办 CRUD | M2 |
-| GET | /api/files/list?path= | 目录浏览（白名单） | M2 |
-| GET/POST | /api/files/download · /upload · /mkdir · /rename · /delete · /move | 文件操作 | M2 |
-| GET | /api/downloads/summary · /tasks · POST /api/downloads/tasks | qBittorrent 集成 | M2 |
-| GET | /api/media/recent | Jellyfin/Emby 最近入库 | M2 |
+| 方法 | 路径 | 说明 | 权限 | 阶段 |
+|---|---|---|---|---|
+| GET | /api/calendar/month?ym=YYYY-MM | 月视图：事件按重复规则展开 + 农历节日 {events[], festivals[]} | A | P16 |
+| POST/PUT/DELETE | /api/calendar/events（/{id}） | 日历事件 CRUD {title,note,date,time?,repeat,interval_days,lunar,remind_minutes}，user_id 隔离 | A | P16 |
+| GET/POST/PUT/DELETE | /api/todos（/{id}） | 待办 CRUD {title,done,date?} | A | P16 |
+| GET | /api/files/roots | 白名单根清单（files.roots 空=模块隐藏） | A | P16 |
+| GET | /api/files/list?root=&path= | 目录浏览（realpath 防穿越） | A | P16 |
+| POST | /api/files/upload | JSON+base64 上传（≤100MB b64，密文传输） | M | P16 |
+| GET | /api/files/download?root=&path= | base64 JSON 下载（≤64MB） | A | P16 |
+| POST | /api/files/mkdir · /rename · /delete · /move | 文件操作（目录删除需为空） | M | P16 |
+| POST | /api/files/raw-url | 媒体预览短链：JWT 签名 10 分钟，/files/raw?token= 直连（/api 外豁免信封，TLS 为基线） | A | P16 |
+| GET | /api/downloads/summary · /tasks · POST /api/downloads/tasks | qBittorrent 集成（未启用 404 前端隐藏） | M | P16 |
+| GET | /api/media/recent | Jellyfin 最近入库 ≤12 项（海报服务端代理转 data URI，key 不落前端） | M | P16 |
+| WS/轮询 | schedule.reminder / downloads.complete 事件 | 到点提醒（每 30s 扫描，occurrence 去重）与下载完成（60s 轮询，False→True 跳变）经 P9 通知路由 | — | P16 |
 
 ### 4.12 设置 / 同步 / 备份 / 系统
 

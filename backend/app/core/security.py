@@ -47,6 +47,19 @@ def _create_token(
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM), iat
 
 
+def create_signed_token(payload: dict[str, Any], token_type: str, expires_delta: timedelta) -> str:
+    """通用短时签名令牌（如文件预览直链）；sub/ver 语义由调用方定义。"""
+    now = datetime.now(timezone.utc)
+    body = {
+        **payload,
+        "type": token_type,
+        "iat": int(now.timestamp()),
+        "exp": now + expires_delta,
+        "jti": uuid.uuid4().hex,
+    }
+    return jwt.encode(body, settings.secret_key, algorithm=ALGORITHM)
+
+
 def create_access_token(user_id: int, token_version: int = 0) -> str:
     token, _ = _create_token(user_id, "access", timedelta(minutes=ACCESS_EXPIRE_MIN), token_version)
     return token

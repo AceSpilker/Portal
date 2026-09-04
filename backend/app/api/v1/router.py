@@ -7,6 +7,8 @@ from app.api.v1 import (
     categories,
     crypto,
     docker,
+    downloads,
+    files,
     flows,
     health,
     icons,
@@ -17,6 +19,7 @@ from app.api.v1 import (
     notify,
     ports,
     probe,
+    schedule,
     settings,
     system,
     tools,
@@ -30,6 +33,9 @@ api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(settings.router, tags=["settings"])
 api_router.include_router(me.router, tags=["auth"])
 api_router.include_router(layouts.router, tags=["dashboard"])
+api_router.include_router(schedule.router, tags=["schedule"])
+api_router.include_router(files.router, tags=["files"])
+api_router.include_router(downloads.router, tags=["downloads"])
 api_router.include_router(icons.router, tags=["portal"])
 api_router.include_router(categories.router, tags=["portal"])
 api_router.include_router(apps.router, tags=["portal"])

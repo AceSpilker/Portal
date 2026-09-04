@@ -50,6 +50,15 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "monitor.retention_days": json.dumps(7),
     "monitor.sample_interval": json.dumps(60),
     "monitor.push_interval": json.dumps(2),
+    # 文件管理白名单（M11-1，P16.2）：空=模块隐藏；路径支持 ~ 展开
+    "files.roots": json.dumps([], ensure_ascii=False),
+    # 下载与媒体（M12，P16.3）：qBittorrent WebUI 与 Jellyfin（默认关闭）
+    "downloads.enabled": json.dumps(False),
+    "downloads.qb_url": json.dumps(""),
+    "downloads.qb_user": json.dumps(""),
+    "downloads.qb_pass": json.dumps(""),
+    "media.jellyfin_url": json.dumps(""),
+    "media.jellyfin_key": json.dumps(""),
 }
 
 

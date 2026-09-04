@@ -8,6 +8,8 @@ import {
   Delete as IconDelete,
   Edit as IconEdit,
   InfoFilled as IconInfo,
+  Calendar as IconEff,
+  Plus as IconPlus,
   Picture as IconLib,
   Setting as IconGeneral,
   Brush as IconAppearance,
@@ -31,7 +33,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -58,6 +60,43 @@ const aboutVersion = ref('')
 // ---- 应用配置 ----
 const tagOptions = ref<string[]>([])
 const newTag = ref('')
+
+// ---- 效率模块（P16：文件白名单 / 下载器 / 媒体库）----
+interface RootRow {
+  name: string
+  path: string
+}
+const rootRows = ref<RootRow[]>([])
+const dlEnabled = ref(false)
+const dlUrl = ref('')
+const dlUser = ref('')
+const dlPass = ref('')
+const mediaUrl = ref('')
+const mediaKey = ref('')
+
+function addRootRow() {
+  rootRows.value.push({ name: '', path: '' })
+}
+
+function removeRootRow(i: number) {
+  rootRows.value.splice(i, 1)
+}
+
+async function saveEfficiency() {
+  const roots = rootRows.value.filter((r) => r.path.trim())
+  await save(
+    {
+      'files.roots': roots,
+      'downloads.enabled': dlEnabled.value,
+      'downloads.qb_url': dlUrl.value,
+      'downloads.qb_user': dlUser.value,
+      'downloads.qb_pass': dlPass.value,
+      'media.jellyfin_url': mediaUrl.value,
+      'media.jellyfin_key': mediaKey.value,
+    },
+    t('settings.savedEfficiency'),
+  )
+}
 
 // ---- 监控设置（采样/推送间隔与保留天数；api-spec §4.4）----
 const sampleInterval = ref(60)
@@ -127,6 +166,13 @@ onMounted(async () => {
   sampleInterval.value = (map['monitor.sample_interval'] as number) || 60
   pushInterval.value = (map['monitor.push_interval'] as number) || 2
   retentionDays.value = (map['monitor.retention_days'] as number) || 7
+  rootRows.value = ((map['files.roots'] as RootRow[]) || []).map((r) => ({ ...r }))
+  dlEnabled.value = map['downloads.enabled'] === true
+  dlUrl.value = (map['downloads.qb_url'] as string) || ''
+  dlUser.value = (map['downloads.qb_user'] as string) || ''
+  dlPass.value = (map['downloads.qb_pass'] as string) || ''
+  mediaUrl.value = (map['media.jellyfin_url'] as string) || ''
+  mediaKey.value = (map['media.jellyfin_key'] as string) || ''
   try {
     aboutVersion.value = (await getHealth()).version
   } catch {
@@ -346,6 +392,10 @@ function saveMonitor() {
         <el-menu-item index="usermgmt">
           <el-icon><component :is="IconUsers" /></el-icon>
           <span>{{ t('settings.menuUsers') }}</span>
+        </el-menu-item>
+        <el-menu-item index="efficiency">
+          <el-icon><component :is="IconEff" /></el-icon>
+          <span>{{ t('settings.menuEfficiency') }}</span>
         </el-menu-item>
         <el-menu-item index="about">
           <el-icon><component :is="IconInfo" /></el-icon>
@@ -585,6 +635,48 @@ function saveMonitor() {
         </header>
         <UsersPanel />
       </template>
+      <template v-else-if="active === 'efficiency'">
+        <header class="panel-head">
+          <h3>{{ t('settings.effTitle') }}</h3>
+          <p>{{ t('settings.effDesc') }}</p>
+        </header>
+        <el-form label-position="top" class="panel-body">
+          <h4 class="grp-title">{{ t('settings.effFiles') }}</h4>
+          <div v-for="(row, i) in rootRows" :key="i" class="root-row">
+            <el-input v-model="row.name" :placeholder="t('settings.effRootName')" style="width: 180px" />
+            <el-input v-model="row.path" :placeholder="t('settings.effRootPath')" class="root-path" />
+            <el-button :icon="IconDelete" circle plain type="danger" size="small" @click="removeRootRow(i)" />
+          </div>
+          <el-button size="small" :icon="IconPlus" @click="addRootRow">{{ t('settings.effAddRoot') }}</el-button>
+
+          <h4 class="grp-title">{{ t('settings.effDownloads') }}</h4>
+          <el-form-item :label="t('settings.effDlEnable')">
+            <el-switch v-model="dlEnabled" />
+          </el-form-item>
+          <el-form-item label="qBittorrent URL">
+            <el-input v-model="dlUrl" placeholder="http://192.168.1.10:8080" clearable style="max-width: 420px" />
+          </el-form-item>
+          <div class="row-2col">
+            <el-form-item :label="t('settings.effUser')">
+              <el-input v-model="dlUser" clearable />
+            </el-form-item>
+            <el-form-item :label="t('settings.effPass')">
+              <el-input v-model="dlPass" type="password" show-password clearable />
+            </el-form-item>
+          </div>
+
+          <h4 class="grp-title">{{ t('settings.effMedia') }}</h4>
+          <el-form-item label="Jellyfin / Emby URL">
+            <el-input v-model="mediaUrl" placeholder="http://192.168.1.10:8096" clearable style="max-width: 420px" />
+          </el-form-item>
+          <el-form-item label="API Key">
+            <el-input v-model="mediaKey" type="password" show-password clearable style="max-width: 420px" />
+          </el-form-item>
+
+          <el-button type="primary" class="btn-gradient" @click="saveEfficiency">{{ t('common.save') }}</el-button>
+        </el-form>
+      </template>
+
       <template v-else-if="active === 'about'">
           <header class="panel-head">
             <h3>{{ t('settings.aboutTitle') }}</h3>
@@ -606,6 +698,27 @@ function saveMonitor() {
 </template>
 
 <style scoped>
+.root-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.root-path {
+  flex: 1;
+  max-width: 420px;
+}
+.grp-title {
+  margin: 18px 0 8px;
+  font-size: 13.5px;
+  color: var(--p-muted);
+}
+.row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 420px;
+}
 .guest-switch {
   display: flex;
   align-items: center;

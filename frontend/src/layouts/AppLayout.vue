@@ -23,6 +23,7 @@ import {
   HomeFilled as IconHome,
   ArrowDown as IconArrowDown,
   Search as IconSearch,
+  Calendar as IconCalendar,
 } from '@element-plus/icons-vue'
 
 interface NavItem {
@@ -82,6 +83,7 @@ async function onEnvCommand(command: string | number) {
 const navItems = computed<NavItem[]>(() => [
   { icon: IconHome, label: t('nav.home'), to: '/' },
   { icon: IconApps, label: t('nav.apps'), to: '/apps' },
+  { icon: IconCalendar, label: t('nav.efficiency'), to: '/efficiency' },
   { icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' },
   { icon: IconConnection, label: t('nav.ports'), to: '/ports' },
   ...(auth.isAdmin && dockerEnabled.value

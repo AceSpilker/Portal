@@ -179,7 +179,7 @@ def test_06_dashboard_tabs_crud(client: TestClient):
     put = client.put("/api/me/layouts", json={"tab": tid, "layout": {"order": [], "sizes": {}, "collapsed": {}}}, headers=_admin(client))
     assert put.status_code == 200
     layouts = client.get("/api/me/layouts", headers=_admin(client)).json()["data"]
-    assert any(l["tab"] == tid for l in layouts)
+    assert any(row["tab"] == tid for row in layouts)
     # 重命名 + 排序（default 沉底）
     upd = client.put(
         "/api/me/tabs",

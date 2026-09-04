@@ -135,6 +135,47 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
     "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
     "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "err.event_not_found": {"zh-CN": "日程事件不存在", "en": "Event not found"},
+    "err.todo_not_found": {"zh-CN": "待办不存在", "en": "Todo not found"},
+    "err.file_root_not_found": {
+        "zh-CN": "白名单目录不存在或未启用", "en": "Whitelisted root not found or disabled"
+    },
+    "err.file_not_found": {"zh-CN": "文件不存在", "en": "File not found"},
+    "err.file_not_dir": {"zh-CN": "目标不是目录", "en": "Target is not a directory"},
+    "err.file_not_file": {"zh-CN": "目标不是文件", "en": "Target is not a file"},
+    "err.file_path_forbidden": {"zh-CN": "路径越出白名单范围", "en": "Path escapes whitelist"},
+    "err.file_read_failed": {"zh-CN": "目录读取失败", "en": "Failed to read directory"},
+    "err.file_too_large": {"zh-CN": "文件超出大小限制", "en": "File exceeds size limit"},
+    "err.file_exists": {"zh-CN": "同名文件/目录已存在", "en": "File or directory already exists"},
+    "err.file_b64_invalid": {
+        "zh-CN": "文件内容 base64 解码失败", "en": "Invalid base64 file content"
+    },
+    "err.file_dir_not_empty": {"zh-CN": "目录非空，无法删除", "en": "Directory not empty"},
+    "err.file_token_invalid": {
+        "zh-CN": "预览链接无效或已过期", "en": "Preview link invalid or expired"
+    },
+    "err.downloads_disabled": {
+        "zh-CN": "下载器未启用或未配置", "en": "Downloader not enabled or configured"
+    },
+    "err.media_disabled": {
+        "zh-CN": "媒体库未启用或未配置", "en": "Media server not enabled or configured"
+    },
+    "err.media_unreachable": {"zh-CN": "媒体库连接失败", "en": "Media server unreachable"},
+    "v.date_invalid": {"zh-CN": "日期格式应为 YYYY-MM-DD", "en": "Date must be YYYY-MM-DD"},
+    "v.ym_invalid": {"zh-CN": "月份格式应为 YYYY-MM", "en": "Month must be YYYY-MM"},
+    "v.repeat_invalid": {"zh-CN": "重复规则无效", "en": "Invalid repeat rule"},
+    "v.file_name_invalid": {"zh-CN": "名称不合法", "en": "Invalid name"},
+    "v.url_invalid": {"zh-CN": "下载地址不能为空", "en": "Download URL required"},
+    "ok.saved": {"zh-CN": "已保存", "en": "Saved"},
+    "ok.deleted": {"zh-CN": "已删除", "en": "Deleted"},
+    "notify.schedule_reminder": {"zh-CN": "日程提醒：{title}", "en": "Reminder: {title}"},
+    "notify.schedule_reminder_body": {
+        "zh-CN": "事件即将开始（{time}）", "en": "Event starting at {time}"
+    },
+    "notify.download_done": {"zh-CN": "下载完成：{name}", "en": "Download completed: {name}"},
+    "notify.download_done_body": {
+        "zh-CN": "qBittorrent 任务已 100%", "en": "qBittorrent task reached 100%"
+    },
     "err.tab_default_undeletable": {
         "zh-CN": "默认标签页不可删除", "en": "Default tab cannot be deleted"
     },

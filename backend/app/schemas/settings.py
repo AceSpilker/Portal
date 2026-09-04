@@ -36,6 +36,14 @@ WRITABLE_KEYS: set[str] = {
     # 首页小组件与快捷搜索（P15/M02）
     "home.weather_city",
     "home.search_shortcuts",
+    # 效率模块（P16/M11/M12）
+    "files.roots",
+    "downloads.enabled",
+    "downloads.qb_url",
+    "downloads.qb_user",
+    "downloads.qb_pass",
+    "media.jellyfin_url",
+    "media.jellyfin_key",
 }
 
 
@@ -98,6 +106,21 @@ class SettingsUpdate(BaseModel):
                 raise ValueError(t("err.monitor_range"))
             if key == "home.weather_city" and (
                 not isinstance(value, str) or len(value) > 60
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "files.roots" and (
+                not isinstance(value, list)
+                or len(value) > 20
+                or not all(
+                    isinstance(x, dict) and isinstance(x.get("path"), str) for x in value
+                )
+            ):
+                raise ValueError(t("err.monitor_range"))
+            if key == "downloads.enabled" and not isinstance(value, bool):
+                raise ValueError(t("err.monitor_range"))
+            if key in ("downloads.qb_url", "downloads.qb_user", "downloads.qb_pass",
+                       "media.jellyfin_url", "media.jellyfin_key") and (
+                not isinstance(value, str) or len(value) > 500
             ):
                 raise ValueError(t("err.monitor_range"))
             if key == "home.search_shortcuts" and (
