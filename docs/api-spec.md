@@ -91,6 +91,8 @@
 **user_sessions**（M2/P17.1）：id；user_id FK；jti UNIQUE（refresh token 定位）；device（UA 截断）；ip；revoked BOOL（吊销后 refresh 拒绝）；last_seen_at；expires_at。
 **api_tokens**（M2/P17.2）：id；user_id FK；name；token_hash UNIQUE（SHA-256，明文 plt_ 前缀仅创建时返回一次）；token_prefix（展示）；scope（ro=仅安全方法/rw）；revoked；expires_at NULL；last_used_at；note。
 
+**统一键值存储（P25）**：core/stores.py——MemoryStore（进程内存，TTL 惰性过期）/ RedisStore（redis.asyncio，key 前缀隔离）同接口 get/set/delete/exists；StoreManager 单例 `stores` 管理模式（redis/memory/redis-degraded），操作失败自动降级内存、30s 探活回切。迁入键：登出黑名单 `bl:{jti}`（TTL=令牌剩余期）、登录限速计数 `rl:{ip}`、传输加密会话密钥 `cs:{sid}`、监控实时概览缓存 `cache:monitor:system`（2s TTL）。
+
 **calendar_events / todos**（M2/P16.1）：calendar_events：id；user_id FK（日程私有）；title；note；event_date DATE（重复基准）；event_time TIME NULL（空=全天不提醒）；repeat TEXT（none/daily/weekly/monthly/yearly/custom）；interval_days INT；lunar BOOL（农历口径：event_date 的月日视为农历月日，每年换算）；remind_minutes INT；last_remind_key（occurrence 去重）。todos：id；user_id FK；title；done；todo_date NULL；sort。
 
 **url_probe_samples**（M2/P15.4）：id；url_id（app_urls FK 语义）；app_id（冗余索引）；state TEXT（up/down/unknown）；latency_ms INT NULL；checked_at TIMESTAMP 索引。来源：预检（precheck）/连通性矩阵/定时轮询（每 5min），保留 7 天。
@@ -159,7 +161,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
 
 **sync_state**（M2，P23 落地）：id；table_name TEXT UNIQUE；last_push_at NULL；last_try_at NULL；rows_pushed INT 0；status TEXT（idle/running/ok/failed）；fail_count INT 0（失败退避：60s×2^n，上限 30min）；message TEXT ''。同步范围=业务表（categories/apps/app_urls/network_profiles/flows/settings/wol_targets/notify_channels/notify_rules），users/会话/Token/审计等敏感表排除；MySQL 端 DDL 由 ORM 元数据生成（TEXT 唯一键前缀 191、剥离 TEXT DEFAULT）。
 
@@ -350,7 +352,8 @@
 | GET/PUT | /api/settings | 键值批量读写 | A读 M写 | P7 |
 | GET/PUT | /api/settings/sync | MySQL 同步配置与连接测试 | M | P23 |
 | POST | /api/mysql/test | MySQL 连接测试（按当前配置即时校验） | M | P23 |
-| POST | /api/redis/test | Redis 连接测试（按当前配置即时校验） | M | P25 |
+| GET/PUT | /api/settings/redis | Redis 连接配置读写（密码 Fernet 加密存储、回传脱敏；保存即重连） | M | P25 |
+| POST | /api/redis/test · GET /api/redis/status | 连接测试（PING+版本）/ 当前存储模式（redis/memory/redis-degraded+last_error） | M | P25 |
 | POST | /api/sync/push · GET /api/sync/status · POST /api/sync/restore | 立即推送 / 状态 / 从 MySQL 恢复 | M | P23 |
 | GET | /api/backup/export · POST /api/backup/import | 全量导出/导入 | M | P2/P17 |
 | POST | /api/backup/factory-reset | 恢复出厂（需密码二次确认） | M | M2 |

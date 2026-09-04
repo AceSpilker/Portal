@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.deps import require_admin
 from app.core.response import ok
 from app.core.scheduler import scheduler
+from app.core.stores import stores
 from app.db.session import get_session
 from app.models.user import User
 
@@ -108,7 +109,7 @@ async def health_report_full(
                     t["table"] for t in sync.get("tables", []) if t.get("status") == "failed"
                 ],
             },
-            "redis": None,  # P25 接入
+            "redis": {**stores.view(), "tables": None},
             "ai": None,  # AI 连通性检查（Provider 已配置时）
             "checked_at": int(time.time()),
         }

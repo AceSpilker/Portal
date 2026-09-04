@@ -105,11 +105,11 @@ async def register(body: InitRequest, session: AsyncSession = Depends(get_sessio
 async def login(body: LoginRequest, request: Request, session: AsyncSession = Depends(get_session)):
     """登录（M01-1/6）：失败限速 5 次/分钟（同 IP）；TOTP 已启用时需验证码。"""
     ip = request.client.host if request.client else "unknown"
-    if is_locked(ip):
+    if await is_locked(ip):
         raise BizError(1006, t("err.login_locked"), 429)
     user = await session.scalar(select(User).where(User.username == body.username))
     if user is None or not verify_password(body.password, user.password_hash):
-        record_fail(ip)
+        await record_fail(ip)
         from app.services.audit import client_ip, write_audit
 
         await write_audit(
@@ -135,7 +135,7 @@ async def login(body: LoginRequest, request: Request, session: AsyncSession = De
             # 恢复码命中即销毁（单次有效）
             rest = [h for h in hashed if h != totp_svc.hash_recovery_code(code)]
             user.totp_recovery = json.dumps(rest)
-    record_success(ip)
+    await record_success(ip)
     from app.services.audit import client_ip, write_audit
 
     await write_audit(session, user.id, "login", f"ok ip={ip}", client_ip(request))
@@ -190,8 +190,25 @@ async def refresh(request: Request, session: AsyncSession = Depends(get_session)
 
 
 @router.post("/auth/logout")
-async def logout(_: User = Depends(get_current_user)):
-    """登出：JWT 无状态，前端清除本地会话即可；接口用于契约完整。"""
+async def logout(request: Request, _: User = Depends(get_current_user)):
+    """登出（M01-3；P25.2）：访问令牌 jti 入黑名单（TTL=剩余有效期）。"""
+    import time as _time
+
+    from app.core.stores import stores
+
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.removeprefix("Bearer ").strip()
+    if token and not token.startswith("plt_"):
+        try:
+            payload = decode_token(token, "access")
+            jti = payload.get("jti")
+            exp = payload.get("exp")
+            if jti and exp:
+                ttl = int(float(exp) - _time.time())
+                if ttl > 0:
+                    await stores.store.set(f"bl:{jti}", "1", ttl=ttl)
+        except Exception:
+            pass  # 令牌本已无效/无 jti，登出保持成功
     return ok(None, t("ok.logged_out"))
 
 

@@ -4,6 +4,8 @@
 登录失败/成功 → me → refresh → 改密（旧 token 失效）→ 新密码登录 → 限速锁定。
 """
 
+import asyncio as _asyncio
+
 from fastapi.testclient import TestClient
 
 from app.core.ratelimit import reset as reset_ratelimit
@@ -53,13 +55,13 @@ def test_05_init_again_rejected(client: TestClient):
 
 
 def test_06_login_wrong_password(client: TestClient):
-    reset_ratelimit("testclient")
+    _asyncio.run(reset_ratelimit("testclient"))
     resp = client.post("/api/auth/login", json={"username": ADMIN_USER, "password": "wrong-pass1"})
     assert resp.json()["code"] == 1001
 
 
 def test_07_login_ok(client: TestClient):
-    reset_ratelimit("testclient")
+    _asyncio.run(reset_ratelimit("testclient"))
     resp = client.post("/api/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
     assert resp.status_code == 200
     data = resp.json()["data"]
@@ -119,14 +121,14 @@ def test_14_old_access_token_invalidated(client: TestClient):
 
 
 def test_15_login_with_new_password(client: TestClient):
-    reset_ratelimit("testclient")
+    _asyncio.run(reset_ratelimit("testclient"))
     resp = client.post("/api/auth/login", json={"username": ADMIN_USER, "password": NEW_PASS})
     assert resp.status_code == 200
 
 
 def test_16_login_rate_limited(client: TestClient):
     """连续失败 5 次 → 锁定 1006（M01-6）。"""
-    reset_ratelimit("testclient")
+    _asyncio.run(reset_ratelimit("testclient"))
     codes = []
     for _ in range(6):
         payload = {"username": ADMIN_USER, "password": "bad-pass9"}
@@ -134,4 +136,4 @@ def test_16_login_rate_limited(client: TestClient):
         codes.append(resp.json()["code"])
     assert codes[:5] == [1001, 1001, 1001, 1001, 1001]
     assert codes[5] == 1006
-    reset_ratelimit("testclient")
+    _asyncio.run(reset_ratelimit("testclient"))

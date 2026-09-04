@@ -19,7 +19,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from app.core.config import settings
 
 NONCE_SIZE = 12
-SESSION_MAX = 500  # 内存中最多保留的会话密钥数（LRU）
+SESSION_TTL = 7 * 24 * 3600  # 会话密钥存储 TTL（7 天，随刷新续期）
+SESSION_MAX = 500  # 内存模式保留的会话密钥数（LRU）
 NONCE_MAX = 512  # 每会话记录的最近 nonce 数（重放检测）
 
 
@@ -79,8 +80,9 @@ class TransportCrypto:
 
     # ---- 会话密钥 ----
 
-    def register_session(self, session_id: str, wrapped_key: bytes) -> None:
-        """用 RSA 私钥解开前端封装的 AES-256 会话密钥并缓存（LRU）。"""
+    async def register_session(self, session_id: str, wrapped_key: bytes) -> None:
+        """用 RSA 私钥解开前端封装的 AES-256 会话密钥并缓存（P25.2 迁入 stores：
+        Redis 模式重启不丢；未配置 Redis 时 MemoryStore 等价原 LRU 行为）。"""
         self._ensure_rsa()
         aes = self._priv.decrypt(
             wrapped_key,
@@ -92,18 +94,20 @@ class TransportCrypto:
         )
         if len(aes) != 32:
             raise ValueError("session key must be 32 bytes")
-        with self._lock:
-            self._sessions[session_id] = aes
-            self._sessions.move_to_end(session_id)
-            while len(self._sessions) > SESSION_MAX:
-                self._sessions.popitem(last=False)
+        from app.core.stores import stores
 
-    def session_key(self, session_id: str) -> bytes | None:
-        with self._lock:
-            key = self._sessions.get(session_id)
-            if key is not None:
-                self._sessions.move_to_end(session_id)
-            return key
+        await stores.store.set(f"cs:{session_id}", aes.hex(), ttl=SESSION_TTL)
+
+    async def session_key(self, session_id: str) -> bytes | None:
+        from app.core.stores import stores
+
+        raw = await stores.store.get(f"cs:{session_id}")
+        if not raw:
+            return None
+        try:
+            return bytes.fromhex(raw)
+        except ValueError:
+            return None
 
     # ---- 信封 ----
 

@@ -81,6 +81,13 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "mysql.database": json.dumps("portal"),
     "mysql.interval_min": json.dumps(30),
     "mysql.enabled": json.dumps(False),
+    # Redis 缓存与会话（P25/M15-14）：未启用时 MemoryStore 兜底；密码 Fernet 加密
+    "redis.host": json.dumps(""),
+    "redis.port": json.dumps(6379),
+    "redis.password": json.dumps(""),  # 密文（sync.key Fernet）
+    "redis.db": json.dumps(0),
+    "redis.key_prefix": json.dumps("portal:"),
+    "redis.enabled": json.dumps(False),
 }
 
 

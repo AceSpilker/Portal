@@ -12,12 +12,9 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timedelta
-from pathlib import Path
 
 from sqlalchemy import Text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.config import settings
 
 # 同步范围：业务表（与 backup.collect_all 口径一致）；敏感/会话/大表排除
 SYNC_TABLES: list[str] = [
@@ -44,39 +41,23 @@ PRIMARY_KEYS: dict[str, str] = {
     "notify_rules": "id",
 }
 
-_KEY_FILE = "keys/sync.key"
 _RETRY_BASE_SEC = 60
 _RETRY_MAX_SEC = 1800
 
 
-# ---- 配置与密码加密 ----
-
-
-def _key_path() -> Path:
-    return Path(settings.data_dir) / _KEY_FILE
-
-
-def _fernet():
-    from cryptography.fernet import Fernet
-
-    path = _key_path()
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(Fernet.generate_key())
-    return Fernet(path.read_bytes())
+# ---- 配置与密码加密（共享 Fernet 盒见 core/secret_box.py）----
 
 
 def encrypt_password(plain: str) -> str:
-    return _fernet().encrypt(plain.encode()).decode() if plain else ""
+    from app.core.secret_box import encrypt_secret
+
+    return encrypt_secret(plain)
 
 
 def decrypt_password(cipher: str) -> str:
-    if not cipher:
-        return ""
-    try:
-        return _fernet().decrypt(cipher.encode()).decode()
-    except Exception:  # 密钥更换等：返回空（需重录密码）
-        return ""
+    from app.core.secret_box import decrypt_secret
+
+    return decrypt_secret(cipher)
 
 
 async def get_config(session: AsyncSession) -> dict:

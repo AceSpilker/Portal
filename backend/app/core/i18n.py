@@ -135,6 +135,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "v.tab_title_required": {"zh-CN": "标签页名称不能为空", "en": "Tab title is required"},
     "v.tab_too_many": {"zh-CN": "标签页最多 20 个", "en": "At most 20 tabs"},
     "err.tab_not_found": {"zh-CN": "标签页不存在", "en": "Tab not found"},
+    "err.redis_not_configured": {"zh-CN": "Redis 未配置", "en": "Redis not configured"},
+    "err.redis_unreachable": {
+        "zh-CN": "Redis 连接失败，已保持内存模式", "en": "Redis unreachable, kept memory mode"
+    },
     "err.mysql_not_configured": {"zh-CN": "MySQL 未配置", "en": "MySQL not configured"},
     "err.restore_confirm_required": {
         "zh-CN": "缺少 confirm=true 覆盖确认", "en": "confirm=true required"

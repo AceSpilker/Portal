@@ -12,6 +12,7 @@ import {
   Lock as IconLock,
   Document as IconDoc,
   RefreshRight as IconRefreshSync,
+  Cpu as IconRedis,
   Plus as IconPlus,
   Picture as IconLib,
   Setting as IconGeneral,
@@ -24,6 +25,7 @@ import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import SecurityPanel from '../components/SecurityPanel.vue'
 import AuditPanel from '../components/AuditPanel.vue'
 import SyncPanel from '../components/SyncPanel.vue'
+import RedisPanel from '../components/RedisPanel.vue'
 import { settingsApi } from '../api/settings'
 import type { UpdateInfo } from '../api/settings'
 import { useSettingsStore } from '../stores/settings'
@@ -41,7 +43,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'audit' | 'sync' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'audit' | 'sync' | 'redis' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -451,6 +453,10 @@ function saveMonitor() {
           <el-icon><component :is="IconEff" /></el-icon>
           <span>{{ t('settings.menuEfficiency') }}</span>
         </el-menu-item>
+        <el-menu-item index="redis">
+          <el-icon><component :is="IconRedis" /></el-icon>
+          <span>{{ t('settings.menuRedis') }}</span>
+        </el-menu-item>
         <el-menu-item index="sync">
           <el-icon><component :is="IconRefreshSync" /></el-icon>
           <span>{{ t('settings.menuSync') }}</span>
@@ -749,6 +755,14 @@ function saveMonitor() {
 
           <el-button type="primary" class="btn-gradient" @click="saveEfficiency">{{ t('common.save') }}</el-button>
         </el-form>
+      </template>
+
+      <template v-else-if="active === 'redis'">
+        <header class="panel-head">
+          <h3>{{ t('settings.menuRedis') }}</h3>
+          <p>{{ t('settings.redisDesc') }}</p>
+        </header>
+        <RedisPanel class="panel-body" />
       </template>
 
       <template v-else-if="active === 'sync'">

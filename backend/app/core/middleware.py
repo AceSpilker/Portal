@@ -42,7 +42,7 @@ class TransportEncryptionMiddleware:
                 sid = v.decode("latin-1")
             elif k == b"authorization":
                 authz = v.decode("latin-1")
-        aes = transport_crypto.session_key(sid) if sid else None
+        aes = await transport_crypto.session_key(sid) if sid else None
         if aes is None:
             await self._plain(send, 1100, "secure session required", 400)
             return

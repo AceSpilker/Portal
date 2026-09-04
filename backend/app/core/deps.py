@@ -79,6 +79,14 @@ async def get_auth_context(
     except jwt.PyJWTError:
         raise BizError(CODE_TOKEN_INVALID, t("err.token_invalid"), 401)
 
+    # 登出黑名单（P25.2）：jti 命中即拒绝
+    jti = payload.get("jti")
+    if jti:
+        from app.core.stores import stores
+
+        if await stores.store.exists(f"bl:{jti}"):
+            raise BizError(CODE_TOKEN_EXPIRED, t("err.token_expired"), 401)
+
     user = await session.get(User, int(payload["sub"]))
     if user is None or not user.is_active:
         raise BizError(CODE_TOKEN_INVALID, t("err.account_invalid"), 401)

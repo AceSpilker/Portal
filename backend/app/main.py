@@ -24,6 +24,7 @@ from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
 from app.core.response import CODE_VALIDATION, BizError, fail, format_validation_errors
 from app.core.scheduler import scheduler as _scheduler
+from app.core.stores import stores
 from app.db.session import SessionLocal, init_db
 from app.services.alerts import check_certs_and_notify, evaluate_alerts
 from app.services.flow_svc import restore_cron_jobs as flow_restore
@@ -66,6 +67,25 @@ async def mysql_sync_job() -> None:
             Setting(key="sync.last_push", value=_json.dumps(now.isoformat()))
         )
         await session.commit()
+
+
+async def redis_recheck_job() -> None:
+    """Redis 健康回切（P25.4）：每 30s PING；断连降级内存、恢复自动回切。"""
+
+    from app.api.v1.redis import get_config as redis_get_config
+    from app.core.stores import stores
+
+    async with SessionLocal() as session:
+        cfg = await redis_get_config(session)
+        if not (cfg["enabled"] and cfg["host"]):
+            return
+        if stores.mode == "redis":
+            await stores.ping()  # 已连接：探活防静默断连
+        else:
+            # 降级/初始：尝试（重）连接回切
+            await stores.configure_redis(
+                cfg["host"], cfg["port"], cfg["password"], cfg["db"], cfg["key_prefix"]
+            )
 
 
 async def backup_job() -> None:
@@ -141,6 +161,15 @@ async def certs_check_job() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    # Redis 存储初始化（P25.1）：读取配置并连接（失败降级内存，由回切任务重试）
+    from app.api.v1.redis import get_config as redis_get_config
+
+    async with SessionLocal() as session:
+        cfg = await redis_get_config(session)
+        if cfg["enabled"] and cfg["host"]:
+            await stores.configure_redis(
+                cfg["host"], cfg["port"], cfg["password"], cfg["db"], cfg["key_prefix"]
+            )
     # 监控采集（P5.1/P5.2）：宿主机数据源 + cpu_percent 预热 + 分钟采样/小时清理
     setup_host_sources()
     prime_cpu_counters()
@@ -193,6 +222,11 @@ async def lifespan(_: FastAPI):
     # MySQL 镜像同步（P23）：60s 心跳判断到期
     _scheduler.add_job(
         mysql_sync_job, "interval", seconds=60, id="mysql_sync",
+        max_instances=1, replace_existing=True,
+    )
+    # Redis 健康回切（P25.4）
+    _scheduler.add_job(
+        redis_recheck_job, "interval", seconds=30, id="redis_recheck",
         max_instances=1, replace_existing=True,
     )
     # 自动备份（P17.3）与版本检查（P17.5）

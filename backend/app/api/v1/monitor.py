@@ -37,8 +37,21 @@ router = APIRouter()
 
 @router.get("/monitor/system")
 async def monitor_system(_: User = Depends(get_current_user)):
-    """实时概览（M17-1~5）：系统信息/CPU/内存/磁盘/网络（含速率与当日流量）。"""
-    return ok(collect_overview(monitor.ws_net_calc))
+    """实时概览（M17-1~5）：系统信息/CPU/内存/磁盘/网络（含速率与当日流量）。
+
+    P25.3 缓存首个用例：1.5s TTL 键值缓存（Redis/内存），抵挡重复 GET 突发；
+    WS /ws/monitor 每 2s 仍直采并喂网络速率计算器，速率不受缓存影响。
+    """
+    import json as _json
+
+    from app.core.stores import stores
+
+    cached = await stores.store.get("cache:monitor:system")
+    if cached:
+        return ok(_json.loads(cached))
+    data = collect_overview(monitor.ws_net_calc)
+    await stores.store.set("cache:monitor:system", _json.dumps(data, ensure_ascii=False), ttl=2)
+    return ok(data)
 
 
 @router.get("/monitor/history")

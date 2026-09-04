@@ -1,36 +1,50 @@
-"""登录失败限速（M01-6）：同 IP 60 秒内失败 5 次即临时锁定。"""
+"""登录失败限速（M01-6）：同 IP 60 秒内失败 5 次即临时锁定。
 
+P25.2：计数从进程内存迁入统一存储（stores）——Redis 模式下重启/多进程
+共享；未配置 Redis 时降级为 MemoryStore，行为不变。
+"""
+
+from __future__ import annotations
+
+import json
 import time
+
+from app.core.stores import stores
 
 _WINDOW = 60.0
 _MAX_FAILS = 5
-_failed: dict[str, list[float]] = {}
+_PREFIX = "rl:"
 
 
-def _prune(ip: str, now: float) -> list[float]:
-    hits = [t for t in _failed.get(ip, []) if now - t < _WINDOW]
-    if hits:
-        _failed[ip] = hits
-    else:
-        _failed.pop(ip, None)
-    return _failed.get(ip, [])
+def _prune(hits: list[float], now: float) -> list[float]:
+    return [t for t in hits if now - t < _WINDOW]
 
 
-def is_locked(ip: str) -> bool:
-    return len(_prune(ip, time.time())) >= _MAX_FAILS
+async def _load(ip: str) -> list[float]:
+    raw = await stores.store.get(_PREFIX + ip)
+    if not raw:
+        return []
+    try:
+        return [float(t) for t in json.loads(raw)]
+    except (ValueError, TypeError):
+        return []
 
 
-def record_fail(ip: str) -> None:
-    now = time.time()
-    hits = _prune(ip, now)
-    hits.append(now)
-    _failed[ip] = hits
+async def is_locked(ip: str) -> bool:
+    hits = _prune(await _load(ip), time.time())
+    return len(hits) >= _MAX_FAILS
 
 
-def record_success(ip: str) -> None:
-    _failed.pop(ip, None)
+async def record_fail(ip: str) -> None:
+    hits = _prune(await _load(ip), time.time())
+    hits.append(time.time())
+    await stores.store.set(_PREFIX + ip, json.dumps(hits), ttl=int(_WINDOW))
 
 
-def reset(ip: str) -> None:
+async def record_success(ip: str) -> None:
+    await stores.store.delete(_PREFIX + ip)
+
+
+async def reset(ip: str) -> None:
     """测试辅助：清除指定 IP 的失败记录。"""
-    _failed.pop(ip, None)
+    await stores.store.delete(_PREFIX + ip)

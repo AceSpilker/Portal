@@ -20,6 +20,7 @@ from app.api.v1 import (
     notify,
     ports,
     probe,
+    redis,
     schedule,
     settings,
     sync,
@@ -55,4 +56,5 @@ api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(flows.router, tags=["flows"])
 api_router.include_router(tokens.router, tags=["tokens"])
 api_router.include_router(sync.router, tags=["sync"])
+api_router.include_router(redis.router, tags=["redis"])
 api_router.include_router(audit.router, tags=["audit"])
