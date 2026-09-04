@@ -397,7 +397,8 @@
 
   <h3 id="api-rest">4.6~4.12 其余模块</h3>
   <table><thead><tr><th style="width:22%">模块</th><th style="width:44%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
-    <tr><td>Docker 管理</td><td class="c">GET /api/docker/containers · POST .../{name}/{op} · GET .../logs · /detail</td><td>容器列表 / 启停重启（审计）/ 日志 / 详情（脱敏）</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td>Docker 管理</td><td class="c">GET /api/docker/containers · POST .../{name}/{op} · POST /docker/batch · GET /docker/images · DELETE /images/{id} · GET /docker/updates · GET .../logs · /detail</td><td>容器列表 / 批量操作 / 镜像管理 / 更新检测（审计）/ 日志 / 详情（脱敏）</td><td class="c">M</td><td class="c">M2/M3</td></tr>
+    <tr><td>监控进阶</td><td class="c">GET /api/monitor/export · /report · CRUD /api/monitor/agents（/script） · POST /api/monitor/snmp/test · WS /ws/ssh-terminal</td><td>CSV 导出 / 性能报表 / 多机纳管（token）/ SNMP v2c / Web 终端（P21）</td><td class="c">M/P(token)</td><td class="c">M3</td></tr>
     <tr><td>Flow</td><td class="c">CRUD /api/flows · POST /{id}/run · /dry-run · GET /{id}/runs · GET /api/flows/templates · POST /from-template · GET /{id}/export · POST /api/flows/import</td><td>Flow CRUD / 执行 / 试运行 / 历史 / 模板与导入导出（P19）</td><td class="c">A读 M写</td><td class="c">M2/M3</td></tr>
     <tr><td>Flow Webhook</td><td class="c">POST /api/hooks/flow/{token}</td><td>Webhook 触发入口</td><td class="c">P(token)</td><td class="c">M2</td></tr>
     <tr><td>AI</td><td class="c">CRUD /api/ai/providers · POST /api/ai/chat(SSE) · CRUD /api/ai/conversations · POST /api/ai/generate/app-draft</td><td>Provider/流式对话/会话/生成草稿</td><td class="c">A/M</td><td class="c">M2</td></tr>

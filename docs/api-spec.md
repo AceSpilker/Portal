@@ -287,6 +287,14 @@
 | GET/POST | /api/tunnels · POST /{id}/start · /stop · DELETE /{id} | SSH 隧道管理（local_port 0=自动分配；断线重连/空闲回收由巡检执行） | M | P20 |
 | GET | /api/tunnels/{id}/open-url | 直达短链：/tunnel/{id}?t= 签名 30 分钟（反代，豁免信封；TLS 为基线） | M | P20 |
 
+| GET | /api/monitor/export?metric=&range= | 监控数据 CSV 导出（M17-16） | M | P21 |
+| GET | /api/monitor/report?days= | 性能报表（按天 min/avg/max，M17-20） | M | P21 |
+| POST | /api/monitor/agents/report | Agent 指标上报（token 鉴权，M17-18） | P(token) | P21 |
+| GET/POST | /api/monitor/agents · /script | 被纳管节点清单 / 注册+生成上报脚本 | M | P21 |
+| POST | /api/monitor/snmp/test | SNMP v2c GET 探测（纯标准库 BER 编解码） | M | P21 |
+| POST | /api/docker/batch · GET /api/docker/images · DELETE /images/{id} · GET /docker/updates | Docker 批量/镜像管理/更新检测（M08-5~8） | M | P21 |
+| WS | /ws/ssh-terminal?token=&cred= | Web SSH 终端（M17-17，开关 security.webssh_enabled，写审计） | A(JWT) | P21 |
+
 ### 4.6 Docker 管理（可选模块）
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
