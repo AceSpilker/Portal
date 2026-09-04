@@ -116,7 +116,8 @@
     <h1>Portal<span class="dot"> · </span>接口与数据模型详述（API Spec）</h1>
     <p class="tagline">后端建表与前后端联调的契约依据：32 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
     <div class="meta">
-      <span class="chip">版本 v1.2</span>
+      <span class="chip">版本 v1.3</span>
+      <span class="chip">v1.3：M2 全量契约落地确认（P15~P25）</span>
       <span class="chip">日期 2026-09-01</span>
       <span class="chip">关联 feature-spec v1.3 · design-proposal v0.3</span>
       <span class="chip">32 张表</span>
@@ -187,12 +188,14 @@
     <tr><td class="c">password_hash</td><td class="c">TEXT</td><td>NOT NULL，bcrypt</td></tr>
     <tr><td class="c">role</td><td class="c">TEXT</td><td>admin / user，默认 user</td></tr>
     <tr><td class="c">is_active</td><td class="c">INTEGER</td><td>默认 1，禁用=0</td></tr>
-    <tr><td class="c">totp_secret</td><td class="c">TEXT</td><td>NULL，M2 启用</td></tr>
+    <tr><td class="c">totp_secret</td><td class="c">TEXT</td><td>NULL，P17.1 两步验证密钥（Base32）</td></tr>
+    <tr><td class="c">totp_enabled</td><td class="c">INTEGER</td><td>DEFAULT 0，P17.1 两步验证开关</td></tr>
+    <tr><td class="c">totp_recovery</td><td class="c">TEXT(JSON)</td><td>P17.1 恢复码 SHA-256 列表（单次有效）</td></tr>
     <tr><td class="c">prefs</td><td class="c">TEXT(JSON)</td><td>个人偏好：主题/手动环境偏好/语言等</td></tr>
   </tbody></table>
-  <p><strong>user_sessions</strong>（M2）：id；user_id FK；refresh_hash；device；ip；last_seen_at；revoked —— 会话列表与踢出。<br>
-  <strong>api_tokens</strong>（M2）：id；name；token_hash UNIQUE；scope（readonly/readwrite）；expires_at；last_used_at。<br>
-  <strong>audit_logs</strong>（M1 基础）：id；user_id NULL；action（login/update_config/container_op/flow_run…）；detail；ip。</p>
+  <p><strong>user_sessions</strong>（M2，P17.1 实现）：id；user_id FK；jti UNIQUE（refresh 令牌定位）；device（UA 截断）；ip；revoked（吊销后 refresh 拒绝）；last_seen_at；expires_at。<br>
+  <strong>api_tokens</strong>（M2，P17.2 实现）：id；user_id FK；name；token_hash UNIQUE（SHA-256；明文 <code>plt_</code> 前缀仅创建响应返回一次）；token_prefix（展示）；scope（ro=仅安全方法 / rw）；revoked；expires_at；last_used_at；note。<br>
+  <strong>audit_logs</strong>（M1 基础）：id；user_id NULL；action（login/update_config/container_op/flow_run…）；detail；ip；GET /export CSV 导出（P17.1）。</p>
 
   <h3 id="dm-core">3.2 门户核心</h3>
   <h4>categories <span class="badge m1">M1</span></h4>
@@ -235,7 +238,8 @@
     <tr><td class="c">hidden</td><td class="c">BOOL</td><td>内置软删除标记（播种不复活）</td></tr>
     <tr><td class="c">path</td><td class="c">TEXT</td><td>UNIQUE /icons/&lt;file&gt;；删除前校验引用（4003）</td></tr>
   </tbody></table>
-  <p><strong>dashboard_layouts</strong>（M1）：id；user_id FK；tab（标签页名）；sort；layout(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5）与 PC/移动端独立布局（M16-5）均存于此。</p>
+  <p><strong>dashboard_layouts</strong>（M1）：id；user_id FK；tab（标签页名）；title（M02-5 标签页显示名，default 空名=用 i18n）；sort；layout(JSON)（磁贴顺序/尺寸/分组折叠等布局状态）；updated_at。多标签页布局（M02-5，P15.2 落地）与 PC/移动端独立布局（M16-5）均存于此。<br>
+  <strong>url_probe_samples</strong>（M2，P15.4 实现）：id；url_id；app_id（冗余索引）；state（up/down/unknown）；latency_ms；checked_at 索引。来源：预检/连通性矩阵/5min 定时轮询，保留 7 天。</p>
 
   <h3 id="dm-env">3.3 网络环境</h3>
   <h4>network_profiles <span class="badge m1">M1</span></h4>
@@ -290,14 +294,15 @@
   <strong>ai_messages</strong>（M2）：id；conversation_id FK CASCADE；role（user/assistant/system）；content；tokens；created_at。</p>
 
   <h3 id="dm-eff">3.10 效率模块</h3>
-  <p><strong>calendar_events</strong>（M2）：id；user_id；title；date；time；repeat（none/daily/weekly/monthly/custom）；repeat_config(JSON)；remind_before_min；channel_ids(JSON)。<br>
-  <strong>todos</strong>（M2）：id；user_id；title；done；due_date。<br>
+  <p><strong>calendar_events</strong>（M2，P16.1 实现）：id；user_id FK（日程私有）；title；note；event_date（重复基准）；event_time NULL（空=全天不提醒）；repeat（none/daily/weekly/monthly/yearly/custom）；interval_days；lunar（农历口径：event_date 月日视为农历月日）；remind_minutes；last_remind_key（occurrence 去重）。提醒经 schedule.reminder 事件走 P9 路由。<br>
+  <strong>todos</strong>（M2，P16.1 实现）：id；user_id FK；title；done；todo_date；sort。<br>
   <strong>wol_targets</strong>（M1）：id；name；mac NOT NULL；note。<br>
   <strong>short_links</strong>（M2）：id；code UNIQUE；target；hits。</p>
 
   <h3 id="dm-sys">3.11 系统与同步</h3>
-  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.* / apps.*</code> / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code> / <code>backup.*</code> / <code>sync.*</code> / <code>mysql.*</code>（P23） / <code>redis.*</code>（P25）。<br>
-  <strong>sync_state</strong>（M2）：id；table_name UNIQUE；last_push_at；rows_pushed；status（idle/running/failed）；message。</p>
+  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.*</code>（含 custom_css，P17）/ <code>apps.*</code> / <code>home.*</code>（P15） / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code>（P17） / <code>backup.*</code>（P17） / <code>update.*</code>（P17） / <code>files.roots</code>（P16） / <code>downloads.*</code>（P16） / <code>media.*</code>（P16） / <code>mysql.*</code>（P23，专由 /api/settings/sync 管理） / <code>redis.*</code>（P25，专由 /api/settings/redis 管理）。<br>
+  <strong>sync_state</strong>（M2，P23 实现）：id；table_name UNIQUE；last_push_at；last_try_at；rows_pushed；status（idle/running/ok/failed）；fail_count（退避 60s×2^n，上限 30min）；message。</p>
+  <p><strong>统一键值存储（P25）</strong>：core/stores.py——MemoryStore（进程内存，TTL 惰性过期）/ RedisStore（redis.asyncio，key 前缀隔离）同接口；StoreManager 单例管理模式（redis/memory/redis-degraded），失败自动降级内存、30s 探活回切。迁入键：登出黑名单 <code>bl:{jti}</code>、登录限速 <code>rl:{ip}</code>、加密会话密钥 <code>cs:{sid}</code>、监控实时概览缓存 <code>cache:monitor:system</code>（2s）。</p>
 </section>
 
 <!-- ============ API ============ -->
@@ -345,6 +350,9 @@
     <tr><td class="c">GET/POST</td><td class="c">/api/apps/templates · /from-template</td><td>应用模板库</td><td class="c">M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/apps/{id}/restore · /purge</td><td>回收站恢复 / 彻底删除</td><td class="c">M</td><td class="c">M2</td></tr>
     <tr><td class="c">POST/GET</td><td class="c">/api/apps/{id}/check · /history</td><td>立即探活 / 探活历史与可用率</td><td class="c">A</td><td class="c">P6/M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/apps/recycle-bin · POST /api/apps/batch</td><td>回收站列表 / 批量操作（enable/disable/recycle/move，≤100，写审计）</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/apps/{id}/precheck · GET /api/apps/urls/{url_id}/latency</td><td>点击前预检（含逐入口探测落采样）/ 入口延迟历史（M04-14）</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/widgets/weather · /api/widgets/summary</td><td>首页小组件（天气代理 / 通知·Flow·容器聚合）</td><td class="c">A</td><td class="c">M2</td></tr>
       <tr><td class="c">GET</td><td class="c">/api/probe/status</td><td>全部应用当前状态（state/latency/message，首页磁贴首屏）</td><td class="c">A</td><td class="c">P6</td></tr>
       <tr><td class="c">GET</td><td class="c">/api/public/apps</td><td>访客首页（visibility=public；需 guest.enabled）</td><td class="c">P</td><td class="c">M2</td></tr>
     <tr><td class="c">POST/GET</td><td class="c">/api/apps/upload-icon · /favicon?url=</td><td>图标上传（base64 随加密信封，压方存 /icons 托管）/ favicon 抓取（失败 4004）</td><td class="c">M</td><td class="c">P2</td></tr>
@@ -393,12 +401,12 @@
     <tr><td>AI</td><td class="c">CRUD /api/ai/providers · POST /api/ai/chat(SSE) · CRUD /api/ai/conversations · POST /api/ai/generate/app-draft</td><td>Provider/流式对话/会话/生成草稿</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>通知</td><td class="c">GET /api/notifications · PUT read-all · CRUD /api/notify-channels · /{id}/test · GET/PUT /api/notify-rules</td><td>站内通知 / 渠道 / 路由规则（GET 与已读的探活最小集 P6.4 已落地）</td><td class="c">A/M</td><td class="c">M2</td></tr>
     <tr><td>工具箱</td><td class="c">POST /api/tools/wol · /ping · /port-check · GET /api/tools/qr · POST /codec · /timestamp · /passgen · /api-test · CRUD /api/tools/wol-targets · /short-links</td><td>小工具集</td><td class="c">A</td><td class="c">P7/M2</td></tr>
-    <tr><td>日历/待办</td><td class="c">CRUD /api/calendar/events · /api/todos</td><td>日程与待办</td><td class="c">A</td><td class="c">M2</td></tr>
-    <tr><td>文件</td><td class="c">GET /api/files/list · GET download · POST upload/mkdir/rename/delete/move · GET/PUT content(M3) · POST analyze(M3)</td><td>文件管理（白名单目录）</td><td class="c">A/M</td><td class="c">M2</td></tr>
-    <tr><td>下载/媒体</td><td class="c">GET /api/downloads/summary · /tasks · POST /tasks · GET /api/media/recent</td><td>qBittorrent 集成 / 最近入库</td><td class="c">A</td><td class="c">M2</td></tr>
-    <tr><td>仪表盘布局</td><td class="c">GET/PUT /api/me/layouts</td><td>当前用户仪表盘布局（tab 维度整份读写）</td><td class="c">A</td><td class="c">P4</td></tr>
-    <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore · POST /api/mysql/test · POST /api/redis/test</td><td>键值设置 / MySQL 同步 / Redis 连接测试</td><td class="c">M</td><td class="c">P7/P23/P25</td></tr>
-    <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs · GET /api/system/info · /health-report · GET /api/system/update/check · POST /api/system/update/apply · GET /api/system/update/status</td><td>备份 / Token / 审计 / 系统</td><td class="c">M</td><td class="c">P2~M2</td></tr>
+    <tr><td>日历/待办</td><td class="c">GET /api/calendar/month · CRUD /api/calendar/events · /api/todos</td><td>月视图（重复规则展开+农历节日）/ 日程事件 / 待办（P16.1）</td><td class="c">A</td><td class="c">M2</td></tr>
+    <tr><td>文件</td><td class="c">GET /api/files/roots · /list · download · POST upload/mkdir/rename/delete/move/raw-url · GET /files/raw?token=（短时签名直链，豁免信封）</td><td>文件管理（白名单目录，P16.2）</td><td class="c">A/M</td><td class="c">M2</td></tr>
+    <tr><td>下载/媒体</td><td class="c">GET /api/downloads/summary · /tasks · POST /tasks · GET /api/media/recent</td><td>qBittorrent 集成 / 最近入库（P16.3，未启用 404）</td><td class="c">M</td><td class="c">M2</td></tr>
+    <tr><td>仪表盘布局</td><td class="c">GET/PUT /api/me/layouts · GET/POST /api/me/tabs · PUT/DELETE /api/me/tabs/{tab}</td><td>布局（tab 维度）/ 多标签页管理（M02-5，default 不可删）</td><td class="c">A</td><td class="c">P4/M2</td></tr>
+    <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · /api/settings/redis · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore · POST /api/mysql/test · POST /api/redis/test</td><td>键值设置 / MySQL 同步（P23）/ Redis 连接与状态（P25）</td><td class="c">M</td><td class="c">P7/P23/P25</td></tr>
+    <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs（+/export） · GET /api/system/info · /health-report（+/full） · GET /api/system/update/check · POST /apply · GET /status</td><td>备份 / Token / 审计 / 系统（P17）</td><td class="c">M</td><td class="c">P2~M2</td></tr>
   </tbody></table>
 </section>
 
@@ -502,7 +510,7 @@ data: {"type": <span class="s">"error"</span>,  "code": <span class="k">5002</sp
   </ul>
 </section>
 
-<footer>Portal · 接口与数据模型详述 v1.1 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · 接口与数据模型详述 v1.3 · 2026-09-04 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

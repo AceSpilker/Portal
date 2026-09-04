@@ -1,6 +1,8 @@
 # Portal · 接口与数据模型详述（API Spec）
 
-> **版本**：v1.2 ｜ **日期**：2026-09-02 ｜ **关联文档**：《功能详述 feature-spec》v1.6、《总体设计方案 design-proposal》v0.7
+> **版本**：v1.3 ｜ **日期**：2026-09-04 ｜ **关联文档**：《功能详述 feature-spec》v1.6、《总体设计方案 design-proposal》v0.7
+>
+> **v1.3 变更**：**M2 全量契约落地确认**（P15~P25）——§3.1 users 补 totp 列、user_sessions/api_tokens 对齐实现；§3.2 补 dashboard_layouts.title 与 url_probe_samples；§3.10 日程/待办对齐实现（重复规则/农历/提醒）；§3.11 统一键值存储（P25）与 sync_state 细化；§4.2/4.11/4.12 补 P15~P25 全部端点。
 >
 > **v1.1 变更**：新增 **§7 传输加密协议**（RSA+AES-GCM 信封、豁免清单、重放防护）；§2 增补 1100/1101/1102 错误码；§4 增补 crypto 端点组。
 >
@@ -66,12 +68,14 @@
 | password_hash | TEXT | NOT NULL | bcrypt |
 | role | TEXT | DEFAULT 'user' | admin / user |
 | is_active | INTEGER | DEFAULT 1 | 禁用=0 |
-| totp_secret | TEXT | NULL | M2 启用 |
+| totp_secret | TEXT | NULL | P17.1 两步验证密钥（Base32） |
+| totp_enabled | INTEGER | DEFAULT 0 | P17.1 两步验证开关 |
+| totp_recovery | TEXT(JSON) | DEFAULT '[]' | P17.1 恢复码 SHA-256 列表（单次有效） |
 | prefs | TEXT(JSON) | DEFAULT '{}' | 主题/手动环境偏好/语言等个人偏好 |
 
-**user_sessions**（M2）：id PK；user_id FK；refresh_hash TEXT（refresh 令牌哈希）；device TEXT；ip TEXT；created_at；last_seen_at；revoked INT DEFAULT 0 —— 支持会话列表与踢出。
+**user_sessions**（M2，P17.1 实现）：id PK；user_id FK；jti TEXT UNIQUE（refresh 令牌定位）；device TEXT（UA 截断）；ip；revoked INT 0（吊销后 refresh 拒绝）；last_seen_at；expires_at NULL。
 
-**api_tokens**（M2）：id；name；token_hash TEXT UNIQUE；scope TEXT（readonly/readwrite）；expires_at NULL；last_used_at NULL。
+**api_tokens**（M2，P17.2 实现）：id；user_id FK；name；token_hash TEXT UNIQUE（SHA-256；明文 `plt_` 前缀仅创建响应返回一次）；token_prefix TEXT（展示用前 8 位）；scope TEXT（**ro**=仅安全方法 / **rw**）；revoked INT 0；expires_at NULL；last_used_at NULL；note TEXT。鉴权通道：`Authorization: Bearer plt_…` 走 Token 表，ro 对非安全方法 403。
 
 **audit_logs**（M1 基础）：id；user_id NULL；action TEXT（login/update_config/container_op/flow_run…）；detail TEXT；ip TEXT。
 
@@ -151,13 +155,13 @@
 
 ### 3.10 效率模块
 
-**calendar_events**（M2）：id；user_id FK；title；date DATE；time TEXT NULL（HH:mm）；repeat TEXT（none/daily/weekly/monthly/custom）；repeat_config TEXT(JSON)；remind_before_min INT 0；channel_ids TEXT(JSON)。
+**calendar_events**（M2，P16.1 实现）：id；user_id FK（日程私有）；title；note；event_date DATE（重复基准）；event_time TIME NULL（空=全天不提醒）；repeat TEXT（none/daily/weekly/monthly/yearly/custom）；interval_days INT 1；lunar INT 0（农历口径：event_date 月日视为农历月日，每年换算公历日）；remind_minutes INT 0（提前提醒）；last_remind_key TEXT（occurrence 去重）。提醒经 `schedule.reminder` 事件走 P9 通知路由。
 
-**todos**（M2）：id；user_id FK；title；done INT 0；due_date DATE NULL。
+**todos**（M2，P16.1 实现）：id；user_id FK；title；done INT 0；todo_date DATE NULL；sort INT 0。
 
 **wol_targets**（M1）：id；name；mac TEXT NOT NULL；note TEXT ''。
 
-**short_links**（M2）：id；code TEXT UNIQUE；target TEXT；hits INT 0。
+**short_links**（M3 远期，未实现）：id；code TEXT UNIQUE；target TEXT；hits INT 0。
 
 ### 3.11 系统与同步
 
