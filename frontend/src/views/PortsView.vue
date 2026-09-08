@@ -31,11 +31,34 @@ const router = useRouter()
 // ---------- 监控项 ----------
 const items = ref<PortMonitorItem[]>([])
 const listenRows = ref<ListenRow[]>([])
+const listenSearch = ref('')
+const addingKey = ref('')
+const monitoredKeys = computed(() => new Set(items.value.map((m) => `${m.host}:${m.port}`)))
+const listenStats = computed(() => {
+  const rows = filteredListen.value
+  return {
+    total: rows.length,
+    tcp: rows.filter((r) => r.proto === 'tcp').length,
+    udp: rows.filter((r) => r.proto === 'udp').length,
+    procs: new Set(rows.map((r) => r.proc)).size,
+  }
+})
+const filteredListen = computed(() => {
+  const kw = listenSearch.value.trim().toLowerCase()
+  if (!kw) return listenRows.value
+  return listenRows.value.filter(
+    (r) =>
+      String(r.port).includes(kw) ||
+      r.proc.toLowerCase().includes(kw) ||
+      r.addr.toLowerCase().includes(kw) ||
+      r.cmdline.toLowerCase().includes(kw),
+  )
+})
 const events = ref<PortEventItem[]>([])
 const apps = ref<PortalApp[]>([])
 const loading = ref(false)
 const filter = ref<'all' | 'down' | 'up'>('all')
-const tab = ref<'monitors' | 'listen' | 'events' | 'tunnels'>('monitors')
+const tab = ref<'monitors' | 'listen' | 'events' | 'tunnels'>('listen')
 
 // ---------- 端口进阶（P20.3/M18-8~12） ----------
 const latDialog = ref(false)
@@ -166,6 +189,28 @@ onUnmounted(() => window.clearInterval(timer))
 const dialog = ref(false)
 const editing = ref<PortMonitorItem | null>(null)
 const form = reactive<PortMonitorBody>({ name: '', host: '127.0.0.1', port: 8080, app_id: null, interval: 60, enabled: true })
+
+async function quickMonitor(row: ListenRow) {
+  const host = ['0.0.0.0', '::', '*'].includes(row.addr) ? '127.0.0.1' : row.addr
+  const key = `${host}:${row.port}`
+  addingKey.value = key
+  try {
+    await portsApi.create({
+      name: row.proc && row.proc !== '-' ? `${row.proc}:${row.port}` : `${host}:${row.port}`,
+      host,
+      port: row.port,
+      app_id: null,
+      interval: 60,
+      enabled: true,
+    })
+    ElMessage.success(t('ports.quickAdded', { port: row.port }))
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    addingKey.value = ''
+  }
+}
 
 function openCreate() {
   editing.value = null
@@ -304,6 +349,49 @@ function timeLabel(iso: string): string {
 
     <el-tabs v-model="tab" class="glass tabs-card" @tab-change="onTab">
       <!-- ======== 监控项看板 ======== -->
+      <!-- ======== 端口总览（自动获取，无需手动创建） ======== -->
+      <el-tab-pane :label="t('ports.tabOverview')" name="listen">
+        <div class="ov-toolbar">
+        <span class="stat-chip">{{ t('ports.statTotal') }} <b>{{ listenStats.total }}</b></span>
+        <span class="stat-chip">TCP <b>{{ listenStats.tcp }}</b></span>
+        <span class="stat-chip">UDP <b>{{ listenStats.udp }}</b></span>
+        <span class="stat-chip">{{ t('ports.statProcs') }} <b>{{ listenStats.procs }}</b></span>
+        <span class="spacer" />
+        <el-input
+          v-model="listenSearch"
+          size="small"
+          clearable
+          :placeholder="t('ports.searchPh')"
+          style="width: 220px"
+        />
+        <el-button size="small" :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
+      </div>
+      <el-table :data="filteredListen" size="small" height="480">
+          <el-table-column prop="proto" :label="t('ports.colProto')" width="70" />
+          <el-table-column prop="addr" :label="t('ports.colAddr')" min-width="140" />
+          <el-table-column prop="port" :label="t('ports.colPort')" width="90" />
+          <el-table-column prop="proc" :label="t('ports.colProc')" min-width="130" />
+          <el-table-column prop="cmdline" :label="t('ports.colCmdline')" min-width="240" show-overflow-tooltip />
+          <el-table-column prop="pid" label="PID" width="90" />
+        <el-table-column :label="t('ports.colOp')" width="110">
+          <template #default="{ row }">
+            <el-tag v-if="monitoredKeys.has(`${row.addr}:${row.port}`)" size="small" type="success">
+              {{ t('ports.inMonitor') }}
+            </el-tag>
+            <el-button
+              v-else
+              size="small"
+              type="primary"
+              link
+              :loading="addingKey === `${row.addr}:${row.port}`"
+              @click="quickMonitor(row)"
+            >
+              {{ t('ports.addMonitor') }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      </el-tab-pane>
       <el-tab-pane :label="t('ports.tabMonitors')" name="monitors">
         <el-table :data="sorted" size="small" v-loading="loading">
           <el-table-column :label="t('ports.colState')" width="90" align="center">
@@ -355,17 +443,6 @@ function timeLabel(iso: string): string {
         </div>
       </el-tab-pane>
 
-      <!-- ======== 监听清单 ======== -->
-      <el-tab-pane :label="t('ports.tabListen')" name="listen">
-        <el-table :data="listenRows" size="small" height="480">
-          <el-table-column prop="proto" :label="t('ports.colProto')" width="70" />
-          <el-table-column prop="addr" :label="t('ports.colAddr')" min-width="140" />
-          <el-table-column prop="port" :label="t('ports.colPort')" width="90" />
-          <el-table-column prop="proc" :label="t('ports.colProc')" min-width="130" />
-          <el-table-column prop="cmdline" :label="t('ports.colCmdline')" min-width="240" show-overflow-tooltip />
-          <el-table-column prop="pid" label="PID" width="90" />
-        </el-table>
-      </el-tab-pane>
 
       <!-- ======== 事件流水 ======== -->
       <el-tab-pane :label="t('ports.tabTunnels')" name="tunnels" lazy>
@@ -609,5 +686,26 @@ function timeLabel(iso: string): string {
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--p-muted);
+}
+.ov-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.stat-chip {
+  font-size: 12.5px;
+  color: var(--p-muted);
+  background: var(--p-card, rgba(255, 255, 255, 0.04));
+  border-radius: 8px;
+  padding: 3px 10px;
+}
+.stat-chip b {
+  color: var(--p-text);
+  margin-left: 2px;
+}
+.spacer {
+  flex: 1;
 }
 </style>

@@ -1,6 +1,7 @@
 /** English locale pack. */
 export default {
   common: {
+    refresh: 'Refresh',
     save: 'Save',
     cancel: 'Cancel',
     edit: 'Edit',
@@ -803,7 +804,15 @@ export default {
     reachPublic: 'Public',
     reachTip: 'Probes the public IP directly; without NAT hairpin the public column stays unreachable',
     tabTunnels: 'SSH Tunnels',
+    tabOverview: 'Port overview',
     tabMonitors: 'Monitors',
+    inMonitor: 'Monitored',
+    addMonitor: 'Monitor',
+    quickAdded: 'Port {port} added to monitors',
+    searchPh: 'Search port / process / address',
+    statTotal: 'Total ports',
+    statProcs: 'Processes',
+    colOp: 'Action',
     tabListen: 'Listening',
     tabEvents: 'Events',
     filterAll: 'All',

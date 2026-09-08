@@ -1,6 +1,7 @@
 /** 中文语言包（默认语言）。 */
 export default {
   common: {
+    refresh: '刷新',
     save: '保存',
     cancel: '取消',
     edit: '编辑',
@@ -786,7 +787,14 @@ export default {
   ports: {
     colTags: '标签',
     curve: '曲线',
+    inMonitor: '监控中',
+    addMonitor: '加入监控',
+    quickAdded: '端口 {port} 已加入监控',
+    searchPh: '搜索端口 / 进程 / 地址',
+    statTotal: '端口总数',
+    statProcs: '监听进程',
     listenHistory: '监听变更',
+    colOp: '操作',
     exposed: '裸露端口',
     publicReach: '公网对比',
     latencyTitle: '延迟曲线 · {name}',
@@ -802,6 +810,7 @@ export default {
     reachPublic: '公网',
     reachTip: '经公网 IP 直接回连探测；路由器不支持 NAT 回环时公网列恒为不可达',
     tabTunnels: 'SSH 隧道',
+    tabOverview: '端口总览',
     tabMonitors: '监控项',
     tabListen: '监听清单',
     tabEvents: '事件流水',
