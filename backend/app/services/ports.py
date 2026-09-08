@@ -39,7 +39,10 @@ def _proc_info(pid: int | None) -> tuple[str, str]:
 
 
 def _listen_via_lsof() -> list[dict] | None:
-    """macOS 非 root 回退：psutil 整表权限不足时用系统 lsof 解析 LISTEN。"""
+    """macOS 非 root 回退：psutil 整表权限不足时用系统 lsof 解析 LISTEN。
+
+    -sTCP:LISTEN 只留 TCP 监听，UDP 无连接状态原样列出（绑定即服务）。
+    """
     try:
         out = subprocess.run(
             ["lsof", "-nP", "-i", "-sTCP:LISTEN"],
@@ -53,18 +56,18 @@ def _listen_via_lsof() -> list[dict] | None:
         if len(parts) < 9:
             continue
         command, pid_s, _user, _fd, _typ, _dev, _off, node, name = parts[:9]
-        if node != "TCP" or ":" not in name:
+        if node not in ("TCP", "UDP") or ":" not in name:
             continue
         addr, _, port_s = name.rpartition(":")
         if not port_s.isdigit():
             continue
         pid = int(pid_s) if pid_s.isdigit() else None
-        key = (addr, port_s)
+        key = (node, addr, port_s, pid)
         if key in rows:
             continue
         proc, cmdline = _proc_info(pid)
         rows[key] = {
-            "proto": "tcp",
+            "proto": node.lower(),
             "addr": "0.0.0.0" if addr == "*" else addr,
             "port": int(port_s),
             "pid": pid,
@@ -75,14 +78,31 @@ def _listen_via_lsof() -> list[dict] | None:
 
 
 def listen_list() -> list[dict]:
-    """当前监听清单（M18-1）：协议/地址/端口/进程名/命令行截断。"""
-    rows = []
+    """当前监听清单（M18-1）：协议/地址/端口/进程名/命令行截断。
+
+    UDP 套接字没有 LISTEN 状态（绑定即服务，状态恒为 CONN_NONE），
+    只按 TCP LISTEN 过滤会把 UDP 服务全部漏掉（077 用户反馈协议不全）。
+    同地址/端口/进程的重复行（IPv4 映射、SO_REUSEPORT）去重。
+    """
+    rows: list[dict] = []
+    seen: set[tuple] = set()
     try:
         for c in psutil.net_connections(kind="inet"):
-            if c.status != psutil.CONN_LISTEN:
+            if not c.laddr:
+                continue
+            is_udp = c.type != socket.SOCK_STREAM
+            if is_udp:
+                # UDP 无 LISTEN 状态：已绑定本地地址即在服务
+                if c.status != psutil.CONN_NONE or not c.laddr:
+                    continue
+            elif c.status != psutil.CONN_LISTEN:
                 continue
             laddr = c.laddr
             proc_name, cmdline = _proc_info(c.pid)
+            key = (is_udp, str(laddr.ip), laddr.port, c.pid)
+            if key in seen:
+                continue
+            seen.add(key)
             rows.append(
                 {
                     # psutil 模块从未导出 SOCK_STREAM（socket 才有），Linux 全量遍历必炸（064 实测）
@@ -98,6 +118,9 @@ def listen_list() -> list[dict]:
         fallback = _listen_via_lsof()
         if fallback is not None:
             rows = fallback
+    # UDP 动态端口段（IANA 49152-65535）是出站客户端套接字（DNS/WebRTC 等），
+    # 不是服务，剔除
+    rows = [r for r in rows if not (r["proto"] == "udp" and 49152 <= r["port"] <= 65535)]
     rows.sort(key=lambda r: (r["proto"], r["port"]))
     return rows
 
