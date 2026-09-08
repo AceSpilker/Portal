@@ -23,9 +23,10 @@ onMounted(() => {
 })
 watch(
   () => props.option,
-  // 浅侦听（option 每次为整体新对象）；replaceMerge:series 在序列增减时清除残留，
-  // 且保留 merge 渲染性能；关闭动画——实时图表每 2s 重绘，动画是主要卡顿来源
-  (opt) => chart?.setOption({ animation: false, ...opt }, { replaceMerge: ['series'] }),
+  // 浅侦听（option 每次为整体新对象）；replaceMerge:series/坐标轴——历史曲线切换指标时
+  // 旧轴的 name/formatter/max 若走 merge 会残留到新图（068 实测：速率轴残留"%"轴名），
+  // 坐标轴每次都整体重声明，替换合并无残留且不额外重建；关闭动画——实时图表每 2s 重绘，动画是主要卡顿来源
+  (opt) => chart?.setOption({ animation: false, ...opt }, { replaceMerge: ['series', 'xAxis', 'yAxis'] }),
 )
 onBeforeUnmount(() => {
   ro?.disconnect()

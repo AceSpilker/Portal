@@ -269,6 +269,25 @@ const axisTooltip = (fmt?: (v: number) => string) => ({
 })
 const pct = (v: number) => `${v}%`
 
+// 动态纵轴上限（067 用户反馈）：速率(KB/s)与温度量纲随数据变化，
+// ECharts 默认取整会把 40~99 区间的数据都圆到 100 上限，曲线被压扁失真。
+const dynamicMax = (pad: number, step: number, floor: number) => (v: { max?: number }) => {
+  const m = Number.isFinite(v?.max) ? (v.max as number) : 0
+  return Math.max(floor, Math.ceil((m * pad) / step) * step)
+}
+// 速率轴：存储单位 KB/s，上限留 15% 余量、8KB/s 步进取整；刻度直接格式化为可读速率（与 tooltip 一致）
+const rateYAxis = {
+  type: 'value' as const,
+  min: 0,
+  max: dynamicMax(1.15, 8, 8),
+  name: '',
+  axisLabel: { ...axisLabel, formatter: (v: number) => formatRate(v * 1024) },
+  splitLine,
+  axisLine: { show: false },
+}
+// 温度轴：上限留 10% 余量、5°C 步进取整（随数据抬高，不钉 100）
+const tempAxisMax = dynamicMax(1.1, 5, 20)
+
 const cpuOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: axisTooltip(pct),
@@ -308,7 +327,7 @@ const netOption = computed(() => ({
   legend: { top: 4, textStyle: axisLabel },
   grid,
   xAxis: { type: 'category', data: [...rt.net.ts], axisLabel, splitLine },
-  yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
+  yAxis: { ...rateYAxis },
   series: [
     { name: t('monitor.down'), type: 'line', data: [...rt.net.rx], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
     { name: t('monitor.up'), type: 'line', data: [...rt.net.tx], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
@@ -340,7 +359,7 @@ const ioOption = computed(() => ({
   legend: { top: 4, textStyle: axisLabel },
   grid,
   xAxis: { type: 'category', data: [...rt.io.ts], axisLabel, splitLine },
-  yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
+  yAxis: { ...rateYAxis },
   series: [
     { name: t('monitor.read'), type: 'line', data: [...rt.io.read], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
     { name: t('monitor.write'), type: 'line', data: [...rt.io.write], smooth: true, showSymbol: false, sampling: 'lttb', areaStyle: { opacity: 0.12 } },
@@ -412,8 +431,13 @@ const historyOption = computed(() => {
     const unit = metric.value === 'temp' ? '°C' : metric.value === 'gpu' || metric.value === 'disk' ? '%' : 'KB/s'
     const y = {
       type: 'value',
-      ...(metric.value === 'disk' || metric.value === 'gpu' ? { max: 100 } : {}),
-      axisLabel,
+      // 磁盘/GPU 是百分比钉 0-100；温度量纲随数据动态抬升，不钉 100
+      ...(metric.value === 'disk' || metric.value === 'gpu'
+        ? { max: 100 }
+        : metric.value === 'temp'
+          ? { max: tempAxisMax }
+          : {}),
+      axisLabel: { ...axisLabel, formatter: metric.value === 'temp' ? '{value}' : '{value}%' },
       splitLine,
       axisLine: { show: false },
       name: unit,
@@ -437,7 +461,7 @@ const historyOption = computed(() => {
       legend: legendScroll,
       grid,
       xAxis: { type: 'category', data: labels, axisLabel, splitLine },
-      yAxis: { type: 'value', axisLabel, splitLine, axisLine: { show: false }, name: 'KB/s', nameTextStyle: axisLabel },
+      yAxis: { ...rateYAxis },
       series: [
         mk((h.points ?? []).map((p) => toKb(p.read)), t('monitor.read')),
         mk((h.points ?? []).map((p) => toKb(p.write)), t('monitor.write')),
@@ -481,15 +505,18 @@ const historyOption = computed(() => {
     legend: legendScroll,
     grid,
     xAxis: { type: 'category', data: labels, axisLabel, splitLine },
-    yAxis: {
-      type: 'value',
-      axisLabel,
-      splitLine,
-      axisLine: { show: false },
-      name: metric.value === 'net' ? 'KB/s' : '%',
-      nameTextStyle: axisLabel,
-      ...(metric.value === 'cpu' || metric.value === 'mem' ? { max: 100 } : {}),
-    },
+    yAxis:
+      metric.value === 'net'
+        ? { ...rateYAxis }
+        : {
+            type: 'value',
+            max: 100,
+            name: '%',
+            axisLabel: { ...axisLabel, formatter: '{value}%' },
+            splitLine,
+            axisLine: { show: false },
+            nameTextStyle: axisLabel,
+          },
     series,
   }
 })
