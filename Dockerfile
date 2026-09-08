@@ -14,7 +14,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 清华源在部分 NAS 容器内被 DNS 解析为纯 IPv6 导致不可达（实测 2026-09），用双栈可达的中科大源
+RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/simple
 
 COPY backend/ ./backend/
 COPY --from=frontend-builder /build/dist ./frontend/dist
