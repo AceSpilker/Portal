@@ -207,6 +207,8 @@ onMounted(async () => {
   logoUrl.value = (settingsStore.map['general.logo'] as string) || ''
   timezone.value = (settingsStore.map['general.timezone'] as string) || 'system'
   guestMode.value = settingsStore.map['guest.enabled'] === true
+  const savedLang = settingsStore.map['general.language'] as AppLocale | undefined
+  if (savedLang) langDraft.value = savedLang
   tagOptions.value = [...settingsStore.tagOptions]
   favDraft.value = [...settingsStore.iconFavorites]
   const map = settingsStore.map
@@ -226,12 +228,6 @@ onMounted(async () => {
     aboutVersion.value = ''
   }
 })
-
-function changeLang(v: AppLocale) {
-  langDraft.value = v
-  setLocale(v)
-  save({ 'general.language': v }, t('settings.languageSaved'))
-}
 
 function addTag() {
   const tag = newTag.value.trim()
@@ -362,20 +358,23 @@ async function save(values: Record<string, unknown>, tip: string) {
   }
 }
 
-function saveGeneral() {
+async function saveGeneral() {
   if (!siteName.value.trim()) {
     ElMessage.warning(t('settings.warnSiteName'))
     return
   }
-  save(
+  await save(
     {
       'general.site_name': siteName.value.trim(),
       'general.logo': logoUrl.value.trim(),
       'general.timezone': timezone.value,
       'guest.enabled': guestMode.value,
+      'general.language': langDraft.value,
     },
     t('settings.generalSaved'),
   )
+  // 语言在点保存后才切换（074 用户反馈：选择即切不符合预期）
+  if (langDraft.value !== getLocale()) setLocale(langDraft.value)
 }
 
 function saveTags() {
@@ -491,7 +490,7 @@ function saveMonitor() {
             <el-input v-model="siteName" maxlength="64" placeholder="Portal" />
           </el-form-item>
           <el-form-item :label="t('settings.language')" style="max-width: 360px">
-            <el-select v-model="langDraft" style="width: 100%" @change="changeLang">
+            <el-select v-model="langDraft" style="width: 100%">
               <el-option label="简体中文" value="zh-CN" />
               <el-option label="English" value="en" />
             </el-select>
