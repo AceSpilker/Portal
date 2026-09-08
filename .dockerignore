@@ -7,3 +7,6 @@ data
 .git
 logs
 docs/*.html
+# macOS 元数据垃圾（tar/拷贝可能带入，污染镜像并使容器内 ruff 报 E902）
+**/._*
+**/.DS_Store

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import socket
 import subprocess
 import time
 from datetime import datetime
@@ -84,7 +85,8 @@ def listen_list() -> list[dict]:
             proc_name, cmdline = _proc_info(c.pid)
             rows.append(
                 {
-                    "proto": "tcp" if c.type == psutil.SOCK_STREAM else "udp",
+                    # psutil 模块从未导出 SOCK_STREAM（socket 才有），Linux 全量遍历必炸（064 实测）
+                    "proto": "tcp" if c.type == socket.SOCK_STREAM else "udp",
                     "addr": laddr.ip if laddr else "",
                     "port": laddr.port if laddr else 0,
                     "pid": c.pid or None,
@@ -165,7 +167,7 @@ def lookup_port(port: int) -> list[dict]:
                 pass
         result.append(
             {
-                "proto": "tcp" if c.type == psutil.SOCK_STREAM else "udp",
+                "proto": "tcp" if c.type == socket.SOCK_STREAM else "udp",
                 "addr": c.laddr.ip,
                 "port": c.laddr.port,
                 "status": c.status,
@@ -325,7 +327,8 @@ async def record_listen_snapshot(session: AsyncSession) -> dict | None:
     from app.models.setting import Setting
 
     current = listen_list()
-    fp = sorted((f"{e.get('host')}|{e.get('port')}|{e.get('process', '')}" for e in current))
+    # listen_list 行键为 addr/port/proc（此前误写 host/process，指纹恒为 None，变更检测失真）
+    fp = sorted((f"{e.get('addr')}|{e.get('port')}|{e.get('proc', '')}" for e in current))
     last = await session.get(Setting, "ports.last_listen")
     last_fp = None
     if last:

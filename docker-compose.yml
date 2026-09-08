@@ -14,7 +14,8 @@ services:
       # HTTP 局域网部署必须关闭（ENCRYPT_ENABLED=false），否则前端无法握手
       # - ENCRYPT_ENABLED=false
       # 数据目录：数据库/图标/上传/备份全部持久化在宿主 ./data，升级镜像不丢数据
-      # - DATA_DIR=/app/data
+      # 不设此变量时应用写 backend/data（容器可写层），容器重建即丢数据（065 实测踩坑）——必须保持启用
+      - DATA_DIR=/app/data
       # 可选：MySQL 镜像推送（SQLite 为主库，见 dev-plan P23 / api-spec §6.1）
       # - SYNC__ENABLED=true
       # - SYNC__INTERVAL_MIN=30
