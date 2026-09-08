@@ -513,6 +513,20 @@ def _mount_icons() -> None:
     app.mount("/icons", StaticFiles(directory=str(icons)), name="icons")
 
 
+# 入口类文件禁止浏览器启发式缓存：PWA(autoUpdate) 依赖每次加载都拿到最新 sw.js/index.html，
+# 否则旧 SW 继续供旧资源，发版后用户需反复强刷（070 用户实测"修复后仍看到旧页面"）。
+_NO_CACHE_NAMES = ("index.html", "sw.js", "registerSW.js", "manifest.webmanifest")
+
+
+def _mark_no_cache(response, path: str = "") -> None:
+    # StaticFiles 对 "/" 请求传入的 path 是 "."（当前目录）
+    name = path.rsplit("/", 1)[-1]
+    is_root = not path or path in (".", "./") or path.endswith("/")
+    is_entry = name in _NO_CACHE_NAMES or name.startswith("workbox-")
+    if is_root or is_entry:
+        response.headers["Cache-Control"] = "no-cache"
+
+
 class _SpaStaticFiles(StaticFiles):
     """SPA 深链接回退（065 实测：StaticFiles(html=True) 对 /login 等前端路由直接 404，
     开发态由 Vite 回退掩盖）。仅浏览器导航（Accept 含 text/html）且非 API/WS/图标
@@ -521,7 +535,7 @@ class _SpaStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
             # 注意不能 except fastapi.HTTPException：那是子类，接不住 starlette 抛的父类实例
             if exc.status_code != 404 or scope.get("method") != "GET":
@@ -529,8 +543,12 @@ class _SpaStaticFiles(StaticFiles):
             req_path = scope.get("path", "")
             accept = Headers(scope=scope).get("accept", "")
             if not req_path.startswith(("/api", "/ws", "/icons")) and "text/html" in accept:
-                return await super().get_response("index.html", scope)
+                response = await super().get_response("index.html", scope)
+                _mark_no_cache(response)
+                return response
             raise
+        _mark_no_cache(response, path)
+        return response
 
 
 def _mount_frontend() -> None:
