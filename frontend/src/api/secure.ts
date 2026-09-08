@@ -13,6 +13,20 @@ const decoder = new TextDecoder()
 let session: { id: string; key: CryptoKey } | null = null
 let booting: Promise<void> | null = null
 
+// WebCrypto subtle 仅在安全上下文（HTTPS / localhost）暴露；HTTP 裸 IP 访问（NAS 局域网
+// 常见形态）下为 undefined，握手无法进行。此时降级为明文传输，需部署侧配合
+// ENCRYPT_ENABLED=false（后端中间件整体旁路）；若后端仍开加密会以 1100 拒绝，
+// 由 request.ts 给出明确指引而非无意义重试。
+const insecureContext = typeof crypto === 'undefined' || !crypto.subtle
+if (insecureContext) {
+  console.warn('[secure] 非安全上下文（HTTP）：WebCrypto 不可用，已降级为明文传输')
+}
+
+/** 是否处于明文传输降级模式（HTTP 访问且无法建立加密会话）。 */
+export function isPlaintextTransport(): boolean {
+  return insecureContext
+}
+
 function toB64(buf: ArrayBufferLike | Uint8Array): string {
   const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf)
   let bin = ''
@@ -41,7 +55,7 @@ export function isExemptPath(url: string): boolean {
 }
 
 export async function ensureSession(): Promise<void> {
-  if (session) return
+  if (session || insecureContext) return
   booting ??= (async () => {
     const info = await axios.get('/api/crypto/public-key').then((r) => r.data.data)
     const key = (await crypto.subtle.generateKey(
@@ -113,9 +127,10 @@ export async function decryptBody(data: unknown): Promise<unknown> {
   return data
 }
 
-/** 加密 Authorization 头值（格式：ENC <nonce>:<payload>）。 */
+/** 加密 Authorization 头值（格式：ENC <nonce>:<payload>）；明文降级时原样返回。 */
 export async function encryptHeaderValue(value: string): Promise<string> {
   await ensureSession()
+  if (!session) return value
   const nonce = crypto.getRandomValues(new Uint8Array(12))
   const payload = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: nonce as BufferSource },

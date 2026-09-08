@@ -53,6 +53,11 @@ export default {
   request: {
     failed: 'Request failed ({code})',
     sessionExpired: 'Session expired. Please sign in again.',
+    plainTitle: 'Transport notice',
+    plainTransport:
+      'Accessing over HTTP: the browser blocks the crypto handshake in insecure contexts, so traffic is unencrypted (normally fine on a home LAN; use HTTPS for encryption)',
+    plainConflict:
+      'Transport encryption is enabled on the server, but an encrypted session cannot be established over HTTP: switch to HTTPS, or set ENCRYPT_ENABLED=false in the server deployment config',
   },
   nav: {
     efficiency: 'Efficiency',

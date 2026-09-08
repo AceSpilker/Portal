@@ -10,6 +10,7 @@ import {
   encryptHeaderValue,
   ensureSession,
   isExemptPath,
+  isPlaintextTransport,
   resetSession,
 } from './secure'
 
@@ -117,8 +118,12 @@ request.interceptors.response.use(
     const friendlyMessage =
       typeof body?.message === 'string' && body.message ? body.message : error.message
 
-    // 加密会话失效（服务端重启等）→ 重新握手并重试一次
+    // 加密会话失效（服务端重启等）→ 重新握手并重试一次；
+    // 明文降级模式（HTTP 访问）下重握手无意义，给出部署错配的明确指引
     if (code === 1100 && original && !original._retried) {
+      if (isPlaintextTransport()) {
+        return Promise.reject(withCode(i18n.global.t('request.plainConflict'), code))
+      }
       original._retried = true
       resetSession()
       await ensureSession()

@@ -53,6 +53,11 @@ export default {
   request: {
     failed: '请求失败（{code}）',
     sessionExpired: '登录已失效，请重新登录',
+    plainTitle: '传输提示',
+    plainTransport:
+      '当前通过 HTTP 访问，浏览器安全策略不允许加密握手，数据以明文传输（家庭局域网内通常可接受；需要加密请改用 HTTPS 访问）',
+    plainConflict:
+      '服务端已开启传输加密，但 HTTP 访问无法建立加密会话：请改用 HTTPS 访问，或在服务端部署配置中设置 ENCRYPT_ENABLED=false',
   },
   nav: {
     efficiency: '效率',

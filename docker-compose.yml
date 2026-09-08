@@ -10,6 +10,9 @@ services:
       - TZ=Asia/Shanghai
       # JWT 签名密钥：部署前必须改为 ≥32 字节随机串（openssl rand -hex 32）
       - SECRET_KEY=please-change-me
+      # 传输加密（P24）：依赖浏览器 WebCrypto，仅 HTTPS/localhost 安全上下文可用；
+      # HTTP 局域网部署必须关闭（ENCRYPT_ENABLED=false），否则前端无法握手
+      # - ENCRYPT_ENABLED=false
       # 数据目录：数据库/图标/上传/备份全部持久化在宿主 ./data，升级镜像不丢数据
       # - DATA_DIR=/app/data
       # 可选：MySQL 镜像推送（SQLite 为主库，见 dev-plan P23 / api-spec §6.1）

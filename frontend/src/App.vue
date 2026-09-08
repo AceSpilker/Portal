@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue'
-import { ElConfigProvider } from 'element-plus'
+import { computed, onMounted, watchEffect } from 'vue'
+import { ElConfigProvider, ElNotification } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import enLocale from 'element-plus/es/locale/lang/en'
@@ -8,11 +8,24 @@ import i18n from './locales'
 import { useTheme } from './composables/useTheme'
 import { useOpenApp } from './composables/useOpenApp'
 import { useSettingsStore } from './stores/settings'
+import { isPlaintextTransport } from './api/secure'
 import EntryPopup from './components/EntryPopup.vue'
 
 // Element Plus 组件内置文案跟随语言切换
 const elLocale = computed(() => (i18n.global.locale.value === 'en' ? enLocale : zhCn))
 const { t } = useI18n()
+
+// HTTP 访问（非安全上下文）时传输加密不可用，降级为明文——一次性告知用户（P24 降级路径）
+onMounted(() => {
+  if (isPlaintextTransport()) {
+    ElNotification({
+      title: t('request.plainTitle'),
+      message: t('request.plainTransport'),
+      type: 'warning',
+      duration: 8000,
+    })
+  }
+})
 
 // 外观主题（M02-18/19/20）：暗色/主题色/壁纸，全局监听即时生效
 useTheme()
