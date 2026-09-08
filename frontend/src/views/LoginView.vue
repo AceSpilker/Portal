@@ -85,6 +85,14 @@ onMounted(async () => {
 async function handleLogin() {
   if (submitting.value) return
   if (!loginForm.username || !loginForm.password) {
+    // 密码管理器/浏览器回填可能不触发 input 事件（输入框看得见字但 v-model 仍为空）：
+    // 提交前按 id 从输入框回读兜底（067 用户反馈"用户名或密码必填"）
+    const domUser = (document.getElementById('login-username') as HTMLInputElement | null)?.value.trim()
+    const domPass = (document.getElementById('login-password') as HTMLInputElement | null)?.value
+    if (domUser) loginForm.username = domUser
+    if (domPass) loginForm.password = domPass
+  }
+  if (!loginForm.username || !loginForm.password) {
     ElMessage.warning(t('login.needUserPass'))
     return
   }
@@ -193,10 +201,10 @@ async function handleInit() {
           <!-- 登录表单 -->
           <el-form v-if="mode === 'login'" class="stagger" @submit.prevent="handleLogin">
             <el-form-item>
-              <el-input v-model="loginForm.username" size="large" :placeholder="t('login.usernamePh')" :prefix-icon="IconUser" autocomplete="username" />
+              <el-input id="login-username" v-model="loginForm.username" size="large" :placeholder="t('login.usernamePh')" :prefix-icon="IconUser" autocomplete="username" />
             </el-form-item>
             <el-form-item>
-              <el-input v-model="loginForm.password" size="large" type="password" show-password :placeholder="t('login.passwordPh')" :prefix-icon="IconLock" autocomplete="current-password" />
+              <el-input id="login-password" v-model="loginForm.password" size="large" type="password" show-password :placeholder="t('login.passwordPh')" :prefix-icon="IconLock" autocomplete="current-password" />
             </el-form-item>
             <el-form-item v-if="totpRequired">
               <el-input v-model="loginForm.totp_code" size="large" inputmode="numeric" maxlength="20" :placeholder="t('login.totpCodePh')" :prefix-icon="IconLock" autocomplete="one-time-code" />

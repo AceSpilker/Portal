@@ -22,9 +22,12 @@ if (insecureContext) {
   console.warn('[secure] 非安全上下文（HTTP）：WebCrypto 不可用，已降级为明文传输')
 }
 
-/** 是否处于明文传输降级模式（HTTP 访问且无法建立加密会话）。 */
+// 服务端关闭传输加密（ENCRYPT_ENABLED=false）时由握手接口告知，安全上下文下同样走明文
+let serverPlaintext: boolean | null = null
+
+/** 是否处于明文传输降级模式（HTTP 访问，或服务端已关闭传输加密）。 */
 export function isPlaintextTransport(): boolean {
-  return insecureContext
+  return insecureContext || serverPlaintext === true
 }
 
 function toB64(buf: ArrayBufferLike | Uint8Array): string {
@@ -55,9 +58,14 @@ export function isExemptPath(url: string): boolean {
 }
 
 export async function ensureSession(): Promise<void> {
-  if (session || insecureContext) return
+  if (session || insecureContext || serverPlaintext) return
   booting ??= (async () => {
     const info = await axios.get('/api/crypto/public-key').then((r) => r.data.data)
+    // 服务端已关闭传输加密：即使当前是安全上下文（HTTPS）也不握手、不加密请求体
+    if (info && info.enabled === false) {
+      serverPlaintext = true
+      return
+    }
     const key = (await crypto.subtle.generateKey(
       { name: 'AES-GCM', length: 256 },
       true,
