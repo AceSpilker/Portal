@@ -43,7 +43,9 @@ async function load() {
 async function exportCsv() {
   try {
     const r = await settingsApi.auditExport(range.value)
-    const blob = new Blob(['﻿' + r.csv], { type: 'text/csv;charset=utf-8' })
+    // created_at 列（ISO-UTC）转本地时间后再导出
+    const csv = r.csv.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?/g, (m) => toLocalIso(m))
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = r.filename
@@ -52,6 +54,18 @@ async function exportCsv() {
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
+}
+
+/** ISO-UTC → 本地时间显示（DB 约定存 UTC，显示层统一转换；073 用户反馈） */
+function fmtTime(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false })
+}
+
+/** CSV 导出用：本地 ISO 格式（2026-09-08 16:09:36） */
+function toLocalIso(v: string): string {
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? v : d.toLocaleString('sv-SE', { hour12: false })
 }
 
 onMounted(load)
@@ -83,7 +97,7 @@ onMounted(load)
       <div class="table-fill">
         <el-table :data="items" height="100%" size="small" style="width: 100%">
         <el-table-column :label="t('security.colTime')" width="160">
-          <template #default="{ row }">{{ row.created_at.replace('T', ' ').slice(0, 19) }}</template>
+          <template #default="{ row }">{{ fmtTime(row.created_at) }}</template>
         </el-table-column>
         <el-table-column prop="action" :label="t('security.colAction')" width="140" />
         <el-table-column prop="detail" :label="t('security.colDetail')" min-width="240" show-overflow-tooltip />

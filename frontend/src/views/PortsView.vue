@@ -441,7 +441,7 @@ function timeLabel(iso: string): string {
     <el-dialog append-to-body v-model="histDialog" :title="t('ports.listenHistoryTitle')" width="620px">
       <div v-if="!listenChanges.length" class="muted">{{ t('common.noData') }}</div>
       <div v-for="h in listenChanges" :key="h.id" class="hist-card">
-        <div class="hist-ts">{{ h.created_at.replace('T', ' ').slice(0, 19) }}</div>
+        <div class="hist-ts">{{ timeLabel(h.created_at) }}</div>
         <div v-if="h.added.length" class="hist-added">
           + {{ h.added.map((a) => `${a.host}:${a.port}(${a.process})`).join('、') }}
         </div>

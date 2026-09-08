@@ -183,6 +183,12 @@ async function factoryReset() {
 }
 
 onMounted(loadAll)
+
+/** 073：agent 在线时间为 ISO-UTC，显示层转本地（与 AuditPanel 同类修复） */
+function fmtLocal(v: string): string {
+  const d = new Date(v)
+  return v && !Number.isNaN(d.getTime()) ? d.toLocaleString('zh-CN', { hour12: false }) : ('' + v)
+}
 </script>
 
 <template>
@@ -240,7 +246,7 @@ onMounted(loadAll)
         <el-table-column prop="ip" :label="t('security.colIp')" width="130" />
         <el-table-column :label="t('security.colLastSeen')" width="160">
           <template #default="{ row }">
-            {{ (row.last_seen_at ?? row.created_at ?? '').replace('T', ' ').slice(0, 16) }}
+            {{ fmtLocal(row.last_seen_at ?? row.created_at ?? '') }}
           </template>
         </el-table-column>
         <el-table-column width="90" align="right">
