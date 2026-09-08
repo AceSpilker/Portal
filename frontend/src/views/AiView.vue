@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProtocolUrlInput from '../components/ProtocolUrlInput.vue'
 /**
  * AI 助手页（M05-4~13；dev-plan P13）。
  * 多会话管理 + WS 流式输出 + Markdown 渲染 + 意图导航跳转 + 快捷指令 + 应用草稿 + Provider 设置。
@@ -362,7 +363,7 @@ onMounted(async () => {
         <el-form label-width="90px">
           <el-form-item :label="t('ai.prov.name')"><el-input v-model="provForm.name" /></el-form-item>
           <el-form-item :label="t('ai.prov.baseUrl')">
-            <el-input v-model="provForm.base_url" placeholder="https://api.deepseek.com/v1 或 http://nas:11434/v1" />
+            <ProtocolUrlInput v-model="provForm.base_url" placeholder="api.deepseek.com/v1 或 nas:11434/v1" />
           </el-form-item>
           <el-form-item :label="t('ai.prov.key')">
             <el-input v-model="provForm.api_key" type="password" show-password />

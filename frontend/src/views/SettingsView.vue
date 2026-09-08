@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import ProtocolUrlInput from '../components/ProtocolUrlInput.vue'
 import { useI18n } from 'vue-i18n'
 import {
   Collection as IconApps,
@@ -478,7 +479,7 @@ function saveMonitor() {
         </header>
         <el-form label-position="top" class="panel-body">
                   <el-form-item label="Logo URL">
-          <el-input v-model="logoUrl" :placeholder="t('settings.logoUrlPh')" clearable />
+          <ProtocolUrlInput v-model="logoUrl" :placeholder="t('settings.logoUrlPh')" clearable />
         </el-form-item>
         <el-form-item :label="t('settings.timezone')">
           <el-select v-model="timezone" style="max-width: 320px">
@@ -734,7 +735,7 @@ function saveMonitor() {
             <el-switch v-model="dlEnabled" />
           </el-form-item>
           <el-form-item label="qBittorrent URL">
-            <el-input v-model="dlUrl" placeholder="http://192.168.1.10:8080" clearable style="max-width: 420px" />
+            <ProtocolUrlInput v-model="dlUrl" placeholder="192.168.1.10:8080" clearable style="max-width: 420px" />
           </el-form-item>
           <div class="row-2col">
             <el-form-item :label="t('settings.effUser')">
@@ -747,7 +748,7 @@ function saveMonitor() {
 
           <h4 class="grp-title">{{ t('settings.effMedia') }}</h4>
           <el-form-item label="Jellyfin / Emby URL">
-            <el-input v-model="mediaUrl" placeholder="http://192.168.1.10:8096" clearable style="max-width: 420px" />
+            <ProtocolUrlInput v-model="mediaUrl" placeholder="192.168.1.10:8096" clearable style="max-width: 420px" />
           </el-form-item>
           <el-form-item label="API Key">
             <el-input v-model="mediaKey" type="password" show-password clearable style="max-width: 420px" />

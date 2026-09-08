@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProtocolUrlInput from '../components/ProtocolUrlInput.vue'
 /**
  * Flow 画布编辑器（M06-3；dev-plan P19.1/P19.2）。
  *
@@ -247,7 +248,7 @@ function saveCanvas() {
                 <el-select v-model="form.config.method" style="width: 92px">
                   <el-option v-for="m in ['GET', 'POST', 'PUT', 'DELETE']" :key="m" :label="m" :value="m" />
                 </el-select>
-                <el-input v-model="form.config.url" :placeholder="t('flow.urlPh')" />
+                <ProtocolUrlInput v-model="form.config.url" :placeholder="t('flow.urlPh')" />
               </div>
             </el-form-item>
           </template>

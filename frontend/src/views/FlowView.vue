@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProtocolUrlInput from '../components/ProtocolUrlInput.vue'
 /**
  * Flow 自动化页（M06-1/2/15~18；dev-plan P14.5）：表单式编排 + 启停 + 运行/试运行 + 历史。
  */
@@ -403,7 +404,7 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
             <el-select v-model="a.config!.method" size="small" style="width: 100px">
               <el-option v-for="m in ['GET', 'POST', 'PUT', 'DELETE']" :key="m" :label="m" :value="m" />
             </el-select>
-            <el-input v-model="a.config!.url" size="small" :placeholder="t('flow.urlPh')" />
+            <ProtocolUrlInput v-model="a.config!.url" size="small" :placeholder="t('flow.urlPh')" />
           </div>
         </template>
         <template v-if="a.type === 'notify'">

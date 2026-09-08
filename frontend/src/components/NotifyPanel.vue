@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProtocolUrlInput from '../components/ProtocolUrlInput.vue'
 /**
  * 通知中心设置面板（M09 + M17-14/15 + M07-6；dev-plan P9/P10.3/P10.5）。
  *
@@ -642,6 +643,12 @@ async function onTab(name: string | number) {
         </el-form-item>
         <el-form-item v-for="f in fieldsFor(form.type)" :key="f.key" :label="t(f.label)">
           <el-switch v-if="f.type === 'switch'" v-model="form.config[f.key]" />
+          <ProtocolUrlInput
+            v-else-if="f.key === 'url' || f.key === 'server'"
+            v-model="form.config[f.key]"
+            :placeholder="f.ph"
+            clearable
+          />
           <el-input
             v-else
             v-model="form.config[f.key]"

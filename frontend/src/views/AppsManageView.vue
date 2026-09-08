@@ -11,6 +11,7 @@ import {
   Upload as IconImport,
 } from '@element-plus/icons-vue'
 import { portalApi } from '../api/portal'
+import ProtocolUrlInput from '../components/ProtocolUrlInput.vue'
 import { appsEnhApi, type AppTemplate, type RecycleItem } from '../api/appsEnh'
 import { usersApi } from '../api/users'
 import type {
@@ -786,9 +787,9 @@ async function doExport() {
                 </div>
               </div>
               <template v-if="draft.icon_type === 'url'">
-                <el-input v-model="draft.icon" :placeholder="t('apps.iconUrlPh')" />
+                <ProtocolUrlInput v-model="draft.icon" :placeholder="t('apps.iconUrlPh')" />
                 <div class="favicon-row">
-                  <el-input v-model="faviconSource" :placeholder="t('apps.faviconPh')" />
+                  <ProtocolUrlInput v-model="faviconSource" :placeholder="t('apps.faviconPh')" />
                   <el-button @click="grabFavicon">{{ t('apps.faviconBtn') }}</el-button>
                 </div>
               </template>
@@ -816,7 +817,7 @@ async function doExport() {
                   <el-option :label="t('apps.urlType.vpn')" value="vpn" />
                   <el-option :label="t('apps.urlType.custom')" value="custom" />
                 </el-select>
-                <el-input v-model="row.url" :placeholder="t('apps.urlAddressPh')" />
+                <ProtocolUrlInput v-model="row.url" :placeholder="t('apps.urlAddressPh')" />
                 <el-input v-model="row.label" :placeholder="t('apps.urlLabelPh')" class="url-label" maxlength="64" />
                 <div class="url-ops">
                   <el-button link :disabled="i === 0" @click="moveUrlRow(i, -1)">↑</el-button>
@@ -908,7 +909,7 @@ async function doExport() {
             <el-input v-model="draft.remark" type="textarea" :rows="2" :placeholder="t('apps.remarkPh')" />
           </el-form-item>
           <el-form-item :label="t('apps.fieldDocUrl')">
-            <el-input v-model="draft.doc_url" :placeholder="t('apps.fieldDocUrlPh')" />
+            <ProtocolUrlInput v-model="draft.doc_url" :placeholder="t('apps.fieldDocUrlPh')" />
           </el-form-item>
         </el-form>
       </div>
