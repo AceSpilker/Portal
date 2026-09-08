@@ -48,6 +48,7 @@ def _todo_out(td: Todo) -> dict:
         "title": td.title,
         "done": td.done,
         "date": td.todo_date.isoformat() if td.todo_date else None,
+        "end_date": td.end_date.isoformat() if td.end_date else None,
         "sort": td.sort,
     }
 
@@ -224,7 +225,9 @@ async def delete_event(
 class TodoBody(BaseModel):
     title: str = Field(max_length=128)
     done: bool = False
-    date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")  # 开始日期
+    # 结束日期（077 区间待办）
+    end_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 @router.get("/todos")
@@ -251,11 +254,14 @@ async def create_todo(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    if body.date and body.end_date and body.end_date < body.date:
+        raise BizError(CODE_VALIDATION, t("v.todo_range_invalid"), 422)
     td = Todo(
         user_id=user.id,
         title=body.title.strip(),
         done=body.done,
         todo_date=_parse_date(body.date) if body.date else None,
+        end_date=_parse_date(body.end_date) if body.end_date else None,
     )
     session.add(td)
     await session.commit()
@@ -272,9 +278,12 @@ async def update_todo(
     td = await session.get(Todo, todo_id)
     if td is None or td.user_id != user.id:
         raise BizError(CODE_NOT_FOUND, t("err.todo_not_found"), 404)
+    if body.date and body.end_date and body.end_date < body.date:
+        raise BizError(CODE_VALIDATION, t("v.todo_range_invalid"), 422)
     td.title = body.title.strip()
     td.done = body.done
     td.todo_date = _parse_date(body.date) if body.date else None
+    td.end_date = _parse_date(body.end_date) if body.end_date else None
     await session.commit()
     return ok(_todo_out(td), t("ok.saved"))
 

@@ -233,6 +233,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "err.media_unreachable": {"zh-CN": "媒体库连接失败", "en": "Media server unreachable"},
     "v.date_invalid": {"zh-CN": "日期格式应为 YYYY-MM-DD", "en": "Date must be YYYY-MM-DD"},
+    "v.todo_range_invalid": {
+        "zh-CN": "结束日期不能早于开始日期",
+        "en": "End date cannot be earlier than start date",
+    },
     "v.ym_invalid": {"zh-CN": "月份格式应为 YYYY-MM", "en": "Month must be YYYY-MM"},
     "v.repeat_invalid": {"zh-CN": "重复规则无效", "en": "Invalid repeat rule"},
     "v.file_name_invalid": {"zh-CN": "名称不合法", "en": "Invalid name"},

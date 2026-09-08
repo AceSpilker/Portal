@@ -36,5 +36,7 @@ class Todo(Base, TimestampMixin):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(128))
     done: Mapped[bool] = mapped_column(Boolean, default=False)
-    todo_date: Mapped[date | None] = mapped_column(Date, default=None, index=True)
+    todo_date: Mapped[date | None] = mapped_column(Date, default=None, index=True)  # 开始日期
+    # 结束日期（077 区间待办）
+    end_date: Mapped[date | None] = mapped_column(Date, default=None, index=True)
     sort: Mapped[int] = mapped_column(Integer, default=0)

@@ -47,6 +47,7 @@ async def init_db() -> None:
             # P17.1：TOTP 两步验证
             "ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
             "ALTER TABLE users ADD COLUMN totp_recovery TEXT DEFAULT '[]'",
+            "ALTER TABLE todos ADD COLUMN end_date DATE",
             # P19.1：Flow 画布图（NULL=表单模式）
             "ALTER TABLE flows ADD COLUMN graph TEXT",
             # P20.3：端口监控分组标签

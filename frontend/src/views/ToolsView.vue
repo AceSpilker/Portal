@@ -206,7 +206,13 @@ onMounted(loadWolTargets)
       <div class="tool-result">{{ tsOutput || '—' }}</div>
       <el-divider />
       <div class="tool-row">
-        <el-input v-model="dateInput" type="datetime-local" />
+        <el-date-picker
+          v-model="dateInput"
+          type="datetime"
+          value-format="YYYY-MM-DDTHH:mm:ss"
+          :placeholder="t('tools.datePh')"
+          style="width: 100%"
+        />
         <el-button @click="dateToTs">{{ t('tools.dateToTs') }}</el-button>
         <el-button @click="useNow">{{ t('tools.now') }}</el-button>
       </div>

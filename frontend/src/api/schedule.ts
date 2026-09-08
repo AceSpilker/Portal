@@ -25,6 +25,7 @@ export interface TodoItem {
   title: string
   done: boolean
   date: string | null
+  end_date?: string | null
   sort: number
 }
 
@@ -67,9 +68,9 @@ export const scheduleApi = {
     request.put<never, CalendarEvent>(`/calendar/events/${id}`, body),
   deleteEvent: (id: number) => request.delete<never, { id: number }>(`/calendar/events/${id}`),
   listTodos: () => request.get<never, TodoItem[]>('/todos'),
-  createTodo: (title: string, date?: string | null) =>
-    request.post<never, TodoItem>('/todos', { title, date: date ?? null }),
-  updateTodo: (id: number, body: { title: string; done: boolean; date?: string | null }) =>
+  createTodo: (title: string, date?: string | null, endDate?: string | null) =>
+    request.post<never, TodoItem>('/todos', { title, date: date ?? null, end_date: endDate ?? null }),
+  updateTodo: (id: number, body: { title: string; done: boolean; date?: string | null; end_date?: string | null }) =>
     request.put<never, TodoItem>(`/todos/${id}`, body),
   deleteTodo: (id: number) => request.delete<never, { id: number }>(`/todos/${id}`),
 }

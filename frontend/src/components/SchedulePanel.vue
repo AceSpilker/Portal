@@ -177,7 +177,8 @@ async function addTodo() {
   const title = newTodo.value.trim()
   if (!title) return
   try {
-    await scheduleApi.createTodo(title, ymd(new Date()))
+    // 待办绑定当前选中日期（077：原固定今天，用户不知绑定关系）
+    await scheduleApi.createTodo(title, ymd(viewDate.value))
     newTodo.value = ''
     await loadTodos()
   } catch (e) {
@@ -198,6 +199,49 @@ async function removeTodo(td: TodoItem) {
   try {
     await scheduleApi.deleteTodo(td.id)
     todos.value = todos.value.filter((x) => x.id !== td.id)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+/** 当日覆盖的待办数（开始~结束区间内，077 用户需求：区间内在日历显示） */
+function todosOn(day: Date): number {
+  const key = ymd(day)
+  return todos.value.filter((td) => {
+    const start = td.date ?? '0000-01-01'
+    const end = td.end_date ?? td.date ?? start
+    return start <= key && key <= end
+  }).length
+}
+
+// ---- 待办编辑（077：区间待办） ----
+const todoDlg = ref(false)
+const editingTodo = ref<TodoItem | null>(null)
+const todoForm = ref({ title: '', range: [] as string[], done: false })
+
+function openTodoEdit(td: TodoItem) {
+  editingTodo.value = td
+  todoForm.value = {
+    title: td.title,
+    range: td.date ? [td.date, td.end_date ?? td.date] : [],
+    done: td.done,
+  }
+  todoDlg.value = true
+}
+
+async function saveTodoEdit() {
+  const td = editingTodo.value
+  if (!td) return
+  const [start, end] = todoForm.value.range ?? []
+  try {
+    await scheduleApi.updateTodo(td.id, {
+      title: todoForm.value.title,
+      done: todoForm.value.done,
+      date: start ?? null,
+      end_date: end ?? null,
+    })
+    todoDlg.value = false
+    await loadTodos()
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
@@ -233,6 +277,9 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
             <span class="cell-day">{{ data.date.getDate() }}</span>
             <span class="cell-dots">
               <i v-for="e in eventsOn(data.date).slice(0, 3)" :key="e.id + e.date" class="dot" :title="e.title" />
+            </span>
+            <span v-if="todosOn(data.date)" class="cell-todo" :title="t('eff.todos')">
+              ☑ {{ todosOn(data.date) }}
             </span>
             <span v-for="f in festivalsOn(data.date)" :key="f.name" class="cell-fest">{{ f.name }}</span>
             <span v-if="holidayOn(data.date)?.isOffDay" class="cell-off">休</span>
@@ -278,17 +325,46 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
         <ul class="day-list">
           <li v-for="td in openTodos" :key="td.id" class="day-item todo">
             <el-checkbox :model-value="false" @change="toggleTodo(td)" />
-            <span class="ev-title">{{ td.title }}</span>
+            <span class="ev-title todo-title" :title="t('common.edit')" @click="openTodoEdit(td)">{{ td.title }}</span>
+            <span v-if="td.date" class="todo-range">{{ td.end_date ? `${td.date.slice(5)}~${td.end_date.slice(5)}` : td.date.slice(5) }}</span>
             <el-button link size="small" :icon="IconDelete" class="todo-del" @click="removeTodo(td)" />
           </li>
           <li v-for="td in doneTodos" :key="td.id" class="day-item todo done">
             <el-checkbox :model-value="true" @change="toggleTodo(td)" />
-            <span class="ev-title">{{ td.title }}</span>
+            <span class="ev-title todo-title" :title="t('common.edit')" @click="openTodoEdit(td)">{{ td.title }}</span>
+            <span v-if="td.date" class="todo-range">{{ td.end_date ? `${td.date.slice(5)}~${td.end_date.slice(5)}` : td.date.slice(5) }}</span>
             <el-button link size="small" :icon="IconDelete" class="todo-del" @click="removeTodo(td)" />
           </li>
         </ul>
       </section>
     </div>
+
+    <!-- 待办编辑（077：区间待办） -->
+    <el-dialog v-model="todoDlg" :title="t('eff.todoEdit')" width="420px" append-to-body>
+      <el-form label-width="72px" label-position="left">
+        <el-form-item :label="t('eff.eventTitle')">
+          <el-input v-model="todoForm.title" maxlength="128" />
+        </el-form-item>
+        <el-form-item :label="t('eff.todoRange')">
+          <el-date-picker
+            v-model="todoForm.range"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            start-placeholder="开始"
+            end-placeholder="结束"
+            style="width: 100%"
+            clearable
+          />
+        </el-form-item>
+        <el-form-item :label="t('eff.done')">
+          <el-switch v-model="todoForm.done" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="todoDlg = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" class="btn-gradient" @click="saveTodoEdit">{{ t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="dlg" :title="editing ? t('eff.editEvent') : t('eff.addEvent')" width="440px" append-to-body>
       <el-form label-width="72px" label-position="left">
