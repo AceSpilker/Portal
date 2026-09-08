@@ -515,7 +515,7 @@ export default {
     updateDone: 'Update applied',
     cssSaved: 'Custom CSS saved',
     customCssTitle: 'Custom CSS',
-    customCssPh: '.tile-name { font-weight: 700; }',
+    customCssPh: '.tile-name {\'{\'} font-weight: 700; {\'}\'}',
     customCssTip: 'Applies globally after save; CSS vars like --p-primary are available',
     menuEfficiency: 'Efficiency',
     savedEfficiency: 'Efficiency settings saved',

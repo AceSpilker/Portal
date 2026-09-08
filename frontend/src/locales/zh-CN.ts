@@ -515,7 +515,7 @@ export default {
     updateDone: '更新完成',
     cssSaved: '自定义样式已保存',
     customCssTitle: '自定义 CSS（深度换装）',
-    customCssPh: '.tile-name { font-weight: 700; }',
+    customCssPh: '.tile-name {\'{\'} font-weight: 700; {\'}\'}',
     customCssTip: '保存后全局生效，可用 CSS 变量（--p-primary 等）',
     securityTotp: '两步验证',
     menuEfficiency: '效率模块',
