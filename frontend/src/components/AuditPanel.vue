@@ -80,7 +80,8 @@ onMounted(load)
     </header>
 
     <section class="glass table-card" v-loading="loading">
-      <el-table :data="items" size="small" style="width: 100%">
+      <div class="table-fill">
+        <el-table :data="items" height="100%" size="small" style="width: 100%">
         <el-table-column :label="t('security.colTime')" width="160">
           <template #default="{ row }">{{ row.created_at.replace('T', ' ').slice(0, 19) }}</template>
         </el-table-column>
@@ -89,6 +90,7 @@ onMounted(load)
         <el-table-column prop="ip" :label="t('security.colIp')" width="130" />
         <el-table-column prop="user_id" label="UID" width="70" />
       </el-table>
+        </div>
       <el-pagination
         v-model:current-page="page"
         layout="prev, pager, next"
@@ -102,7 +104,21 @@ onMounted(load)
 </template>
 
 <style scoped>
+.table-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.table-fill {
+  flex: 1;
+  min-height: 0;
+}
 .audit {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -120,6 +136,9 @@ onMounted(load)
   padding: 6px 10px 10px;
 }
 .pager {
+  flex-shrink: 0;
+  flex-shrink: 0;
+  
   margin-top: 10px;
   justify-content: flex-end;
 }

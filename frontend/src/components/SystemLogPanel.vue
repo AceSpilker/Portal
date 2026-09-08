@@ -91,7 +91,8 @@ const levelTag = (lv: string) => (lv === 'ERROR' ? 'danger' : lv === 'WARNING' ?
       <el-switch v-model="auto" size="small" @change="setAuto" />
     </header>
 
-    <el-table v-loading="loading" :data="items" size="small" class="glass">
+    <div class="table-fill">
+      <el-table v-loading="loading" :data="items" size="small" height="100%" class="glass">
       <el-table-column :label="t('logs.colTime')" width="170">
         <template #default="{ row }">
           <span class="mono">{{ new Date(row.created_at).toLocaleString('zh-CN', { hour12: false }) }}</span>
@@ -105,6 +106,7 @@ const levelTag = (lv: string) => (lv === 'ERROR' ? 'danger' : lv === 'WARNING' ?
       <el-table-column prop="logger" :label="t('logs.colLogger')" width="180" show-overflow-tooltip />
       <el-table-column prop="message" :label="t('logs.colMessage')" show-overflow-tooltip />
     </el-table>
+      </div>
 
     <el-pagination
       v-model:current-page="page"
@@ -118,6 +120,13 @@ const levelTag = (lv: string) => (lv === 'ERROR' ? 'danger' : lv === 'WARNING' ?
 </template>
 
 <style scoped>
+.table-fill {
+  flex: 1;
+  min-height: 0;
+}
+.pager {
+  flex-shrink: 0;
+}
 .bar {
   display: flex;
   align-items: center;

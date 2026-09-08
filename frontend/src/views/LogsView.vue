@@ -27,7 +27,10 @@ const tab = ref<'audit' | 'system'>('audit')
 
 <style scoped>
 .logs-view {
-  padding: 4px 2px;
+  padding: 4px 2px 0;
+  height: calc(100vh - 150px);
+  display: flex;
+  flex-direction: column;
 }
 .page-title {
   margin: 0 0 4px;
@@ -41,5 +44,23 @@ const tab = ref<'audit' | 'system'>('audit')
 .tabs-card {
   padding: 4px 14px 14px;
   border-radius: 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tabs-card :deep(.el-tabs) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tabs-card :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.tabs-card :deep(.el-tab-pane) {
+  height: 100%;
 }
 </style>
