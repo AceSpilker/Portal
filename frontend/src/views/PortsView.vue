@@ -515,15 +515,33 @@ function timeLabel(iso: string): string {
     </el-dialog>
 
     <!-- 监听变更历史（M18-9） -->
-    <el-dialog append-to-body v-model="histDialog" :title="t('ports.listenHistoryTitle')" width="620px">
+    <el-dialog append-to-body v-model="histDialog" :title="t('ports.listenHistoryTitle')" width="720px">
       <div v-if="!listenChanges.length" class="muted">{{ t('common.noData') }}</div>
-      <div v-for="h in listenChanges" :key="h.id" class="hist-card">
-        <div class="hist-ts">{{ timeLabel(h.created_at) }}</div>
-        <div v-if="h.added.length" class="hist-added">
-          + {{ h.added.map((a) => `${a.host}:${a.port}(${a.process})`).join('、') }}
+      <div v-for="h in listenChanges" :key="h.id" class="hist-entry">
+        <div class="hist-head">
+          <span class="hist-time">{{ timeLabel(h.created_at) }}</span>
+          <el-tag v-if="h.added.length" type="success" size="small" effect="plain">
+            {{ t('ports.histAddedN', { n: h.added.length }) }}
+          </el-tag>
+          <el-tag v-if="h.removed.length" type="danger" size="small" effect="plain">
+            {{ t('ports.histRemovedN', { n: h.removed.length }) }}
+          </el-tag>
         </div>
-        <div v-if="h.removed.length" class="hist-removed">
-          − {{ h.removed.map((a) => `${a.host}:${a.port}(${a.process})`).join('、') }}
+        <div v-if="h.added.length" class="hist-group">
+          <div class="hist-label add">{{ t('ports.histAdded') }}</div>
+          <div v-for="a in h.added" :key="'a' + a.host + a.port + a.process" class="hist-row">
+            <span class="hist-sign add">＋</span>
+            <span class="hist-addr">{{ a.host }}:{{ a.port }}</span>
+            <span class="hist-proc">{{ a.process }}</span>
+          </div>
+        </div>
+        <div v-if="h.removed.length" class="hist-group">
+          <div class="hist-label rm">{{ t('ports.histRemoved') }}</div>
+          <div v-for="a in h.removed" :key="'r' + a.host + a.port + a.process" class="hist-row">
+            <span class="hist-sign rm">−</span>
+            <span class="hist-addr">{{ a.host }}:{{ a.port }}</span>
+            <span class="hist-proc">{{ a.process }}</span>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -707,5 +725,58 @@ function timeLabel(iso: string): string {
 }
 .spacer {
   flex: 1;
+}
+.hist-entry {
+  border: 1px solid var(--p-border, rgba(255, 255, 255, 0.08));
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.hist-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.hist-time {
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: auto;
+}
+.hist-group {
+  margin-top: 6px;
+}
+.hist-label {
+  font-size: 12px;
+  color: var(--p-muted);
+  margin-bottom: 4px;
+}
+.hist-label.add {
+  color: var(--el-color-success);
+}
+.hist-label.rm {
+  color: var(--el-color-danger);
+}
+.hist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0 2px 6px;
+  font-size: 12.5px;
+}
+.hist-sign {
+  font-weight: 700;
+}
+.hist-sign.add {
+  color: var(--el-color-success);
+}
+.hist-sign.rm {
+  color: var(--el-color-danger);
+}
+.hist-addr {
+  font-family: ui-monospace, monospace;
+}
+.hist-proc {
+  color: var(--p-muted);
 }
 </style>
