@@ -12,6 +12,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import Headers
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import downloads
 from app.api.v1.ai import ai_chat_ws
@@ -511,6 +513,26 @@ def _mount_icons() -> None:
     app.mount("/icons", StaticFiles(directory=str(icons)), name="icons")
 
 
+class _SpaStaticFiles(StaticFiles):
+    """SPA 深链接回退（065 实测：StaticFiles(html=True) 对 /login 等前端路由直接 404，
+    开发态由 Vite 回退掩盖）。仅浏览器导航（Accept 含 text/html）且非 API/WS/图标
+    路径时回退 index.html；静态资源真缺失仍 404，不掩盖资源错误。
+    注意：starlette 1.x 的 get_response 对缺失文件抛 HTTPException 而非返回 404 响应。"""
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            # 注意不能 except fastapi.HTTPException：那是子类，接不住 starlette 抛的父类实例
+            if exc.status_code != 404 or scope.get("method") != "GET":
+                raise
+            req_path = scope.get("path", "")
+            accept = Headers(scope=scope).get("accept", "")
+            if not req_path.startswith(("/api", "/ws", "/icons")) and "text/html" in accept:
+                return await super().get_response("index.html", scope)
+            raise
+
+
 def _mount_frontend() -> None:
     """前端构建产物托管（存在则启用；生产镜像内位于 frontend/dist）。"""
     dist = (
@@ -519,7 +541,7 @@ def _mount_frontend() -> None:
         else Path(__file__).resolve().parents[2] / "frontend" / "dist"
     )
     if dist.is_dir():
-        app.mount("/", StaticFiles(directory=str(dist), html=True), name="frontend")
+        app.mount("/", _SpaStaticFiles(directory=str(dist), html=True), name="frontend")
 
 
 _mount_icons()
