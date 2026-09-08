@@ -53,11 +53,18 @@ export default {
   request: {
     failed: 'Request failed ({code})',
     sessionExpired: 'Session expired. Please sign in again.',
+    loginRequired: 'Please sign in to access this page',
     plainTitle: 'Transport notice',
     plainTransport:
       'Accessing over HTTP: the browser blocks the crypto handshake in insecure contexts, so traffic is unencrypted (normally fine on a home LAN; use HTTPS for encryption)',
     plainConflict:
       'Transport encryption is enabled on the server, but an encrypted session cannot be established over HTTP: switch to HTTPS, or set ENCRYPT_ENABLED=false in the server deployment config',
+  },
+  notFound: {
+    title: 'Page not found',
+    desc: "The page you're looking for doesn't exist or has been moved",
+    backHome: 'Back to home',
+    back: 'Go back',
   },
   nav: {
     efficiency: 'Efficiency',

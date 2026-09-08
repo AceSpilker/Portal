@@ -53,11 +53,18 @@ export default {
   request: {
     failed: '请求失败（{code}）',
     sessionExpired: '登录已失效，请重新登录',
+    loginRequired: '请先登录后访问该页面',
     plainTitle: '传输提示',
     plainTransport:
       '当前通过 HTTP 访问，浏览器安全策略不允许加密握手，数据以明文传输（家庭局域网内通常可接受；需要加密请改用 HTTPS 访问）',
     plainConflict:
       '服务端已开启传输加密，但 HTTP 访问无法建立加密会话：请改用 HTTPS 访问，或在服务端部署配置中设置 ENCRYPT_ENABLED=false',
+  },
+  notFound: {
+    title: '页面不存在',
+    desc: '你访问的页面不存在，可能已被移动或删除',
+    backHome: '返回首页',
+    back: '返回上一页',
   },
   nav: {
     efficiency: '效率',

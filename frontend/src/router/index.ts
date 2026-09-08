@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import i18n from '../locales'
 import { useAuthStore } from '../stores/auth'
 import LoginView from '../views/LoginView.vue'
 import GuestView from '../views/GuestView.vue'
+import NotFoundView from '../views/NotFoundView.vue'
 import AppLayout from '../layouts/AppLayout.vue'
 import HomeView from '../views/HomeView.vue'
 import AppsManageView from '../views/AppsManageView.vue'
@@ -28,6 +31,13 @@ const router = createRouter({
       path: '/guest',
       name: 'guest',
       component: GuestView,
+      meta: { public: true },
+    },
+    {
+      // 404 兜底（065 用户实测：未知路径原先白屏/裸 JSON）
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
       meta: { public: true },
     },
     {
@@ -63,6 +73,8 @@ const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (!to.meta.public && !auth.isLoggedIn) {
+    // 未登录直达受保护路由：回登录页并提示（065 用户反馈原先静默跳转无感知）
+    ElMessage.warning(i18n.global.t('request.loginRequired'))
     return { name: 'login' }
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {
