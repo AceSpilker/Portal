@@ -22,6 +22,7 @@ from app.api.v1.monitor import cleanup_job, monitor_ws, sampler_job
 from app.api.v1.ports import ports_job
 from app.api.v1.probe import notify_ws, probe_job
 from app.api.v1.router import api_router
+from app.core.audit_middleware import AuditMiddleware
 from app.core.config import settings
 from app.core.i18n import set_locale
 from app.core.middleware import TransportEncryptionMiddleware
@@ -181,6 +182,10 @@ async def certs_check_job() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    # 系统日志落库（072）：WARNING+ 与启动类 INFO 入 system_logs（刷库走调度任务）
+    from app.core.log_handler import attach_system_log_handler, flush_system_logs
+
+    attach_system_log_handler()
     # Redis 存储初始化（P25.1）：读取配置并连接（失败降级内存，由回切任务重试）
     from app.api.v1.redis import get_config as redis_get_config
 
@@ -269,6 +274,20 @@ async def lifespan(_: FastAPI):
     )
     # Flow cron 触发器（P14.1/M06-4）：恢复启用中的 cron Flow
     await flow_restore(_scheduler)
+
+    async def system_logs_cleanup_job() -> None:
+        from app.core.log_handler import cleanup_system_logs
+
+        await cleanup_system_logs(30)
+
+    _scheduler.add_job(
+        flush_system_logs, "interval", seconds=10, id="system_logs_flush",
+        max_instances=1, replace_existing=True,
+    )
+    _scheduler.add_job(
+        system_logs_cleanup_job, "interval", hours=24, id="system_logs_cleanup",
+        max_instances=1, replace_existing=True,
+    )
     # 端口探活（P11.2/M18-2）：每 10s 巡检到期监控项
     _scheduler.add_job(
         ports_job, "interval", seconds=10, id="port_probe",
@@ -285,6 +304,8 @@ app = FastAPI(title="Portal API", version="0.1.0", lifespan=lifespan)
 
 # 传输加密（P24）：/api 请求体/响应体/Authorization 头密文传输
 app.add_middleware(TransportEncryptionMiddleware)
+# 全站写操作审计（072）：/api 的写方法自动落 audit_logs（最外层，取真实状态码）
+app.add_middleware(AuditMiddleware)
 
 
 @app.middleware("http")

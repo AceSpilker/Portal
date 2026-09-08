@@ -11,7 +11,6 @@ import {
   InfoFilled as IconInfo,
   Calendar as IconEff,
   Lock as IconLock,
-  Document as IconDoc,
   RefreshRight as IconRefreshSync,
   Cpu as IconRedis,
   Plus as IconPlus,
@@ -24,7 +23,6 @@ import {
 } from '@element-plus/icons-vue'
 import { ELEMENT_ICON_MAP } from '../utils/elementIcons'
 import SecurityPanel from '../components/SecurityPanel.vue'
-import AuditPanel from '../components/AuditPanel.vue'
 import SyncPanel from '../components/SyncPanel.vue'
 import RedisPanel from '../components/RedisPanel.vue'
 import { settingsApi } from '../api/settings'
@@ -44,7 +42,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const iconLibrary = useIconLibraryStore()
 
-type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'audit' | 'sync' | 'redis' | 'about'
+type MenuKey = 'general' | 'appearance' | 'apps' | 'icons' | 'access' | 'monitor' | 'notify' | 'usermgmt' | 'efficiency' | 'security' | 'sync' | 'redis' | 'about'
 const active = ref<MenuKey>('general')
 const saving = ref(false)
 
@@ -446,10 +444,6 @@ function saveMonitor() {
           <el-icon><component :is="IconLock" /></el-icon>
           <span>{{ t('settings.menuSecurity') }}</span>
         </el-menu-item>
-        <el-menu-item index="audit">
-          <el-icon><component :is="IconDoc" /></el-icon>
-          <span>{{ t('settings.menuAudit') }}</span>
-        </el-menu-item>
         <el-menu-item index="efficiency">
           <el-icon><component :is="IconEff" /></el-icon>
           <span>{{ t('settings.menuEfficiency') }}</span>
@@ -706,14 +700,6 @@ function saveMonitor() {
           <p>{{ t('settings.securityDesc') }}</p>
         </header>
         <SecurityPanel class="panel-body" />
-      </template>
-
-      <template v-else-if="active === 'audit'">
-        <header class="panel-head">
-          <h3>{{ t('settings.menuAudit') }}</h3>
-          <p>{{ t('settings.auditDesc') }}</p>
-        </header>
-        <AuditPanel class="panel-body" />
       </template>
 
       <template v-else-if="active === 'efficiency'">

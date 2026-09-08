@@ -41,7 +41,7 @@ async def list_audit_logs(
     if days is not None:
         conds.append(AuditLog.created_at >= datetime.utcnow() - timedelta(days=days))
     if action:
-        conds.append(AuditLog.action == action)
+        conds.append(AuditLog.action.like(f"{action}%"))
     if user_id is not None:
         conds.append(AuditLog.user_id == user_id)
     total = (

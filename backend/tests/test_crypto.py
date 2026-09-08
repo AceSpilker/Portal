@@ -192,3 +192,11 @@ def test_08_full_flow_over_encryption(client: TestClient):
         "POST", "/api/auth/login", obj={"username": ADMIN_USER, "password": "rotated999"}
     )
     assert relogin["data"]["user"]["username"] == ADMIN_USER
+    # 状态还原：把密码轮换回 NEW_PASS，否则后续测试文件（如 test_logs）登录全挂（071）
+    restore = call(
+        "PUT",
+        "/api/auth/password",
+        token=relogin["data"]["access_token"],
+        obj={"old_password": "rotated999", "new_password": ADMIN_PASS},
+    )
+    assert restore["code"] == 0

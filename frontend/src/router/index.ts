@@ -16,6 +16,7 @@ import FlowView from '../views/FlowView.vue'
 import MonitorView from '../views/MonitorView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import ToolsView from '../views/ToolsView.vue'
+import LogsView from '../views/LogsView.vue'
 
 // 视图数量仍少，静态导入避免懒加载空窗；页面增多后再按需改回懒加载
 const router = createRouter({
@@ -64,6 +65,7 @@ const router = createRouter({
           meta: { titleKey: 'settings.title', requiresAdmin: true },
         },
         { path: 'tools', name: 'tools', component: ToolsView, meta: { titleKey: 'nav.tools' } },
+        { path: 'logs', name: 'logs', component: LogsView, meta: { titleKey: 'nav.logs', requiresAdmin: true } },
       ],
     },
   ],

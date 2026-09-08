@@ -10,10 +10,30 @@ import tempfile
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="portal-test-")
 os.environ["SECURITY__ENCRYPT_ENABLED"] = "false"
 
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limit():
+    """每个用例前清空登录限流。
+
+    TestClient 所有请求同 IP（testclient），全量套件中 test_auth::test_16 等
+    限流用例会把该 IP 锁 60s，套件越慢级联失败越多（071 实测 133 连锁失败）。
+    ratelimit.reset 本就是测试辅助函数，此处自动调用。
+    """
+
+    from app.core.ratelimit import is_locked, reset
+
+    asyncio.run(reset("testclient"))
+    locked = asyncio.run(is_locked("testclient"))
+    if locked:
+        print("[conftest] WARN: rate limit STILL locked after reset!")
+    yield
 
 
 @pytest.fixture(scope="session")

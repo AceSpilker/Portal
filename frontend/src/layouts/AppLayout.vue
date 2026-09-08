@@ -18,6 +18,7 @@ import {
   MagicStick as IconAi,
   Suitcase as IconTools,
   Setting as IconSetting,
+  Tickets as IconTickets,
   Share as IconFlow,
   SwitchButton as IconLogout,
   HomeFilled as IconHome,
@@ -92,6 +93,7 @@ const navItems = computed<NavItem[]>(() => [
   { icon: IconFlow, label: t('nav.flow'), to: '/flow' },
   { icon: IconAi, label: t('nav.ai'), to: '/ai' },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },
+  ...(auth.isAdmin ? [{ icon: IconTickets, label: t('nav.logs'), to: '/logs' }] : []),
   ...(auth.isAdmin ? [{ icon: IconSetting, label: t('nav.settings'), to: '/settings' }] : []),
 ])
 

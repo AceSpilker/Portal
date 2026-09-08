@@ -78,6 +78,7 @@
 **api_tokens**（M2，P17.2 实现）：id；user_id FK；name；token_hash TEXT UNIQUE（SHA-256；明文 `plt_` 前缀仅创建响应返回一次）；token_prefix TEXT（展示用前 8 位）；scope TEXT（**ro**=仅安全方法 / **rw**）；revoked INT 0；expires_at NULL；last_used_at NULL；note TEXT。鉴权通道：`Authorization: Bearer plt_…` 走 Token 表，ro 对非安全方法 403。
 
 **audit_logs**（M1 基础）：id；user_id NULL；action TEXT（login/update_config/container_op/flow_run…）；detail TEXT；ip TEXT。
+**system_logs**（072 新增）：id；level TEXT（WARNING/ERROR/INFO-仅启动类）；logger TEXT；message TEXT（截断 2000）；created_at。由 SystemLogHandler 落库（uvicorn/apscheduler 异常自动捕获），30 天自动清理。
 
 ### 3.2 门户核心（应用/分组/入口）
 
@@ -384,6 +385,9 @@
 | POST | /api/backup/factory-reset | 恢复出厂（需密码二次确认） | M | M2 |
 | GET/POST/DELETE | /api/tokens… | API Token 管理 | M | M2 |
 | GET | /api/audit-logs?action=&range= | 审计日志 | M | M2 |
+| GET | /api/system-logs?level=&q=&range=&page= | 系统日志分页（072） | M | 072 |
+> **全站写操作自动审计（072）**：AuditMiddleware 对 /api 的 POST/PUT/PATCH/DELETE 自动写 audit_logs（action=`{METHOD} {path}`，detail=`status={code} {ms}ms`，不落请求体）；豁免 /api/auth/login|refresh（已有业务语义审计）、/api/hooks/*。手写业务审计与自动审计并存。
+
 | GET | /api/system/health-report | 健康自检报告（P8.2 基础版）：数据卷可写、调度器运行状态与任务清单（含 app_probe/monitor_sample 的 next_run），返回 {data_dir, data_dir_writable, scheduler_running, tasks[], missing_tasks[], tasks_ok, checked_at}；完整版随 P17.3 扩展 | M | P8 |
 | GET | /api/system/info | 系统信息（版本/构建等） | M | M2 |
 | GET | /api/system/update/check | 立即检查更新：调 Gitee Releases API（settings update.repo 可配）对比本地版本，返回 {current, latest, changelog, has_update}；结果写站内通知 | M | M2 |
