@@ -221,3 +221,16 @@ body {
 .el-table__body-wrapper {
   overscroll-behavior: contain;
 }
+
+/* ===== 页面滚动统一（081 全局滚动规范化） =====
+   所有菜单页右侧内容区：填满视口高度、内部滚动、隐藏垂直滚动条
+   （滚轮/触摸仍可滚动）。个别页面如需自有高度再行覆盖。 */
+.page-anim > * {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* Firefox 隐藏 */
+}
+.page-anim > *::-webkit-scrollbar {
+  display: none; /* Chrome/Edge 隐藏 */
+}

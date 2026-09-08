@@ -28,7 +28,7 @@ const tab = ref<'audit' | 'system'>('audit')
 <style scoped>
 .logs-view {
   padding: 4px 2px 0;
-  height: calc(100vh - 150px);
+  height: 100%;
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;

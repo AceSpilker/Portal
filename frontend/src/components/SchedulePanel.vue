@@ -257,19 +257,6 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 
 <template>
   <div v-loading="loading" class="schedule">
-    <div v-if="holidays?.summary?.length" class="holiday-strip glass">
-      <span class="hol-title">{{ t('eff.holidaySummary') }}</span>
-      <div v-for="h in holidays.summary" :key="h.name" class="hol-chip">
-        <b>{{ h.name }}</b>
-        <span v-for="r in h.rest_ranges" :key="r.start">
-          {{ r.start.slice(5) }}~{{ r.end.slice(5) }} {{ t('eff.restDays', { n: r.days }) }}
-        </span>
-        <span v-if="h.makeup_dates.length" class="hol-makeup">
-          {{ t('eff.makeUp') }}{{ h.makeup_dates.join('、') }}
-        </span>
-      </div>
-    </div>
-
     <div class="cal-wrap glass">
       <el-calendar v-model="viewDate">
         <template #date-cell="{ data }">
@@ -532,34 +519,9 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
     grid-template-columns: 1fr;
   }
 }
-.holiday-strip {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-}
 .hol-title {
   font-size: 13px;
   font-weight: 600;
-}
-.hol-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--p-muted);
-  background: var(--p-card, rgba(255, 255, 255, 0.04));
-  border-radius: 8px;
-  padding: 4px 10px;
-}
-.hol-chip b {
-  color: var(--p-text);
-}
-.hol-makeup {
-  color: var(--el-color-warning);
 }
 .cell-off,
 .cell-work {
