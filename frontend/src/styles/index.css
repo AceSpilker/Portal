@@ -195,3 +195,21 @@ body {
   --el-card-border-color: var(--p-card-border);
   --el-card-border-radius: 16px;
 }
+
+/* ===== 弹窗高度约束（075）：所有对话框不得超过视口，正文内部滚动、头部/底部固定 ===== */
+.el-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  margin: 24px auto;
+}
+.el-dialog__header {
+  flex-shrink: 0;
+}
+.el-dialog__body {
+  flex: 1;
+  overflow: auto;
+}
+.el-dialog__footer {
+  flex-shrink: 0;
+}
