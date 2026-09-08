@@ -641,6 +641,9 @@ export default {
   },
   eff: {
     tab: { schedule: 'Schedule', files: 'Files', downloads: 'Downloads' },
+    holidaySummary: 'Statutory holidays',
+    restDays: '{n} days off',
+    makeUp: 'Make-up workdays: ',
     addEvent: 'New Event',
     editEvent: 'Edit Event',
     eventTitle: 'Title',

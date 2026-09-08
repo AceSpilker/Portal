@@ -642,6 +642,9 @@ export default {
   },
   eff: {
     tab: { schedule: '日程', files: '文件', downloads: '下载' },
+    holidaySummary: '法定节假日',
+    restDays: '休 {n} 天',
+    makeUp: '调休上班：',
     addEvent: '新建事件',
     editEvent: '编辑事件',
     eventTitle: '标题',

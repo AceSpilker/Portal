@@ -10,7 +10,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete as IconDelete, Plus as IconPlus } from '@element-plus/icons-vue'
-import { scheduleApi } from '../api/schedule'
+import { scheduleApi, type HolidaysData, type HolidayDay } from '../api/schedule'
 import type { CalendarEvent, MonthData, TodoItem } from '../api/schedule'
 
 const { t } = useI18n()
@@ -18,6 +18,17 @@ const { t } = useI18n()
 const viewDate = ref(new Date())
 const monthData = ref<MonthData | null>(null)
 const loading = ref(false)
+
+// ---- 法定节假日（077：holiday-cn 数据集动态获取，含调休班日） ----
+const holidays = ref<HolidaysData | null>(null)
+const holidayMap = computed(() => {
+  const m = new Map<string, HolidayDay>()
+  for (const d of holidays.value?.days ?? []) m.set(d.date, d)
+  return m
+})
+function holidayOn(cell: Date): HolidayDay | undefined {
+  return holidayMap.value.get(ymd(cell))
+}
 
 // ---- 事件弹窗 ----
 const dlg = ref(false)
@@ -55,9 +66,24 @@ async function load() {
   } finally {
     loading.value = false
   }
+  await ensureHolidays(viewDate.value.getFullYear())
+}
+
+async function ensureHolidays(year: number) {
+  if (holidays.value?.year === year) return
+  try {
+    holidays.value = await scheduleApi.holidays(year)
+  } catch (e) {
+    console.warn('[schedule] 节假日获取失败', e)
+  }
 }
 
 watch(viewDate, load)
+watch(
+  () => viewDate.value.getFullYear(),
+  (y) => void ensureHolidays(y),
+  { immediate: true },
+)
 onMounted(load)
 
 function eventsOn(cell: Date) {
@@ -187,6 +213,19 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 
 <template>
   <div v-loading="loading" class="schedule">
+    <div v-if="holidays?.summary?.length" class="holiday-strip glass">
+      <span class="hol-title">{{ t('eff.holidaySummary') }}</span>
+      <div v-for="h in holidays.summary" :key="h.name" class="hol-chip">
+        <b>{{ h.name }}</b>
+        <span v-for="r in h.rest_ranges" :key="r.start">
+          {{ r.start.slice(5) }}~{{ r.end.slice(5) }} {{ t('eff.restDays', { n: r.days }) }}
+        </span>
+        <span v-if="h.makeup_dates.length" class="hol-makeup">
+          {{ t('eff.makeUp') }}{{ h.makeup_dates.join('、') }}
+        </span>
+      </div>
+    </div>
+
     <div class="cal-wrap glass">
       <el-calendar v-model="viewDate">
         <template #date-cell="{ data }">
@@ -196,6 +235,8 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
               <i v-for="e in eventsOn(data.date).slice(0, 3)" :key="e.id + e.date" class="dot" :title="e.title" />
             </span>
             <span v-for="f in festivalsOn(data.date)" :key="f.name" class="cell-fest">{{ f.name }}</span>
+            <span v-if="holidayOn(data.date)?.isOffDay" class="cell-off">休</span>
+            <span v-else-if="holidayOn(data.date)" class="cell-work">班</span>
           </div>
         </template>
       </el-calendar>
@@ -306,6 +347,7 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
   padding: 8px;
 }
 .cell {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -414,4 +456,53 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
     grid-template-columns: 1fr;
   }
 }
+.holiday-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.hol-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.hol-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--p-muted);
+  background: var(--p-card, rgba(255, 255, 255, 0.04));
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+.hol-chip b {
+  color: var(--p-text);
+}
+.hol-makeup {
+  color: var(--el-color-warning);
+}
+.cell-off,
+.cell-work {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 4px;
+}
+.cell-off {
+  color: var(--el-color-danger);
+  border: 1px solid var(--el-color-danger);
+}
+.cell-work {
+  color: var(--el-color-primary);
+  border: 1px solid var(--el-color-primary);
+}
 </style>
+
+<!-- 077r2 cache-bust -->

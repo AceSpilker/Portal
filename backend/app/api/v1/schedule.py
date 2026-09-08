@@ -142,6 +142,24 @@ async def calendar_month(
     )
 
 
+@router.get("/calendar/holidays")
+async def calendar_holidays(
+    year: int = Query(ge=2004, le=2100),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """法定节假日动态数据（077）：holiday-cn 数据集（含调休班日）+ 按名聚合摘要。"""
+    from app.services import holidays as holidays_svc
+
+    try:
+        data = await holidays_svc.get_year(session, year)
+    except Exception:
+        data = None
+    if not data:
+        raise BizError(CODE_NOT_FOUND, t("err.holidays_unavailable"), 404)
+    return ok({**data, "summary": holidays_svc.summarize(data["days"])})
+
+
 @router.post("/calendar/events")
 async def create_event(
     body: EventBody,

@@ -386,6 +386,7 @@
 | GET/POST/DELETE | /api/tokens… | API Token 管理 | M | M2 |
 | GET | /api/audit-logs?action=&range= | 审计日志 | M | M2 |
 | GET | /api/system-logs?level=&q=&range=&page= | 系统日志分页（072） | M | 072 |
+| GET | /api/calendar/holidays?year= | 法定节假日动态数据（holiday-cn 多源+内置兜底，含调休与按名聚合摘要）（077） | U | 077 |
 > **全站写操作自动审计（072）**：AuditMiddleware 对 /api 的 POST/PUT/PATCH/DELETE 自动写 audit_logs（action=`{METHOD} {path}`，detail=`status={code} {ms}ms`，不落请求体）；豁免 /api/auth/login|refresh（已有业务语义审计）、/api/hooks/*。手写业务审计与自动审计并存。
 
 | GET | /api/system/health-report | 健康自检报告（P8.2 基础版）：数据卷可写、调度器运行状态与任务清单（含 app_probe/monitor_sample 的 next_run），返回 {data_dir, data_dir_writable, scheduler_running, tasks[], missing_tasks[], tasks_ok, checked_at}；完整版随 P17.3 扩展 | M | P8 |

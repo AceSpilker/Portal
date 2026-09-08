@@ -39,9 +39,29 @@ export interface EventBody {
   remind_minutes?: number
 }
 
+export interface HolidayDay {
+  name: string
+  date: string
+  isOffDay: boolean
+}
+export interface HolidaySummary {
+  name: string
+  rest_days: number
+  rest_ranges: Array<{ start: string; end: string; days: number }>
+  makeup_dates: string[]
+}
+export interface HolidaysData {
+  year: number
+  days: HolidayDay[]
+  fetched_at: string
+  summary: HolidaySummary[]
+}
+
 export const scheduleApi = {
   month: (ym: string) =>
     request.get<never, MonthData>('/calendar/month', { params: { ym } }),
+  holidays: (year: number) =>
+    request.get<never, HolidaysData>('/calendar/holidays', { params: { year } }),
   createEvent: (body: EventBody) => request.post<never, CalendarEvent>('/calendar/events', body),
   updateEvent: (id: number, body: EventBody) =>
     request.put<never, CalendarEvent>(`/calendar/events/${id}`, body),
