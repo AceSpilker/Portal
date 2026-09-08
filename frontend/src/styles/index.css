@@ -213,3 +213,11 @@ body {
 .el-dialog__footer {
   flex-shrink: 0;
 }
+
+/* 滚动链约束（078 全局复查）：内层容器滚到底不把滚动接力给页面 */
+.el-dialog__body,
+.el-drawer__body,
+.el-tabs__content,
+.el-table__body-wrapper {
+  overscroll-behavior: contain;
+}

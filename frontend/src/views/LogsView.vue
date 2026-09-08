@@ -31,6 +31,7 @@ const tab = ref<'audit' | 'system'>('audit')
   height: calc(100vh - 150px);
   display: flex;
   flex-direction: column;
+  overscroll-behavior: contain;
 }
 .page-title {
   margin: 0 0 4px;

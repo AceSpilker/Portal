@@ -895,6 +895,7 @@ function saveMonitor() {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .menu-title {
   font-weight: 700;
@@ -916,6 +917,7 @@ function saveMonitor() {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: clamp(16px, 2vw, 24px);
 }
 .panel-head {
