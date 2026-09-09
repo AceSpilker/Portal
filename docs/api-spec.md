@@ -395,9 +395,10 @@
 | POST / PUT / DELETE | /api/knowledge/sources[/{id}] | 数据源增改删（M；git 建源即克隆，密码 Fernet 加密） | M | — |
 | POST | /api/knowledge/sources/{id}/sync | git 拉取同步（pull 失败自动重建克隆） | M | — |
 | GET | /api/knowledge/{id}/tree?path= | 目录清单（防穿越；hidden/依赖目录不入树） | A | — |
-| GET | /api/knowledge/{id}/read?path= | 内容读取：文本类返回 text；docx/xlsx/pptx 服务端转 HTML | A | — |
+| GET | /api/knowledge/{id}/read?path= | 内容读取：文本类返回 text；zip 返回条目清单；docx/xlsx/pptx 由前端组件库渲染（096） | A | — |
 | GET | /api/knowledge/{id}/raw?path= | 原文件流（图片/视频/音频/pdf；Range 拖动） | A | — |
 | PUT | /api/knowledge/{id}/file?path= | 保存文本（仅 local 源；git 源只读） | M | — |
+| GET | /api/knowledge/{id}/zip-entry?path=&entry= | zip 内单文件提取流（鉴权同 raw，支持签名 URL） | A | — |
 | GET | /api/system-logs?level=&q=&range=&page= | 系统日志分页（072） | M | 072 |
 | GET | /api/calendar/holidays?year= | 法定节假日动态数据（holiday-cn 多源+内置兜底，含调休与按名聚合摘要）（077） | U | 077 |
 > **全站写操作自动审计（072）**：AuditMiddleware 对 /api 的 POST/PUT/PATCH/DELETE 自动写 audit_logs（action=`{METHOD} {path}`，detail=`status={code} {ms}ms`，不落请求体）；豁免 /api/auth/login|refresh（已有业务语义审计）、/api/hooks/*。手写业务审计与自动审计并存。

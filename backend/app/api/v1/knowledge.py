@@ -36,7 +36,7 @@ from app.core.secret_box import decrypt_secret, encrypt_secret
 from app.db.session import get_session
 from app.models.knowledge import KnowledgeSource
 from app.models.user import User
-from app.services import knowledge_fs, knowledge_git, knowledge_office
+from app.services import knowledge_fs, knowledge_git
 
 router = APIRouter()
 
@@ -317,9 +317,9 @@ async def read_file(
         if kind in ("markdown", "text", "code"):
             text = p.read_text(encoding="utf-8", errors="replace")
             return {"kind": kind, "editable": src.kind == "local", "text": text}
-        if kind in ("docx", "xlsx", "pptx"):
-            html = knowledge_office.office_to_html(p, f".{kind}")
-            return {"kind": kind, "editable": False, "html": html}
+        if kind == "zip":
+            return {"kind": kind, "editable": False, "entries": _zip_entries(p)}
+        # docx/xlsx/pptx：前端组件库渲染（docx-preview/SheetJS/pptx-preview），只回类型
         return {"kind": kind, "editable": False}
 
     try:
@@ -354,12 +354,106 @@ def _raw_url(source_id: int, path: str, ttl: int = 600) -> str:
 async def raw_url(
     source_id: int,
     path: str = Query(...),
+    entry: str = Query(""),
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """签发 raw 短期签名 URL（iframe/img/video 加载用，10 分钟有效）。"""
+    """签发 raw/zip-entry 短期签名 URL（iframe/img/video 加载用，10 分钟有效）。"""
     await _get_source(source_id, session)
+    if entry:
+        exp = int(time.time()) + 600
+        sig = _sign_entry(source_id, path, entry, exp)
+        url = (
+            f"/api/knowledge/{source_id}/zip-entry?path={quote(path)}"
+            f"&entry={quote(entry)}&exp={exp}&sig={sig}"
+        )
+        return ok({"url": url})
     return ok({"url": _raw_url(source_id, path)})
+
+
+def _zip_entries(p: Path) -> list[dict]:
+    import zipfile
+
+    out = []
+    with zipfile.ZipFile(p) as z:
+        for info in z.infolist():
+            if info.is_dir() or info.filename.startswith("__MACOSX"):
+                continue
+            out.append(
+                {
+                    "name": info.filename,
+                    "size": info.file_size,
+                    "compress_size": info.compress_size,
+                }
+            )
+    return out
+
+
+def _sign_entry(source_id: int, path: str, entry: str, exp: int) -> str:
+    import hashlib
+    import hmac
+
+    msg = f"{source_id}:{path}!{entry}:{exp}".encode()
+    return hmac.new(settings.secret_key.encode(), msg, hashlib.sha256).hexdigest()
+
+
+@router.get("/knowledge/{source_id}/zip-entry")
+async def zip_entry_file(
+    request: Request,
+    source_id: int,
+    path: str = Query(...),
+    entry: str = Query(...),
+    exp: int | None = Query(None),
+    sig: str | None = Query(None),
+    cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    session: AsyncSession = Depends(get_session),
+):
+    """zip 内单文件提取流（鉴权同 raw：头或签名）。"""
+    from app.core.deps import get_auth_context
+
+    signature_ok = False
+    if exp is not None and sig and exp >= int(time.time()):
+        signature_ok = hmac.compare_digest(
+            _sign_entry(source_id, path, entry, exp), sig
+        )
+    if not signature_ok:
+        try:
+            ctx = await get_auth_context(request, cred, session)
+        except Exception:
+            raise BizError(
+                CODE_TOKEN_INVALID, t("err.unauthenticated"), 401
+            ) from None
+        if ctx is None or ctx.user is None:
+            raise BizError(
+                CODE_TOKEN_INVALID, t("err.unauthenticated"), 401
+            )
+    src = await _get_source(source_id, session)
+    try:
+        p = knowledge_fs.safe_join(_root_of(src), path)
+    except PermissionError:
+        raise BizError(CODE_VALIDATION, t("err.knowledge_path_escape"), 422)
+
+    import mimetypes
+    import zipfile
+
+    if not p.is_file():
+        raise BizError(CODE_NOT_FOUND, t("err.knowledge_file_missing"), 404)
+    with zipfile.ZipFile(p) as z:
+        names = {i.filename: i for i in z.infolist()}
+        target = entry if entry in names else next(
+            (n for n in names if n.endswith("/" + entry)), None
+        )
+        if target is None:
+            raise BizError(CODE_NOT_FOUND, t("err.knowledge_file_missing"), 404)
+        data = z.read(names[target])
+    if len(data) > 200 * 1024 * 1024:
+        raise BizError(CODE_VALIDATION, t("err.knowledge_read_failed", msg="entry too large"), 422)
+    media = mimetypes.guess_type(entry)[0] or "application/octet-stream"
+    from fastapi.responses import Response
+
+    return Response(content=data, media_type=media, headers={
+        "Content-Disposition": 'inline; filename*=UTF-8''{quote(entry)}',
+    })
 
 
 @router.get("/knowledge/{source_id}/raw")

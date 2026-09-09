@@ -7,7 +7,7 @@
  *   仅 local 源）/html iframe/图片/视频/音频/pdf 原文件流（Range 拖动）/office 服务端转 HTML；
  * - git 源只读，改动应回仓库后「同步」；local 源管理员可在线保存。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -91,6 +91,9 @@ const editing = ref(false)
 const editContent = ref('')
 const saving = ref(false)
 const viewSrc = ref('')
+const officeRef = ref<HTMLDivElement>()
+const officeHtml = ref('')
+const officeError = ref('')
 
 const renderedMd = computed(() => {
   if (!readResult.value?.text) return ''
@@ -101,6 +104,88 @@ function resetViewer() {
   readResult.value = null
   editing.value = false
   viewSrc.value = ''
+  officeHtml.value = ''
+  officeError.value = ''
+}
+
+/** Office 组件库渲染（092）：docx-preview / pptx-preview / SheetJS，按需懒加载 */
+async function renderOffice(kind: 'docx' | 'pptx' | 'xlsx' | 'xls') {
+  officeError.value = ''
+  try {
+    const buf = await fetch(viewSrc.value).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      return r.arrayBuffer()
+    })
+    if (kind === 'docx') {
+      await nextTick()
+      const { renderAsync } = await import('docx-preview')
+      if (!officeRef.value) return
+      officeRef.value.innerHTML = ''
+      await renderAsync(buf, officeRef.value, undefined, {
+        inWrapper: true,
+        ignoreLastRenderedPageBreak: true,
+      })
+    } else if (kind === 'pptx') {
+      await nextTick()
+      const { init } = await import('pptx-preview')
+      if (!officeRef.value) return
+      officeRef.value.innerHTML = ''
+      const w = Math.max(720, officeRef.value.clientWidth || 900)
+      init(officeRef.value, { width: w }).preview(buf)
+    } else {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.read(buf, { type: 'array' })
+      const esc = (t: string) =>
+        t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      officeHtml.value = wb.SheetNames.map(
+        (n) => `<h3>${esc(n)}</h3>` + XLSX.utils.sheet_to_html(wb.Sheets[n]),
+      ).join('')
+    }
+  } catch (e) {
+    officeError.value = (e as Error).message
+  }
+}
+
+/** zip 条目：经签名 URL 取 blob（预览开新页 / 下载） */
+async function fetchEntryBlob(entry: { name: string }): Promise<Blob> {
+  if (!activeSource.value) throw new Error('no source')
+  const r = await knowledgeApi.rawSigned(activeSource.value.id, `${currentPath.value}!${entry.name}`)
+  return fetch(r.url).then((x) => {
+    if (!x.ok) throw new Error(`HTTP ${x.status}`)
+    return x.blob()
+  })
+}
+
+async function previewEntry(entry: { name: string }) {
+  try {
+    const blob = await fetchEntryBlob(entry)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+async function downloadEntry(entry: { name: string }) {
+  try {
+    const blob = await fetchEntryBlob(entry)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = entry.name.split('/').pop() || entry.name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+function fmtSize(n: number | null): string {
+  if (!n) return '-'
+  if (n < 1024) return `${n} B`
+  if (n < 1048576) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1048576).toFixed(1)} MB`
 }
 
 async function openFile(path: string) {
@@ -111,9 +196,14 @@ async function openFile(path: string) {
   try {
     readResult.value = await knowledgeApi.read(activeSource.value.id, path)
     // iframe/img/video 无法携带请求头：换短期签名 URL（092）
-    if (['html', 'image', 'video', 'audio', 'pdf', 'binary'].includes(readResult.value?.kind ?? '')) {
+    const kind = readResult.value?.kind ?? ''
+    if (['html', 'image', 'video', 'audio', 'pdf', 'binary', 'docx', 'pptx', 'xlsx', 'xls'].includes(kind)) {
       const r = await knowledgeApi.rawSigned(activeSource.value.id, path)
       viewSrc.value = r.url
+    }
+    // Office 组件库渲染：容器就绪后异步加载对应库
+    if (['docx', 'pptx', 'xlsx', 'xls'].includes(kind)) {
+      void nextTick().then(() => renderOffice(kind as 'docx' | 'pptx' | 'xlsx' | 'xls'))
     }
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -365,8 +455,40 @@ onMounted(() => loadSources())
             <audio v-else :src="viewSrc" controls />
           </div>
 
-          <!-- office：服务端转换 HTML -->
-          <div v-else-if="['docx', 'xlsx', 'pptx'].includes(readResult.kind)" class="kb-md" v-html="readResult.html" />
+          <!-- office：组件库渲染（docx-preview / pptx-preview / SheetJS） -->
+          <template v-else-if="['docx', 'pptx', 'xlsx', 'xls'].includes(readResult.kind)">
+            <el-alert
+              v-if="officeError"
+              :title="t('knowledge.officeFail', { msg: officeError })"
+              type="warning"
+              :closable="false"
+            />
+            <div v-show="readResult.kind === 'xlsx' || readResult.kind === 'xls'" class="kb-md" v-html="officeHtml" />
+            <div v-show="readResult.kind === 'docx' || readResult.kind === 'pptx'" ref="officeRef" class="kb-office" />
+          </template>
+
+          <!-- zip：条目清单 + 单文件提取 -->
+          <template v-else-if="readResult.kind === 'zip'">
+            <el-table :data="readResult.entries" size="small" max-height="520">
+              <el-table-column :label="t('knowledge.zipName')" min-width="260">
+                <template #default="{ row }">
+                  <span class="path-cell">{{ row.name }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('knowledge.zipSize')" width="110" align="right">
+                <template #default="{ row }">{{ fmtSize(row.size) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('knowledge.zipPacked')" width="110" align="right">
+                <template #default="{ row }">{{ fmtSize(row.compress_size) }}</template>
+              </el-table-column>
+              <el-table-column :label="t('ports.colOp')" width="140">
+                <template #default="{ row }">
+                  <el-button size="small" link type="primary" @click="previewEntry(row)">{{ t('knowledge.zipPreview') }}</el-button>
+                  <el-button size="small" link @click="downloadEntry(row)">{{ t('knowledge.download') }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
 
           <!-- 其它：下载 -->
           <div v-else class="kb-center kb-binary">
@@ -736,6 +858,16 @@ onMounted(() => loadSources())
 }
 .kb-editor:focus {
   outline: 2px solid color-mix(in srgb, var(--p-primary) 40%, transparent);
+}
+.kb-office {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+  border-radius: var(--p-radius-sm);
+}
+.kb-office :deep(table) {
+  max-width: 100%;
 }
 .kb-frame {
   flex: 1;

@@ -26,10 +26,13 @@ HTML_EXTS = {".html", ".htm", ".xhtml"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"}
 VIDEO_EXTS = {".mp4", ".webm", ".mkv", ".mov", ".avi", ".m4v", ".flv"}
 AUDIO_EXTS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
-OFFICE_EXTS = {".docx", ".xlsx", ".pptx"}
-OFFICE_LEGACY_EXTS = {".doc", ".xls", ".ppt"}  # 老格式只能下载
+OFFICE_LEGACY_EXTS = {".doc", ".ppt"}  # 老格式只能下载
+ARCHIVE_EXTS = {".zip"}
 
-HIDDEN_DIRS = {"node_modules", ".git", "__pycache__", ".venv", ".idea", ".vscode", ".DS_Store"}
+HIDDEN_DIRS = {
+    "node_modules", ".git", "__pycache__", ".venv", ".idea", ".vscode", ".DS_Store", "@eaDir",
+}
+JUNK_FILES = {"desktop.ini", "Thumbs.db"}
 
 
 def file_kind(path: Path) -> str:
@@ -48,10 +51,12 @@ def file_kind(path: Path) -> str:
         return "pdf"
     if ext == ".docx":
         return "docx"
-    if ext == ".xlsx":
+    if ext in (".xlsx", ".xls"):
         return "xlsx"
     if ext == ".pptx":
         return "pptx"
+    if ext in ARCHIVE_EXTS:
+        return "zip"
     if ext in OFFICE_LEGACY_EXTS:
         return "binary"
     if ext in CODE_EXTS:
@@ -82,7 +87,7 @@ def list_tree(root: Path, sub: str = "") -> list[dict[str, Any]]:
         raise NotADirectoryError(str(sub))
     out: list[dict[str, Any]] = []
     for p in sorted(base.iterdir(), key=lambda x: (x.is_file(), x.name.lower())):
-        if p.name.startswith(".") or p.name in HIDDEN_DIRS:
+        if p.name.startswith(".") or p.name in HIDDEN_DIRS or p.name in JUNK_FILES:
             continue
         st = p.stat()
         out.append(

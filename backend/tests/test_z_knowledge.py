@@ -154,11 +154,12 @@ def test_04_office_render(client, docs_dir):
 
     r = client.post("/api/knowledge/sources", json={"name": "office库", "kind": "local", "path": str(d)}, headers=_admin(client))
     sid = r.json()["data"]["id"]
-    for f, kw in (("a.docx", "标题"), ("b.xlsx", "单元格"), ("c.pptx", "页标题")):
+    # 092 起 office 由前端组件库渲染，服务端只返回类型
+    for f, kind in (("a.docx", "docx"), ("b.xlsx", "xlsx"), ("c.pptx", "pptx")):
         resp = client.get(f"/api/knowledge/{sid}/read", params={"path": f}, headers=_admin(client))
         data = resp.json()["data"]
         assert data, resp.text
-        assert data["kind"] in ("docx", "xlsx", "pptx") and kw in data["html"], f
+        assert data["kind"] == kind and "html" not in data, f
 
 
 def test_05_local_dirs_browser(client, docs_dir):

@@ -46,11 +46,15 @@ export interface KnowledgeReadResult {
     | 'pdf'
     | 'docx'
     | 'xlsx'
+    | 'xls'
     | 'pptx'
+    | 'zip'
     | 'binary'
   editable: boolean
   text?: string
   html?: string
+  /** zip 条目清单（kind=zip 时返回） */
+  entries?: Array<{ name: string; size: number; compress_size: number }>
 }
 
 export const knowledgeApi = {
