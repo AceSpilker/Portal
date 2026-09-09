@@ -11,6 +11,18 @@ export interface ListenRow {
   cmdline: string
 }
 
+/** 端口画像（089） */
+export interface PortInfo {
+  port: number
+  well_known: { name: string; desc: string } | null
+  listeners: ListenRow[]
+  connections: { total: number; by_status: Record<string, number> }
+  containers: Array<{ name: string; image: string; state: string; publish: string }>
+  docker_enabled: boolean
+  monitors: Array<{ id: number; name: string; host: string; state: string; enabled: boolean }>
+  apps: Array<{ id: number; name: string; url: string }>
+}
+
 export interface LookupRow {
   proto: string
   addr: string
@@ -58,6 +70,7 @@ export interface PortMonitorBody {
 
 export const portsApi = {
   listen: () => request.get<never, ListenRow[]>('/ports/listen'),
+  portInfo: (port: number) => request.get<never, PortInfo>(`/ports/${port}/info`),
   lookup: (port: number) => request.get<never, LookupRow[]>('/ports/lookup', { params: { port } }),
   monitors: () => request.get<never, PortMonitorItem[]>('/ports/monitors'),
   create: (body: PortMonitorBody) => request.post<never, PortMonitorItem>('/ports/monitors', body),

@@ -9,8 +9,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import {
   portsApi,
-  type LookupRow,
   type ListenRow,
+  type LookupRow,
+  type PortInfo,
   type PortEventItem,
   type PortMonitorBody,
   type PortMonitorItem,
@@ -112,6 +113,26 @@ function renderLatencyChart() {
     ],
   })
   latChart.resize()
+}
+
+// ---------- 端口画像（089） ----------
+const infoDialog = ref(false)
+const infoLoading = ref(false)
+const infoData = ref<PortInfo | null>(null)
+const infoPort = ref(0)
+
+async function openPortInfo(row: ListenRow) {
+  infoPort.value = row.port
+  infoDialog.value = true
+  infoLoading.value = true
+  try {
+    infoData.value = await portsApi.portInfo(row.port)
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+    infoDialog.value = false
+  } finally {
+    infoLoading.value = false
+  }
 }
 
 async function openListenHistory() {
@@ -373,8 +394,10 @@ function timeLabel(iso: string): string {
           <el-table-column prop="proc" :label="t('ports.colProc')" min-width="130" />
           <el-table-column prop="cmdline" :label="t('ports.colCmdline')" min-width="240" show-overflow-tooltip />
           <el-table-column prop="pid" label="PID" width="90" />
-        <el-table-column :label="t('ports.colOp')" width="110">
+        <el-table-column :label="t('ports.colOp')" width="160">
           <template #default="{ row }">
+            <el-button size="small" link type="primary" @click="openPortInfo(row)">{{ t('ports.infoBtn') }}</el-button>
+            <el-divider direction="vertical" />
             <el-tag v-if="monitoredKeys.has(`${row.addr}:${row.port}`)" size="small" type="success">
               {{ t('ports.inMonitor') }}
             </el-tag>
@@ -515,6 +538,81 @@ function timeLabel(iso: string): string {
     </el-dialog>
 
     <!-- 监听变更历史（M18-9） -->
+    <!-- 端口画像（089）：这个端口是干什么的 -->
+    <el-dialog append-to-body v-model="infoDialog" :title="t('ports.infoTitle', { port: infoPort })" width="640px">
+      <div v-loading="infoLoading" class="info-body">
+        <template v-if="infoData">
+          <!-- 常见用途 -->
+          <div class="info-sec">
+            <h4>{{ t('ports.infoWellKnown') }}</h4>
+            <div v-if="infoData.well_known" class="info-well">
+              <el-tag size="small" type="primary" effect="light">{{ infoData.well_known.name }}</el-tag>
+              <span>{{ infoData.well_known.desc }}</span>
+            </div>
+            <div v-else class="muted">{{ t('ports.infoNoWellKnown') }}</div>
+          </div>
+
+          <!-- 容器来源 -->
+          <div class="info-sec">
+            <h4>{{ t('ports.infoContainers') }}</h4>
+            <div v-if="infoData.containers.length">
+              <div v-for="c in infoData.containers" :key="c.name" class="info-row">
+                <span class="info-name">{{ c.name }}</span>
+                <el-tag size="small" :type="c.state === 'running' ? 'success' : 'info'" effect="plain">{{ c.state }}</el-tag>
+                <span class="info-mono">{{ c.publish }}</span>
+                <span class="muted">{{ c.image }}</span>
+              </div>
+            </div>
+            <div v-else class="muted">
+              {{ infoData.docker_enabled ? t('ports.infoNoContainer') : t('ports.infoDockerOff') }}
+            </div>
+          </div>
+
+          <!-- 本机进程 -->
+          <div class="info-sec">
+            <h4>{{ t('ports.infoListeners') }}</h4>
+            <div v-if="infoData.listeners.length">
+              <div v-for="(l, i) in infoData.listeners" :key="i" class="info-row">
+                <span class="info-mono">{{ l.proto.toUpperCase() }} {{ l.addr }}:{{ l.port }}</span>
+                <span class="info-name">{{ l.proc }}</span>
+                <span class="muted">{{ l.cmdline || `PID ${l.pid ?? '-'}` }}</span>
+              </div>
+            </div>
+            <div v-else class="muted">{{ t('ports.infoNoListener') }}</div>
+          </div>
+
+          <!-- 关联应用/监控项 -->
+          <div class="info-sec">
+            <h4>{{ t('ports.infoLinks') }}</h4>
+            <div v-if="infoData.apps.length || infoData.monitors.length">
+              <div v-for="a in infoData.apps" :key="'a' + a.id" class="info-row">
+                <el-tag size="small" effect="plain">{{ t('ports.infoApp') }}</el-tag>
+                <span class="info-name">{{ a.name }}</span>
+                <span class="info-mono">{{ a.url }}</span>
+              </div>
+              <div v-for="m in infoData.monitors" :key="'m' + m.id" class="info-row">
+                <el-tag size="small" type="success" effect="plain">{{ t('ports.infoMonitor') }}</el-tag>
+                <span class="info-name">{{ m.name || `${m.host}:${infoData.port}` }}</span>
+                <el-tag size="small" :type="m.state === 'up' ? 'success' : m.state === 'down' ? 'danger' : 'info'" effect="plain">{{ m.state }}</el-tag>
+              </div>
+            </div>
+            <div v-else class="muted">{{ t('ports.infoNoLinks') }}</div>
+          </div>
+
+          <!-- 连接统计 -->
+          <div class="info-sec">
+            <h4>{{ t('ports.infoConns') }}</h4>
+            <div class="info-well">
+              <span>{{ t('ports.infoConnTotal') }} <b>{{ infoData.connections.total }}</b></span>
+              <span v-for="(n, st) in infoData.connections.by_status" :key="st" class="info-mono">
+                {{ st }} {{ n }}
+              </span>
+            </div>
+          </div>
+        </template>
+      </div>
+    </el-dialog>
+
     <el-dialog append-to-body v-model="histDialog" :title="t('ports.listenHistoryTitle')" width="720px">
       <div v-if="!listenChanges.length" class="muted">{{ t('common.noData') }}</div>
       <div v-for="h in listenChanges" :key="h.id" class="hist-entry">
@@ -588,6 +686,40 @@ function timeLabel(iso: string): string {
 </template>
 
 <style scoped>
+.info-body {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.info-sec h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--p-text);
+}
+.info-well {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.info-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12.5px;
+}
+.info-name {
+  font-weight: 600;
+}
+.info-mono {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
 .ports-page {
   display: flex;
   flex-direction: column;

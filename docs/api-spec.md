@@ -276,6 +276,7 @@
 | POST | /api/ports/monitors/import | 批量导入：每行 host:port 或 名称\|host:port，同 host+port 去重，返回 {created, skipped} | M | P11 |
 | GET | /api/ports/monitors/{id}/history?range= | 通断/延迟历史 | A | M3 |
 | GET | /api/ports/lookup?port=8080 | 端口占用检索（进程/命令行/用户） | A | P11 |
+| GET | /api/ports/{port}/info | 端口画像（089）：常见用途词典 + 容器来源（docker.sock）+ 本机进程 + 应用/监控项关联 + 连接统计 | A | — |
 | GET | /api/ports/events?limit= · /monitors/{id}/events | 通断事件流水（附监控项名与应用名） | A | P11 |
 | WS | /ws/notify（既有） | 新增 `{"type":"port_status","data":{monitor_id,name,state,latency}}` | — | P11 |
 | GET | /api/ports/exposed | 裸露端口提示（M18-10：通配监听且无监控覆盖） | A | P20 |
