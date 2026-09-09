@@ -26,7 +26,7 @@ HTML_EXTS = {".html", ".htm", ".xhtml"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"}
 VIDEO_EXTS = {".mp4", ".webm", ".mkv", ".mov", ".avi", ".m4v", ".flv"}
 AUDIO_EXTS = {".mp3", ".wav", ".flac", ".ogg", ".m4a", ".aac"}
-OFFICE_LEGACY_EXTS = {".doc", ".ppt"}  # 老格式只能下载
+OFFICE_LEGACY_EXTS = {".doc", ".ppt"}  # 老格式：经 LibreOffice 转 PDF 预览（097）
 ARCHIVE_EXTS = {".zip"}
 
 HIDDEN_DIRS = {
@@ -55,6 +55,8 @@ def file_kind(path: Path) -> str:
         return "xlsx"
     if ext == ".pptx":
         return "pptx"
+    if ext in OFFICE_LEGACY_EXTS:
+        return "legacy"
     if ext in ARCHIVE_EXTS:
         return "zip"
     if ext in OFFICE_LEGACY_EXTS:

@@ -839,6 +839,7 @@ export default {
     zipSize: '原始大小',
     zipPacked: '压缩后',
     zipPreview: '预览',
+    legacyNoConverter: '老版 .doc/.ppt 格式需要转换服务（未启用），可下载后用 Office/WPS 打开',
     pickTitle: '选择映射目录',
     pickCurrent: '当前',
     pickStart: '未选择',

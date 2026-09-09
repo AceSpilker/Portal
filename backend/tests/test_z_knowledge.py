@@ -192,3 +192,18 @@ def test_05_disable_then_reenable(client, docs_dir):
     assert off2.status_code == 200
     dele = client.delete(f"/api/knowledge/sources/{sid}", headers=_admin(client))
     assert dele.status_code == 200
+
+
+def test_06_legacy_doc_kind_and_converter_gate(client, docs_dir):
+    """.doc 判为 legacy；转换服务未配置时 office-pdf 返回明确错误。"""
+    d = docs_dir
+    # 最小 .doc 探针(内容不重要,类型按扩展名判定)
+    (d / "legacy.doc").write_bytes(b"\xd0\xcf\x11\xe0placeholder")
+    r = client.post("/api/knowledge/sources", json={"name": "legacy库", "kind": "local", "path": str(d)}, headers=_admin(client))
+    sid = r.json()["data"]["id"]
+    data = client.get(f"/api/knowledge/{sid}/read", params={"path": "legacy.doc"}, headers=_admin(client)).json()["data"]
+    assert data["kind"] == "legacy" and data["converter"] is False
+    err = client.get(f"/api/knowledge/{sid}/office-pdf", params={"path": "legacy.doc"}, headers=_admin(client))
+    assert err.status_code == 422
+    assert "OFFICE_CONVERT_URL" in err.json()["message"]
+    client.delete(f"/api/knowledge/sources/{sid}", headers=_admin(client))

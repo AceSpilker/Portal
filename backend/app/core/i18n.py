@@ -177,6 +177,14 @@ MESSAGES: dict[str, dict[str, str]] = {
     "err.knowledge_file_missing": {"zh-CN": "文件不存在", "en": "File not found"},
     "err.knowledge_path_escape": {"zh-CN": "路径越界，已拒绝", "en": "Path escapes source root"},
     "err.knowledge_read_failed": {"zh-CN": "读取失败：{msg}", "en": "Read failed: {msg}"},
+    "err.office_convert_unavailable": {
+        "zh-CN": "老格式转换服务未启用（.doc/.ppt/.xls 需要配置 OFFICE_CONVERT_URL）",
+        "en": "Legacy office converter not configured (set OFFICE_CONVERT_URL)",
+    },
+    "err.office_convert_failed": {
+        "zh-CN": "老格式转换失败：{msg}",
+        "en": "Legacy conversion failed: {msg}",
+    },
     "err.knowledge_readonly": {
         "zh-CN": "git 数据源只读，改动请提交回仓库后同步",
         "en": "git sources are read-only; commit upstream and sync",

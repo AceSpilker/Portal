@@ -841,6 +841,7 @@ export default {
     zipSize: 'Size',
     zipPacked: 'Packed',
     zipPreview: 'Preview',
+    legacyNoConverter: 'Legacy .doc/.ppt needs the converter service (not enabled); download to open with Office/WPS',
     pickTitle: 'Choose mapped directory',
     pickCurrent: 'Current',
     pickStart: 'Not selected',

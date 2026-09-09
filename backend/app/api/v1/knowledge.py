@@ -320,7 +320,12 @@ async def read_file(
         if kind == "zip":
             return {"kind": kind, "editable": False, "entries": _zip_entries(p)}
         # docx/xlsx/pptx：前端组件库渲染（docx-preview/SheetJS/pptx-preview），只回类型
-        return {"kind": kind, "editable": False}
+        # doc/ppt 老格式：前端走 office-pdf 转换预览（converter 不可用时提示下载）
+        return {
+            "kind": kind,
+            "editable": False,
+            "converter": bool(settings.office_convert_url) if kind == "legacy" else None,
+        }
 
     try:
         payload = await asyncio.to_thread(_read)
@@ -355,6 +360,7 @@ async def raw_url(
     source_id: int,
     path: str = Query(...),
     entry: str = Query(""),
+    convert: str = Query(""),
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -366,6 +372,21 @@ async def raw_url(
         url = (
             f"/api/knowledge/{source_id}/zip-entry?path={quote(path)}"
             f"&entry={quote(entry)}&exp={exp}&sig={sig}"
+        )
+        return ok({"url": url})
+    if convert == "1":
+        import hashlib
+        import hmac as _hmac
+
+        exp = int(time.time()) + 600
+        sig = _hmac.new(
+            settings.secret_key.encode(),
+            f"{source_id}:office:{path}:{exp}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        url = (
+            f"/api/knowledge/{source_id}/office-pdf?path={quote(path)}"
+            f"&exp={exp}&sig={sig}"
         )
         return ok({"url": url})
     return ok({"url": _raw_url(source_id, path)})
@@ -454,6 +475,81 @@ async def zip_entry_file(
     return Response(content=data, media_type=media, headers={
         "Content-Disposition": 'inline; filename*=UTF-8''{quote(entry)}',
     })
+
+
+def _office_cache_path(p: Path) -> Path:
+    import hashlib
+
+    st = p.stat()
+    digest = hashlib.sha1(f"{p}|{st.st_mtime_ns}|{st.st_size}".encode()).hexdigest()
+    return Path(settings.data_dir) / "knowledge" / ".office-cache" / f"{digest}.pdf"
+
+
+async def _convert_office_to_pdf(p: Path) -> Path:
+    """gotenberg(LibreOffice) 把 .doc/.ppt 转 PDF；结果按内容指纹缓存。"""
+    import httpx
+
+    cache = _office_cache_path(p)
+    if cache.is_file():
+        return cache
+    if not settings.office_convert_url:
+        raise BizError(CODE_VALIDATION, t("err.office_convert_unavailable"), 422)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        with p.open("rb") as f:
+            resp = await client.post(
+                f"{settings.office_convert_url.rstrip('/')}/forms/libreoffice/convert",
+                files={"files": (p.name, f)},
+            )
+    resp.raise_for_status()
+    tmp = cache.with_suffix(".tmp")
+    tmp.write_bytes(resp.content)
+    tmp.replace(cache)
+    return cache
+
+
+@router.get("/knowledge/{source_id}/office-pdf")
+async def office_pdf(
+    request: Request,
+    source_id: int,
+    path: str = Query(...),
+    exp: int | None = Query(None),
+    sig: str | None = Query(None),
+    cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    session: AsyncSession = Depends(get_session),
+):
+    """.doc/.ppt → PDF 流（097：gotenberg 转换 + 缓存；鉴权同 raw）。"""
+    import hashlib
+    import hmac as _hmac
+
+    signature_ok = False
+    if exp is not None and sig and exp >= int(time.time()):
+        expect = _hmac.new(
+            settings.secret_key.encode(),
+            f"{source_id}:office:{path}:{exp}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        signature_ok = _hmac.compare_digest(expect, sig)
+    if not signature_ok:
+        try:
+            ctx = await get_auth_context(request, cred, session)
+        except Exception:
+            raise BizError(
+                CODE_TOKEN_INVALID, t("err.unauthenticated"), 401
+            ) from None
+        if ctx is None or ctx.user is None:
+            raise BizError(
+                CODE_TOKEN_INVALID, t("err.unauthenticated"), 401
+            )
+    src = await _get_source(source_id, session)
+    try:
+        p = knowledge_fs.safe_join(_root_of(src), path)
+    except PermissionError:
+        raise BizError(CODE_VALIDATION, t("err.knowledge_path_escape"), 422)
+    if not p.is_file():
+        raise BizError(CODE_NOT_FOUND, t("err.knowledge_file_missing"), 404)
+    pdf = await _convert_office_to_pdf(p)
+    return FileResponse(pdf, media_type="application/pdf", filename=p.stem + ".pdf")
 
 
 @router.get("/knowledge/{source_id}/raw")

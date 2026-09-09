@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     docker_sock_enabled: bool = False
     frontend_dist: str = ""  # 前端构建产物目录；为空则尝试相邻 frontend/dist
 
+    # ---- 知识库（097）：.doc/.ppt/.xls 老格式经 gotenberg(LibreOffice) 转 PDF 预览 ----
+    office_convert_url: str = ""  # 如 http://gotenberg:3000；空=不启用（此类文件仅下载）
+
     # ---- 传输加密（dev-plan P24；api-spec §7）：/api 全部密文传输 ----
     encrypt_enabled: bool = Field(
         default=True,

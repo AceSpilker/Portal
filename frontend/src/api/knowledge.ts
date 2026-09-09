@@ -49,12 +49,15 @@ export interface KnowledgeReadResult {
     | 'xls'
     | 'pptx'
     | 'zip'
+    | 'legacy'
     | 'binary'
   editable: boolean
   text?: string
   html?: string
   /** zip 条目清单（kind=zip 时返回） */
   entries?: Array<{ name: string; size: number; compress_size: number }>
+  /** 老格式转换服务是否可用（kind=legacy 时返回） */
+  converter?: boolean | null
 }
 
 export const knowledgeApi = {
@@ -78,6 +81,11 @@ export const knowledgeApi = {
   /** 签名 raw URL（092）：iframe/img/video 无法携带 Authorization 头 */
   rawSigned: (id: number, path: string) =>
     request.get<never, { url: string }>(`/knowledge/${id}/raw-url`, { params: { path } }),
+  /** 签名 office-pdf URL（097）：doc/ppt 老格式经 LibreOffice 转 PDF 预览 */
+  officePdfSigned: (id: number, path: string) =>
+    request.get<never, { url: string }>(`/knowledge/${id}/raw-url`, {
+      params: { path, convert: '1' },
+    }),
   /** 映射目录浏览（091 增补）：path 空=探测浏览根（服务器透传/挂载点）；否则逐级下钻 */
   localDirs: (path = '') =>
     request.get<

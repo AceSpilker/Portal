@@ -201,6 +201,15 @@ async function openFile(path: string) {
       const r = await knowledgeApi.rawSigned(activeSource.value.id, path)
       viewSrc.value = r.url
     }
+    // doc/ppt 老格式：经 LibreOffice 转 PDF 预览（签名 URL）
+    if (kind === 'legacy') {
+      if (readResult.value?.converter === false) {
+        viewSrc.value = ''
+      } else {
+        const r = await knowledgeApi.officePdfSigned(activeSource.value.id, path)
+        viewSrc.value = r.url
+      }
+    }
     // Office 组件库渲染：容器就绪后异步加载对应库
     if (['docx', 'pptx', 'xlsx', 'xls'].includes(kind)) {
       void nextTick().then(() => renderOffice(kind as 'docx' | 'pptx' | 'xlsx' | 'xls'))
@@ -465,6 +474,15 @@ onMounted(() => loadSources())
             />
             <div v-show="readResult.kind === 'xlsx' || readResult.kind === 'xls'" class="kb-md" v-html="officeHtml" />
             <div v-show="readResult.kind === 'docx' || readResult.kind === 'pptx'" ref="officeRef" class="kb-office" />
+          </template>
+
+          <!-- doc/ppt 老格式：LibreOffice 转 PDF 预览（097） -->
+          <template v-else-if="readResult.kind === 'legacy'">
+            <div v-if="readResult.converter === false" class="kb-center kb-binary">
+              <p>{{ t('knowledge.legacyNoConverter') }}</p>
+              <a :href="viewSrc" target="_blank"><el-button size="small" type="primary">{{ t('knowledge.download') }}</el-button></a>
+            </div>
+            <iframe v-else :src="viewSrc" class="kb-frame" />
           </template>
 
           <!-- zip：条目清单 + 单文件提取 -->
