@@ -229,7 +229,7 @@
 | POST | /api/apps/batch | 批量操作 {ids, op: enable/disable/recycle/move, category_id?}，≤100 条，写审计 | M | M2 |
 | POST | /api/apps/{id}/precheck | 点击前预检（1s 快速探测，不通回退备选）；响应含 urls[]（逐入口探测结果，写入延迟历史） | A | M2 |
 | GET | /api/apps/urls/{url_id}/latency?range=6h\|24h\|7d | 入口延迟历史（M04-14）：{points[], avg_ms, max_ms, up_pct} | A | M2 |
-| GET | /api/widgets/weather | 天气小组件（wttr.in 代理，home.weather_city；085 起支持 ?city= 查询参数预览任意城市，优先于设置值） | A | M2 |
+| GET | /api/widgets/weather | 天气小组件（wttr.in 代理，home.weather_city；085 起支持 ?city= 查询参数预览任意城市，优先于设置值；090 起描述/城市随系统语言本地化，城市名优先显示用户配置值） | A | M2 |
 | GET | /api/widgets/summary | 首页小组件聚合（最近通知/Flow 执行/容器计数） | A | M2 |
 | POST | /api/apps/{id}/check | 立即探活一次 | A | P6 |
 | GET | /api/probe/status | 全部应用当前状态（state/latency/message，首页磁贴首屏） | A | P6 |

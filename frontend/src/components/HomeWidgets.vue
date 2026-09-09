@@ -12,12 +12,13 @@ const weather = ref<WeatherInfo | null>(null)
 const summary = ref<WidgetsSummary | null>(null)
 
 function weatherIcon(desc: string): string {
+  // 090 起后端描述已中文化（wttr.in lang=zh-cn），中英文关键词都匹配
   const d = desc.toLowerCase()
-  if (d.includes('rain') || d.includes('drizzle')) return '🌧️'
-  if (d.includes('snow')) return '🌨️'
-  if (d.includes('cloud') || d.includes('overcast')) return '☁️'
-  if (d.includes('thunder')) return '⛈️'
-  if (d.includes('fog') || d.includes('mist')) return '🌫️'
+  if (/雷/.test(desc) || d.includes('thunder')) return '⛈️'
+  if (/雪/.test(desc) || d.includes('snow') || d.includes('sleet') || d.includes('ice')) return '🌨️'
+  if (/雨|阵雨/.test(desc) || d.includes('rain') || d.includes('drizzle') || d.includes('shower')) return '🌧️'
+  if (/雾|霾/.test(desc) || d.includes('fog') || d.includes('mist') || d.includes('haze')) return '🌫️'
+  if (/阴|云/.test(desc) || d.includes('overcast') || d.includes('cloud')) return '☁️'
   return '☀️'
 }
 

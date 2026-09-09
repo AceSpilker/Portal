@@ -95,7 +95,8 @@ def test_01_city_setting_and_query_param(client, monkeypatch):
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert data, f"resp={resp.text} seen={seen}"
-    assert data["city"] == "Beijing" and data["temp_c"] == 31 and len(data["days"]) == 1
+    # 090 起城市显示优先用户配置名（填中文显示中文），描述回退英文
+    assert data["city"] == "北京" and data["temp_c"] == 31 and len(data["days"]) == 1
     assert "%E5%8C%97%E4%BA%AC" in seen[-1]
 
     # query 参数优先于设置

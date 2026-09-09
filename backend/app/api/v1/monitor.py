@@ -440,8 +440,13 @@ async def widget_weather(
         # 必须走 get_value() 解析 JSON——value 是原始 JSON 串，字符串值会带引号
         # （085 实测：city 变成 "北京" 带双引号，wttr.in 404）
         city = str(row.get_value()) if row else ""
+    # 显示语言跟随系统语言设置（090：描述中文化）——wttr.in lang=zh-cn 时本地化文本在 lang_xx 字段
+    lang_row = await session.get(Setting, "general.language")
+    sys_lang = str(lang_row.get_value() if lang_row else "zh-CN")
+    lang = "zh-cn" if sys_lang.lower().startswith("zh") else "en"
+
     # 中文/带空格城市名必须显式百分号编码（httpx 对路径中文不做自动转义）
-    url = f"https://wttr.in/{quote(city)}?format=j1" if city else "https://wttr.in?format=j1"
+    url = f"https://wttr.in/{quote(city)}?format=j1&lang={lang}" if city else f"https://wttr.in?format=j1&lang={lang}"
     try:
         async with httpx.AsyncClient(timeout=4.0) as c:
             resp = await c.get(url, headers={"User-Agent": "curl/8.0"})
@@ -449,23 +454,30 @@ async def widget_weather(
         data = resp.json()
         cur = data["current_condition"][0]
         area = data.get("nearest_area", [{}])[0]
+
+        def _desc(obj: dict) -> str:
+            """优先本地化描述（lang_xx），回退英文 weatherDesc。"""
+            localized = obj.get("lang_xx") or obj.get("lang_zh")
+            if localized and localized[0].get("value", "").strip():
+                return localized[0]["value"].strip()
+            return (obj.get("weatherDesc") or [{}])[0].get("value", "").strip()
+
+        # 城市显示：优先用户配置/预览传入的名字（用户填中文即显示中文）；
+        # 自动定位时 wttr.in 不本地化地名，回退 areaName
+        display_city = city or (area.get("areaName") or [{"value": ""}])[0].get("value", "")
         return ok(
             {
-                "city": (area.get("areaName") or [{"value": city or ""}])[0].get("value", ""),
+                "city": display_city,
                 "temp_c": int(cur["temp_C"]),
                 "feels_c": int(cur["FeelsLikeC"]),
-                "desc": cur.get("weatherDesc", [{}])[0].get("value", ""),
+                "desc": _desc(cur),
                 "humidity": int(cur["humidity"]),
                 "days": [
                     {
                         "date": d["date"],
                         "max": int(d["maxtempC"]),
                         "min": int(d["mintempC"]),
-                        "desc": (
-                            d.get("hourly", [{}])[4]
-                            .get("weatherDesc", [{}])[0]
-                            .get("value", "")
-                        ),
+                        "desc": _desc(d.get("hourly", [{}])[4]),
                     }
                     for d in data.get("weather", [])[:3]
                 ],
