@@ -35,6 +35,7 @@ import NotifyPanel from '../components/NotifyPanel.vue'
 import AppearancePanel from '../components/AppearancePanel.vue'
 import type { IconItem } from '../api/icons'
 import { getHealth } from '../api/health'
+import { appsEnhApi, type WeatherInfo } from '../api/appsEnh'
 import { setLocale, getLocale } from '../locales'
 import type { AppLocale } from '../locales'
 
@@ -65,6 +66,23 @@ const TIMEZONES = [
 ]
 const langDraft = ref<AppLocale>(getLocale())
 const aboutVersion = ref('')
+
+// ---- 天气城市（085）：留空 = 按服务器出口 IP 自动定位；预览走 query 参数不打扰已保存值 ----
+const weatherCity = ref('')
+const weatherPreview = ref<WeatherInfo | null>(null)
+const weatherPreviewing = ref(false)
+
+async function previewWeather() {
+  weatherPreviewing.value = true
+  try {
+    weatherPreview.value = await appsEnhApi.weather(weatherCity.value.trim())
+    if (!weatherPreview.value) ElMessage.warning(t('settings.weatherPreviewFail'))
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    weatherPreviewing.value = false
+  }
+}
 
 // ---- 应用配置 ----
 const tagOptions = ref<string[]>([])
@@ -207,6 +225,7 @@ onMounted(async () => {
   logoUrl.value = (settingsStore.map['general.logo'] as string) || ''
   timezone.value = (settingsStore.map['general.timezone'] as string) || 'system'
   guestMode.value = settingsStore.map['guest.enabled'] === true
+  weatherCity.value = (settingsStore.map['home.weather_city'] as string) || ''
   const savedLang = settingsStore.map['general.language'] as AppLocale | undefined
   if (savedLang) langDraft.value = savedLang
   tagOptions.value = [...settingsStore.tagOptions]
@@ -370,6 +389,7 @@ async function saveGeneral() {
       'general.timezone': timezone.value,
       'guest.enabled': guestMode.value,
       'general.language': langDraft.value,
+      'home.weather_city': weatherCity.value.trim(),
     },
     t('settings.generalSaved'),
   )
@@ -494,6 +514,28 @@ function saveMonitor() {
               <el-option label="简体中文" value="zh-CN" />
               <el-option label="English" value="en" />
             </el-select>
+          </el-form-item>
+          <el-form-item :label="t('settings.weatherCity')" style="max-width: 420px">
+            <div class="weather-city-row">
+              <el-input
+                v-model="weatherCity"
+                maxlength="60"
+                :placeholder="t('settings.weatherCityPh')"
+                clearable
+                @keyup.enter="previewWeather"
+              />
+              <el-button :loading="weatherPreviewing" @click="previewWeather">
+                {{ t('settings.weatherPreview') }}
+              </el-button>
+            </div>
+            <div class="weather-hint">{{ t('settings.weatherCityHint') }}</div>
+            <div v-if="weatherPreview" class="weather-preview">
+              <span class="wp-city">{{ weatherPreview.city }}</span>
+              <span class="wp-now">{{ weatherPreview.temp_c }}°C · {{ weatherPreview.desc }}</span>
+              <span class="wp-days">
+                {{ weatherPreview.days.map((d) => `${d.date.slice(5)} ${d.max}°/${d.min}°`).join(' · ') }}
+              </span>
+            </div>
           </el-form-item>
           <el-button type="primary" class="btn-gradient" :loading="saving" @click="saveGeneral">
             {{ t('common.save') }}
@@ -1150,6 +1192,36 @@ function saveMonitor() {
 .panel-hint {
   margin: 0 0 14px;
   font-size: 12.5px;
+  color: var(--p-muted);
+}
+/* 天气城市（085）：输入+预览按钮一行，说明与预览结果 muted 弱化 */
+.weather-city-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.weather-hint {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--p-muted);
+  line-height: 1.5;
+}
+.weather-preview {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--p-radius-sm);
+  background: var(--p-soft);
+  font-size: 12.5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.weather-preview .wp-city {
+  font-weight: 700;
+}
+.weather-preview .wp-days {
   color: var(--p-muted);
 }
 .monitor-form .form-tip {

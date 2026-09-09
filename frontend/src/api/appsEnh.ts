@@ -80,6 +80,11 @@ export const appsEnhApi = {
   // 入口延迟历史（P15.4/M04-14）
   urlLatency: (urlId: number, range = '24h') =>
     request.get<never, UrlLatencyHistory>(`/apps/urls/${urlId}/latency`, { params: { range } }),
-  weather: () => request.get<never, WeatherInfo | null>('/widgets/weather'),
+  /** 天气（085）：city 可选——设置页预览草稿城市用，缺省读已保存设置 */
+  weather: (city = '') =>
+    request.get<never, WeatherInfo | null>(
+      '/widgets/weather',
+      city ? { params: { city } } : undefined,
+    ),
   summary: () => request.get<never, WidgetsSummary>('/widgets/summary'),
 }
