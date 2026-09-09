@@ -421,16 +421,27 @@ async def alert_events(
 
 @router.get("/widgets/weather")
 async def widget_weather(
+    city: str = "",
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """天气小组件（M02-11）：wttr.in 免费源代理（无 key；失败返回 null 前端隐藏）。"""
+    """天气小组件（M02-11）：wttr.in 免费源代理（无 key；失败返回 null 前端隐藏）。
+
+    city 可选查询参数（085）：设置页预览用，优先于 home.weather_city 设置值；
+    两者皆空 = 不带城市请求，wttr.in 按服务器出口 IP 自动定位。
+    """
+    from urllib.parse import quote
 
     from app.models.setting import Setting
 
-    row = await session.get(Setting, "home.weather_city")
-    city = (row.value if row else "") or ""
-    url = f"https://wttr.in/{city}?format=j1" if city else "https://wttr.in?format=j1"
+    city = city.strip()[:60]
+    if not city:
+        row = await session.get(Setting, "home.weather_city")
+        # 必须走 get_value() 解析 JSON——value 是原始 JSON 串，字符串值会带引号
+        # （085 实测：city 变成 "北京" 带双引号，wttr.in 404）
+        city = str(row.get_value()) if row else ""
+    # 中文/带空格城市名必须显式百分号编码（httpx 对路径中文不做自动转义）
+    url = f"https://wttr.in/{quote(city)}?format=j1" if city else "https://wttr.in?format=j1"
     try:
         async with httpx.AsyncClient(timeout=4.0) as c:
             resp = await c.get(url, headers={"User-Agent": "curl/8.0"})
