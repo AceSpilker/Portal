@@ -5,6 +5,7 @@ from app.models.ai import AiConversation, AiMessage
 from app.models.api_token import ApiToken, UserSession
 from app.models.base import Base
 from app.models.flow import Flow, FlowRun
+from app.models.knowledge import KnowledgeSource
 from app.models.layout import DashboardLayout
 from app.models.monitor import AlertRule, MonitorSample
 from app.models.network import NetworkProfile

@@ -154,6 +154,33 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "导入的 Flow 数据不合法", "en": "Invalid flow import payload"
     },
     "err.redis_not_configured": {"zh-CN": "Redis 未配置", "en": "Redis not configured"},
+    "err.knowledge_source_missing": {
+        "zh-CN": "知识源不存在或未启用",
+        "en": "Knowledge source missing or disabled",
+    },
+    "err.knowledge_kind": {"zh-CN": "kind 必须是 local 或 git", "en": "kind must be local/git"},
+    "err.knowledge_name_required": {
+        "zh-CN": "知识源名称必填",
+        "en": "Knowledge source name required",
+    },
+    "err.knowledge_name_taken": {
+        "zh-CN": "知识源名称已存在",
+        "en": "Knowledge source name already taken",
+    },
+    "err.knowledge_path_missing": {
+        "zh-CN": "映射目录不存在（检查容器内挂载路径）",
+        "en": "Mapped directory not found (check container mount path)",
+    },
+    "err.knowledge_url": {"zh-CN": "git 地址必须是 http(s) URL", "en": "git URL must be http(s)"},
+    "err.knowledge_not_git": {"zh-CN": "该数据源不是 git 类型", "en": "Source is not a git source"},
+    "err.knowledge_sync_failed": {"zh-CN": "git 同步失败：{msg}", "en": "git sync failed: {msg}"},
+    "err.knowledge_file_missing": {"zh-CN": "文件不存在", "en": "File not found"},
+    "err.knowledge_path_escape": {"zh-CN": "路径越界，已拒绝", "en": "Path escapes source root"},
+    "err.knowledge_read_failed": {"zh-CN": "读取失败：{msg}", "en": "Read failed: {msg}"},
+    "err.knowledge_readonly": {
+        "zh-CN": "git 数据源只读，改动请提交回仓库后同步",
+        "en": "git sources are read-only; commit upstream and sync",
+    },
     "err.redis_unreachable": {
         "zh-CN": "Redis 连接失败，已保持内存模式", "en": "Redis unreachable, kept memory mode"
     },

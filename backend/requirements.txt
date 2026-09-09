@@ -19,3 +19,8 @@ aiomysql>=0.2
 redis>=5.0
 asyncssh>=2.14
 ldap3>=2.9
+# 知识库（091）：git 同步（纯 Python 实现，容器内免装 git）+ Office 在线预览转换
+dulwich>=0.21
+mammoth>=1.6
+openpyxl>=3.1
+python-pptx>=0.6

@@ -15,6 +15,7 @@ from app.api.v1 import (
     flows,
     health,
     icons,
+    knowledge,
     layouts,
     logs,
     me,
@@ -46,6 +47,7 @@ api_router.include_router(schedule.router, tags=["schedule"])
 api_router.include_router(files.router, tags=["files"])
 api_router.include_router(downloads.router, tags=["downloads"])
 api_router.include_router(icons.router, tags=["portal"])
+api_router.include_router(knowledge.router, tags=["knowledge"])
 api_router.include_router(categories.router, tags=["portal"])
 api_router.include_router(apps.router, tags=["portal"])
 api_router.include_router(network_profiles.router, tags=["network"])
