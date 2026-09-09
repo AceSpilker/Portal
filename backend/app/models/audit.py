@@ -19,3 +19,11 @@ class AuditLog(Base):
     detail: Mapped[str] = mapped_column(Text, default="")
     ip: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # ---- 087 请求执行详情（中间件自动审计写入；手动业务审计为空串/0）----
+    method: Mapped[str] = mapped_column(Text, default="")  # POST/PUT/PATCH/DELETE
+    path: Mapped[str] = mapped_column(Text, default="")  # /api/xxx 接口路径
+    query: Mapped[str] = mapped_column(Text, default="")  # 查询串（不含 ?）
+    status: Mapped[int] = mapped_column(Integer, default=0)  # HTTP 状态码
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)  # 执行耗时
+    user_agent: Mapped[str] = mapped_column(Text, default="")
+    error_msg: Mapped[str] = mapped_column(Text, default="")  # >=400 时统一响应的 message

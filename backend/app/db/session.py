@@ -56,6 +56,14 @@ async def init_db() -> None:
             "ALTER TABLE monitor_samples ADD COLUMN node TEXT DEFAULT ''",
             # P22.2：应用最近使用时间
             "ALTER TABLE apps ADD COLUMN last_opened_at DATETIME",
+            # P17.1 审计详情（087）：请求执行字段拆列（老库补列，新列见 models/audit.py）
+            "ALTER TABLE audit_logs ADD COLUMN method TEXT DEFAULT ''",
+            "ALTER TABLE audit_logs ADD COLUMN path TEXT DEFAULT ''",
+            "ALTER TABLE audit_logs ADD COLUMN query TEXT DEFAULT ''",
+            "ALTER TABLE audit_logs ADD COLUMN status INTEGER DEFAULT 0",
+            "ALTER TABLE audit_logs ADD COLUMN duration_ms INTEGER DEFAULT 0",
+            "ALTER TABLE audit_logs ADD COLUMN user_agent TEXT DEFAULT ''",
+            "ALTER TABLE audit_logs ADD COLUMN error_msg TEXT DEFAULT ''",
         ):
             try:
                 await conn.exec_driver_sql(stmt)
