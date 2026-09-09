@@ -303,10 +303,17 @@ async def tree(
 async def read_file(
     source_id: int,
     path: str = Query(...),
+    offset: int = Query(0, ge=0),
+    chunk: int = Query(0, ge=0, le=4194304),
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """读取内容：text/code/markdown 返回文本（md 前端渲染）；office 返回转换后 HTML。"""
+    """读取内容：text/code/markdown 返回文本（md 前端渲染）；office 返回转换后 HTML。
+
+    098 分片加载：带 offset+chunk 时只读指定字节段（文本按 UTF-8 解码，切片边界
+    的残缺多字节字符以替换符兜底），响应附 size/has_more 供前端续传——大文件
+    不再整文件传输。不带 offset 时保持整读（向后兼容）。
+    """
     src = await _get_source(source_id, session)
 
     def _read() -> dict:
@@ -315,8 +322,46 @@ async def read_file(
             raise FileNotFoundError(path)
         kind = knowledge_fs.file_kind(p)
         if kind in ("markdown", "text", "code"):
+            size = p.stat().st_size
+            if chunk > 0:
+                with p.open("rb") as f:
+                    f.seek(offset)
+                    data = f.read(chunk)
+                # 末尾不完整的多字节序列归还下一段（098）：定位末字符首字节，
+                # 序列不完整则整字符让给下一段，next_offset 告知客户端真实消费位置
+                cut = len(data)
+                if cut > 0:
+                    start = cut - 1
+                    while start > 0 and (data[start] & 0xC0) == 0x80:
+                        start -= 1
+                    lead = data[start]
+                    if lead & 0xF8 == 0xF0:
+                        seq = 4
+                    elif lead & 0xF0 == 0xE0:
+                        seq = 3
+                    elif lead & 0xE0 == 0xC0:
+                        seq = 2
+                    else:
+                        seq = 1
+                    if cut - start < seq:
+                        cut = start
+                done = offset + cut >= size
+                return {
+                    "kind": kind,
+                    "editable": src.kind == "local" and done,
+                    "text": data[:cut].decode("utf-8", errors="replace"),
+                    "next_offset": offset + cut,
+                    "size": size,
+                    "has_more": not done,
+                }
             text = p.read_text(encoding="utf-8", errors="replace")
-            return {"kind": kind, "editable": src.kind == "local", "text": text}
+            return {
+                "kind": kind,
+                "editable": src.kind == "local",
+                "text": text,
+                "size": size,
+                "has_more": False,
+            }
         if kind == "zip":
             return {"kind": kind, "editable": False, "entries": _zip_entries(p)}
         # docx/xlsx/pptx：前端组件库渲染（docx-preview/SheetJS/pptx-preview），只回类型

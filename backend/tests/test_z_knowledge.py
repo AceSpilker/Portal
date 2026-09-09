@@ -207,3 +207,43 @@ def test_06_legacy_doc_kind_and_converter_gate(client, docs_dir):
     assert err.status_code == 422
     assert "OFFICE_CONVERT_URL" in err.json()["message"]
     client.delete(f"/api/knowledge/sources/{sid}", headers=_admin(client))
+
+
+def test_07_chunked_read(client):
+    """分片读取（098）：offset+chunk 分段拉取拼回全文，has_more 正确收敛。"""
+    base = Path(tempfile.mkdtemp(prefix="kb-chunk-"))
+    body = "# 分片测试\n\n" + ("知识库内容段落。\n\n" * 400)
+    (base / "big.md").write_text(body, encoding="utf-8")
+    r = client.post("/api/knowledge/sources", json={"name": "分片库", "kind": "local", "path": str(base)}, headers=_admin(client))
+    assert r.status_code == 200, r.text
+    sid = r.json()["data"]["id"]
+
+    def rd(offset, chunk):
+        resp = client.get(
+            f"/api/knowledge/{sid}/read",
+            params={"path": "big.md", "offset": offset, "chunk": chunk},
+            headers=_admin(client),
+        )
+        d = resp.json()["data"]
+        assert d, f"resp={resp.text[:200]}"
+        return d
+
+    # 整读基准
+    full = rd(offset=0, chunk=0)
+    assert full["has_more"] is False and full["size"] > 0
+
+    # 分片 5 字节一段,拼回全文应与整读一致
+    parts, offset = [], 0
+    while True:
+        d = rd(offset, 5)
+        if offset < 40:
+            print(f"DBG offset={offset} cut/next={d.get('next_offset')} text={d['text']!r}")
+        parts.append(d["text"])
+        if not d["has_more"]:
+            assert d["size"] >= len(body)
+            break
+        offset = d["next_offset"]
+    assert "".join(parts) == full["text"]
+
+    # 清理
+    client.delete(f"/api/knowledge/sources/{sid}", headers=_admin(client))

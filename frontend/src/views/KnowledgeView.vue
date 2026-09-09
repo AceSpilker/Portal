@@ -80,7 +80,7 @@ async function loadNode(node: unknown, resolve: (items: TreeNode[]) => void) {
 }
 
 function onNodeClick(data: TreeNode) {
-  if (data.type === 'file') void openFile(data.path)
+  if (data.type === 'file') void openFile(data.path, data.size ?? undefined)
 }
 
 // ---------- 查看器 ----------
@@ -94,6 +94,10 @@ const viewSrc = ref('')
 const officeRef = ref<HTMLDivElement>()
 const officeHtml = ref('')
 const officeError = ref('')
+
+// 098 分片加载：超过阈值的大文本先加载首片，看多少传多少
+const CHUNK_SIZE = 256 * 1024
+const CHUNK_THRESHOLD = 512 * 1024
 
 const renderedMd = computed(() => {
   if (!readResult.value?.text) return ''
@@ -188,13 +192,19 @@ function fmtSize(n: number | null): string {
   return `${(n / 1048576).toFixed(1)} MB`
 }
 
-async function openFile(path: string) {
+async function openFile(path: string, fileSize?: number) {
   if (!activeSource.value) return
   currentPath.value = path
   editing.value = false
   readLoading.value = true
   try {
-    readResult.value = await knowledgeApi.read(activeSource.value.id, path)
+    // 大文本文件分片：首片 256KB，避免整文件传输等待
+    const chunked = (fileSize ?? 0) > CHUNK_THRESHOLD
+    readResult.value = await knowledgeApi.read(
+      activeSource.value.id,
+      path,
+      chunked ? { offset: 0, chunk: CHUNK_SIZE } : undefined,
+    )
     // iframe/img/video 无法携带请求头：换短期签名 URL（092）
     const kind = readResult.value?.kind ?? ''
     if (['html', 'image', 'video', 'audio', 'pdf', 'binary', 'docx', 'pptx', 'xlsx', 'xls'].includes(kind)) {
@@ -226,6 +236,33 @@ function startEdit() {
   if (!readResult.value?.text) return
   editContent.value = readResult.value.text
   editing.value = true
+}
+
+/** 续传一片（追加文本）；loadAll=循环拉取直到完整（供编辑前调用） */
+async function loadMore(loadAll = false) {
+  if (!activeSource.value || !readResult.value?.has_more) return
+  const id = activeSource.value.id
+  const path = currentPath.value
+  do {
+    const offset = (readResult.value.size ?? 0) - (readResult.value.text?.length ?? 0)
+    const r = await knowledgeApi.read(id, path, { offset, chunk: 1024 * 1024 })
+    if (readResult.value.text === undefined) readResult.value.text = ''
+    readResult.value.text += r.text ?? ''
+    readResult.value.has_more = r.has_more
+    readResult.value.size = r.size ?? readResult.value.size
+  } while (loadAll && readResult.value.has_more)
+}
+
+async function startEditLoadAll() {
+  if (readResult.value?.has_more) {
+    readLoading.value = true
+    try {
+      await loadMore(true)
+    } finally {
+      readLoading.value = false
+    }
+  }
+  startEdit()
 }
 
 async function saveEdit() {
@@ -418,7 +455,14 @@ onMounted(() => loadSources())
           <span class="view-path">{{ currentPath }}</span>
           <span class="spacer" />
           <a v-if="['image', 'video', 'audio', 'pdf', 'binary', 'html'].includes(readResult.kind)" :href="viewSrc" target="_blank" class="dl-link">{{ t('knowledge.openRaw') }}</a>
-          <el-button v-if="readResult.editable && !editing" size="small" type="primary" @click="startEdit">
+          <el-button
+            v-if="readResult.editable && !editing"
+            size="small"
+            type="primary"
+            :disabled="readResult.has_more"
+            :title="readResult.has_more ? t('knowledge.editNeedFull') : ''"
+            @click="startEditLoadAll"
+          >
             {{ t('common.edit') }}
           </el-button>
           <template v-if="editing">
@@ -430,6 +474,22 @@ onMounted(() => loadSources())
         </header>
 
         <div class="view-body">
+          <!-- 大文件分片加载进度（098） -->
+          <div v-if="readResult.has_more" class="chunk-banner">
+            <span>
+              {{ t('knowledge.chunkLoaded', {
+                loaded: fmtSize(readResult.text?.length ?? 0),
+                total: fmtSize(readResult.size ?? 0),
+              }) }}
+            </span>
+            <el-button size="small" :loading="readLoading" @click="loadMore(false)">
+              {{ t('knowledge.chunkMore') }}
+            </el-button>
+            <el-button size="small" :loading="readLoading" @click="startEditLoadAll">
+              {{ t('knowledge.chunkAll') }}
+            </el-button>
+          </div>
+          <div class="view-body">
           <!-- markdown：渲染或编辑 -->
           <template v-if="readResult.kind === 'markdown'">
             <textarea v-if="editing" v-model="editContent" class="kb-editor" spellcheck="false" />
@@ -514,6 +574,7 @@ onMounted(() => loadSources())
             <a :href="viewSrc" target="_blank"><el-button size="small" type="primary">{{ t('knowledge.download') }}</el-button></a>
           </div>
         </div>
+      </div>
       </template>
       <div v-else class="kb-center kb-placeholder">
         <p>{{ t('knowledge.pickFile') }}</p>
@@ -842,11 +903,25 @@ onMounted(() => loadSources())
   font-size: 12.5px;
   color: var(--p-primary);
 }
+.chunk-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  border-radius: var(--p-radius-sm);
+  background: color-mix(in srgb, var(--p-primary) 10%, transparent);
+  font-size: 12.5px;
+}
 .view-body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.view-body .view-body {
+  flex: 1;
 }
 .kb-md {
   overflow: auto;

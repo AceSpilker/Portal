@@ -54,6 +54,9 @@ export interface KnowledgeReadResult {
   editable: boolean
   text?: string
   html?: string
+  /** 098 分片加载：size=文件总字节；has_more=true 表示未加载完 */
+  size?: number
+  has_more?: boolean
   /** zip 条目清单（kind=zip 时返回） */
   entries?: Array<{ name: string; size: number; compress_size: number }>
   /** 老格式转换服务是否可用（kind=legacy 时返回） */
@@ -73,8 +76,15 @@ export const knowledgeApi = {
     ),
   tree: (id: number, path = '') =>
     request.get<never, KnowledgeTreeNode[]>(`/knowledge/${id}/tree`, { params: path ? { path } : {} }),
-  read: (id: number, path: string) =>
-    request.get<never, KnowledgeReadResult>(`/knowledge/${id}/read`, { params: { path } }),
+  read: (id: number, path: string, opts?: { offset?: number; chunk?: number }) =>
+    request.get<never, KnowledgeReadResult>(`/knowledge/${id}/read`, {
+      params: {
+        path,
+        ...(opts?.offset !== undefined && opts?.chunk
+          ? { offset: opts.offset, chunk: opts.chunk }
+          : {}),
+      },
+    }),
   write: (id: number, path: string, content: string) =>
     request.put<never, null>(`/knowledge/${id}/file`, { content }, { params: { path } }),
   rawUrl: (id: number, path: string) => `/api/knowledge/${id}/raw?path=${encodeURIComponent(path)}`,
