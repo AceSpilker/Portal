@@ -211,7 +211,7 @@ async function syncSource(src: KnowledgeSource) {
 const dirPicker = ref(false)
 const pickerLoading = ref(false)
 const pickerPath = ref('')
-const pickerRoots = ref<string[]>([])
+const pickerRoots = ref<Array<{ path: string; label: string }>>([])
 const pickerDirs = ref<string[]>([])
 const pickerParent = ref<string | null>(null)
 const pickerExists = ref<boolean | null>(null)
@@ -438,11 +438,12 @@ onMounted(() => loadSources())
           <p class="dp-hint">{{ t('knowledge.pickRootsHint') }}</p>
           <div
             v-for="r in pickerRoots"
-            :key="r"
+            :key="r.path"
             class="dp-row"
-            @click="loadPicker(r)"
+            @click="loadPicker(r.path)"
           >
-            <span class="dp-name">{{ r }}</span>
+            <span class="dp-name">{{ r.label }}</span>
+            <span class="dp-sub">{{ r.path }}</span>
           </div>
           <div class="dp-row" @click="loadPicker('/')">
             <span class="dp-name">{{ t('knowledge.pickFromRoot') }}</span>
@@ -584,6 +585,11 @@ onMounted(() => loadSources())
 }
 .dp-name {
   font-weight: 500;
+}
+.dp-sub {
+  color: var(--p-muted);
+  font-size: 11.5px;
+  font-family: ui-monospace, monospace;
 }
 .dp-up {
   color: var(--p-muted);

@@ -74,10 +74,16 @@ export const knowledgeApi = {
   /** 签名 raw URL（092）：iframe/img/video 无法携带 Authorization 头 */
   rawSigned: (id: number, path: string) =>
     request.get<never, { url: string }>(`/knowledge/${id}/raw-url`, { params: { path } }),
-  /** 映射目录浏览（091 增补）：path 空=推荐挂载根；否则逐级下钻 */
+  /** 映射目录浏览（091 增补）：path 空=探测浏览根（服务器透传/挂载点）；否则逐级下钻 */
   localDirs: (path = '') =>
     request.get<
       never,
-      { path: string; roots: string[]; dirs: string[]; parent: string | null; exists: boolean | null }
+      {
+        path: string
+        roots: Array<{ path: string; label: string }>
+        dirs: string[]
+        parent: string | null
+        exists: boolean | null
+      }
     >('/knowledge/local-dirs', { params: path ? { path } : {} }),
 }

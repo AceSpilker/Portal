@@ -252,10 +252,19 @@ async def list_local_dirs(
     """映射目录逐级浏览（M）：空 path 返回推荐挂载根（存在者），
     否则返回该目录的一级子目录与上级路径，供前端选择框下钻。"""
     if not path:
-        roots = []
-        for cand in ("/knowledge", str(Path(settings.data_dir) / "knowledge")):
-            if Path(cand).is_dir():
-                roots.append(cand)
+        # 浏览根自动探测：/host/*（服务器目录透传，NAS 上把 /volume1 挂到 /host/volume1）、
+        # /knowledge（推荐挂载点）、数据卷内 knowledge（git 克隆区）
+        roots: list[dict] = []
+        host = Path("/host")
+        if host.is_dir():
+            for child in sorted(host.iterdir(), key=lambda x: x.name):
+                if child.is_dir() and not child.name.startswith("."):
+                    roots.append({"path": str(child), "label": f"服务器 /{child.name}"})
+        if Path("/knowledge").is_dir():
+            roots.append({"path": "/knowledge", "label": "/knowledge（推荐挂载点）"})
+        dk = Path(settings.data_dir) / "knowledge"
+        if dk.is_dir():
+            roots.append({"path": str(dk), "label": "数据卷 knowledge（git 克隆区）"})
         return ok({"path": "", "roots": roots, "dirs": [], "parent": None, "exists": None})
 
     p = Path(path)
