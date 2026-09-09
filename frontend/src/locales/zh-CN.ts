@@ -90,7 +90,7 @@ export default {
     monitor: '监控',
     flow: 'Flow',
     ai: 'AI',
-    knowledge: '知识库',
+    knowledge: '文件预览',
     settings: '设置',
     logs: '日志',
     tools: '工具',
@@ -817,7 +817,7 @@ export default {
     st: { running: '运行中', stopped: '已停止', error: '错误', degraded: '重连中' },
   },
   knowledge: {
-    title: '知识库',
+    title: '文件预览',
     noSources: '还没有数据源，点右上角齿轮新建',
     pickSource: '← 选择左侧数据源浏览内容',
     pickFile: '从左侧目录树选择文件阅读',

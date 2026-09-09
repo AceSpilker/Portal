@@ -90,7 +90,7 @@ export default {
     monitor: 'Monitor',
     flow: 'Flow',
     ai: 'AI',
-    knowledge: 'Knowledge Base',
+    knowledge: 'File Preview',
     settings: 'Settings',
     logs: 'Logs',
     tools: 'Tools',
@@ -819,7 +819,7 @@ export default {
     st: { running: 'Running', stopped: 'Stopped', error: 'Error', degraded: 'Reconnecting' },
   },
   knowledge: {
-    title: 'Knowledge Base',
+    title: 'File Preview',
     noSources: 'No sources yet — click the gear to add one',
     pickSource: '← Pick a source on the left to browse',
     pickFile: 'Pick a file from the tree to read',
