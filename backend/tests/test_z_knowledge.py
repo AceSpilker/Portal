@@ -159,3 +159,18 @@ def test_04_office_render(client, docs_dir):
         data = resp.json()["data"]
         assert data, resp.text
         assert data["kind"] in ("docx", "xlsx", "pptx") and kw in data["html"], f
+
+
+def test_05_local_dirs_browser(client, docs_dir):
+    """目录选择框端点：默认推荐根（存在者）；指定路径返回一级子目录与上级；不存在 exists=False。"""
+    r = client.get("/api/knowledge/local-dirs", headers=_admin(client)).json()["data"]
+    assert isinstance(r["roots"], list)
+    r2 = client.get(
+        "/api/knowledge/local-dirs", params={"path": str(docs_dir)}, headers=_admin(client)
+    ).json()["data"]
+    assert r2["exists"] is True and any(d.endswith("/sub") for d in r2["dirs"])
+    assert r2["parent"] == str(docs_dir.parent)
+    r3 = client.get(
+        "/api/knowledge/local-dirs", params={"path": "/nonexistent-xyz"}, headers=_admin(client)
+    ).json()["data"]
+    assert r3["exists"] is False and r3["dirs"] == []

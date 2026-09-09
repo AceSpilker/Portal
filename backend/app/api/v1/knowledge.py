@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import get_current_user, require_admin
 from app.core.i18n import t
 from app.core.response import CODE_NOT_FOUND, CODE_VALIDATION, BizError, ok
@@ -225,6 +226,42 @@ async def sync_source(
             "duration_ms": round((time.perf_counter() - started) * 1000),
         }
     )
+
+
+# ---------- 服务器目录选择框（091 增补） ----------
+
+
+@router.get("/knowledge/local-dirs")
+async def list_local_dirs(
+    path: str = "",
+    _: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """映射目录逐级浏览（M）：空 path 返回推荐挂载根（存在者），
+    否则返回该目录的一级子目录与上级路径，供前端选择框下钻。"""
+    if not path:
+        roots = []
+        for cand in ("/knowledge", str(Path(settings.data_dir) / "knowledge")):
+            if Path(cand).is_dir():
+                roots.append(cand)
+        return ok({"path": "", "roots": roots, "dirs": [], "parent": None, "exists": None})
+
+    p = Path(path)
+    if not p.is_dir():
+        return ok({"path": path, "roots": [], "dirs": [], "parent": None, "exists": False})
+
+    def _subdirs(base: Path):
+        try:
+            return sorted(
+                [x for x in base.iterdir() if x.is_dir() and not x.name.startswith(".")],
+                key=lambda x: x.name.lower(),
+            )
+        except OSError:
+            return []
+
+    subs = [str(x) for x in _subdirs(p)]
+    parent = str(p.parent) if p.parent != p else None
+    return ok({"path": str(p), "roots": [], "dirs": subs, "parent": parent, "exists": True})
 
 
 # ---------- 浏览与读取 ----------

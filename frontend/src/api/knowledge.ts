@@ -71,4 +71,10 @@ export const knowledgeApi = {
   write: (id: number, path: string, content: string) =>
     request.put<never, null>(`/knowledge/${id}/file`, { content }, { params: { path } }),
   rawUrl: (id: number, path: string) => `/api/knowledge/${id}/raw?path=${encodeURIComponent(path)}`,
+  /** 映射目录浏览（091 增补）：path 空=推荐挂载根；否则逐级下钻 */
+  localDirs: (path = '') =>
+    request.get<
+      never,
+      { path: string; roots: string[]; dirs: string[]; parent: string | null; exists: boolean | null }
+    >('/knowledge/local-dirs', { params: path ? { path } : {} }),
 }

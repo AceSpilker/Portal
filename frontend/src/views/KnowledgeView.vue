@@ -203,6 +203,41 @@ async function syncSource(src: KnowledgeSource) {
   }
 }
 
+// ---------- 目录选择框（091 增补）：映射目录逐级下钻，替代手动输入 ----------
+const dirPicker = ref(false)
+const pickerLoading = ref(false)
+const pickerPath = ref('')
+const pickerRoots = ref<string[]>([])
+const pickerDirs = ref<string[]>([])
+const pickerParent = ref<string | null>(null)
+const pickerExists = ref<boolean | null>(null)
+
+async function loadPicker(path: string) {
+  pickerLoading.value = true
+  try {
+    const r = await knowledgeApi.localDirs(path)
+    pickerPath.value = r.path
+    pickerRoots.value = r.roots ?? []
+    pickerDirs.value = r.dirs ?? []
+    pickerParent.value = r.parent
+    pickerExists.value = r.exists ?? null
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  } finally {
+    pickerLoading.value = false
+  }
+}
+
+function openPicker() {
+  dirPicker.value = true
+  void loadPicker(srcForm.path)
+}
+
+function choosePicker() {
+  srcForm.path = pickerPath.value
+  dirPicker.value = false
+}
+
 async function removeSource(src: KnowledgeSource) {
   const ok = await ElMessageBox.confirm(
     t('knowledge.removeConfirm', { name: src.name }),
@@ -354,7 +389,10 @@ onMounted(() => loadSources())
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="srcForm.kind === 'local'" :label="t('knowledge.srcPath')">
-          <el-input v-model="srcForm.path" :placeholder="t('knowledge.srcPathPh')" />
+          <div class="path-pick">
+            <el-input v-model="srcForm.path" :placeholder="t('knowledge.srcPickPh')" readonly />
+            <el-button type="primary" plain @click="openPicker">{{ t('knowledge.pickBtn') }}</el-button>
+          </div>
           <div class="form-hint">{{ t('knowledge.srcPathHint') }}</div>
         </el-form-item>
         <template v-else>
@@ -383,10 +421,110 @@ onMounted(() => loadSources())
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 目录选择框（091 增补）：逐级下钻 -->
+    <el-dialog append-to-body v-model="dirPicker" :title="t('knowledge.pickTitle')" width="480px">
+      <div v-loading="pickerLoading" class="dir-pick">
+        <div class="dp-crumb">
+          <span class="dp-label">{{ t('knowledge.pickCurrent') }}</span>
+          <span class="dp-path">{{ pickerPath || t('knowledge.pickStart') }}</span>
+        </div>
+
+        <template v-if="pickerExists === null">
+          <p class="dp-hint">{{ t('knowledge.pickRootsHint') }}</p>
+          <div
+            v-for="r in pickerRoots"
+            :key="r"
+            class="dp-row"
+            @click="loadPicker(r)"
+          >
+            <span class="dp-name">{{ r }}</span>
+          </div>
+          <div class="dp-row" @click="loadPicker('/')">
+            <span class="dp-name">{{ t('knowledge.pickFromRoot') }}</span>
+          </div>
+        </template>
+
+        <template v-else>
+          <div v-if="pickerParent" class="dp-row" @click="loadPicker(pickerParent)">
+            <span class="dp-up">⬆️ {{ t('knowledge.pickUp') }}</span>
+          </div>
+          <div v-for="d in pickerDirs" :key="d" class="dp-row" @click="loadPicker(d)">
+            <span class="dp-name">📁 {{ d.split('/').pop() }}</span>
+            <span class="spacer" />
+          </div>
+          <p v-if="!pickerDirs.length" class="dp-hint">{{ t('knowledge.pickNoSub') }}</p>
+          <div class="dp-foot">
+            <el-button size="small" @click="loadPicker('')">{{ t('knowledge.pickRestart') }}</el-button>
+            <el-button size="small" type="primary" class="btn-gradient" :disabled="pickerExists !== true" @click="choosePicker">
+              {{ t('knowledge.pickChoose') }}
+            </el-button>
+          </div>
+        </template>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped>
+.path-pick {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.dir-pick {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dp-crumb {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  background: var(--p-soft);
+  border-radius: var(--p-radius-sm);
+}
+.dp-label {
+  color: var(--p-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.dp-path {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+.dp-hint {
+  color: var(--p-muted);
+  font-size: 12.5px;
+  margin: 6px 0;
+}
+.dp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--p-radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+.dp-row:hover {
+  background: var(--p-soft);
+}
+.dp-name {
+  font-weight: 500;
+}
+.dp-up {
+  color: var(--p-muted);
+}
+.dp-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
 .kb {
   height: 100%;
   display: flex;
