@@ -174,3 +174,20 @@ def test_05_local_dirs_browser(client, docs_dir):
         "/api/knowledge/local-dirs", params={"path": "/nonexistent-xyz"}, headers=_admin(client)
     ).json()["data"]
     assert r3["exists"] is False and r3["dirs"] == []
+
+
+def test_05_disable_then_reenable(client, docs_dir):
+    """停用 → 保存 → 再编辑重新启用：不能被 404 卡死（092 用户反馈）。"""
+    r = client.post("/api/knowledge/sources", json={"name": "开关库", "kind": "local", "path": str(docs_dir)}, headers=_admin(client))
+    assert r.status_code == 200, r.text
+    sid = r.json()["data"]["id"]
+    off = client.put(f"/api/knowledge/sources/{sid}", json={"enabled": False}, headers=_admin(client))
+    assert off.status_code == 200 and off.json()["data"]["enabled"] is False
+    on = client.put(f"/api/knowledge/sources/{sid}", json={"enabled": True}, headers=_admin(client))
+    assert on.status_code == 200, on.text
+    assert on.json()["data"]["enabled"] is True
+    # 停用态仍可删除
+    off2 = client.put(f"/api/knowledge/sources/{sid}", json={"enabled": False}, headers=_admin(client))
+    assert off2.status_code == 200
+    dele = client.delete(f"/api/knowledge/sources/{sid}", headers=_admin(client))
+    assert dele.status_code == 200

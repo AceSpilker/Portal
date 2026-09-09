@@ -47,9 +47,12 @@ def _root_of(src: KnowledgeSource) -> Path:
     return knowledge_git.clone_dir(src.id)
 
 
-async def _get_source(source_id: int, session: AsyncSession) -> KnowledgeSource:
+async def _get_source(
+    source_id: int, session: AsyncSession, allow_disabled: bool = False
+) -> KnowledgeSource:
+    """取数据源；allow_disabled 供编辑/删除使用——停用的源必须能再启用/删除。"""
     src = await session.get(KnowledgeSource, source_id)
-    if src is None or not src.enabled:
+    if src is None or (not src.enabled and not allow_disabled):
         raise BizError(CODE_NOT_FOUND, t("err.knowledge_source_missing"), 404)
     return src
 
@@ -160,7 +163,7 @@ async def update_source(
     _: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    src = await _get_source(source_id, session)
+    src = await _get_source(source_id, session, allow_disabled=True)
     data = _validate_common({**_view(src), "path": src.path, **body})
     old = {"path": src.path, "kind": src.kind}
     for key, value in data.items():
@@ -192,7 +195,7 @@ async def delete_source(
     _: User = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    src = await _get_source(source_id, session)
+    src = await _get_source(source_id, session, allow_disabled=True)
     if src.kind == "git":
         shutil_rmtree(knowledge_git.clone_dir(src.id))  # 只删克隆，远端仓库不受影响
     await session.delete(src)
