@@ -9,6 +9,7 @@ import AppLayout from '../layouts/AppLayout.vue'
 import HomeView from '../views/HomeView.vue'
 import AppsManageView from '../views/AppsManageView.vue'
 import EfficiencyView from '../views/EfficiencyView.vue'
+import KnowledgeView from '../views/KnowledgeView.vue'
 import PortsView from '../views/PortsView.vue'
 import DockerView from '../views/DockerView.vue'
 import AiView from '../views/AiView.vue'
@@ -48,6 +49,7 @@ const router = createRouter({
         { path: '', name: 'home', component: HomeView, meta: { titleKey: 'nav.home' } },
         { path: 'apps', name: 'apps', component: AppsManageView, meta: { titleKey: 'apps.title' } },
         { path: 'efficiency', name: 'efficiency', component: EfficiencyView, meta: { titleKey: 'nav.efficiency' } },
+        { path: 'knowledge', name: 'knowledge', component: KnowledgeView, meta: { titleKey: 'nav.knowledge' } },
         { path: 'ports', name: 'ports', component: PortsView, meta: { titleKey: 'nav.ports' } },
         { path: 'docker', name: 'docker', component: DockerView, meta: { titleKey: 'nav.docker' } },
         { path: 'ai', name: 'ai', component: AiView, meta: { titleKey: 'nav.ai' } },

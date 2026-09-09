@@ -25,6 +25,7 @@ import {
   ArrowDown as IconArrowDown,
   Search as IconSearch,
   Calendar as IconCalendar,
+  Reading as IconKnowledge,
 } from '@element-plus/icons-vue'
 
 interface NavItem {
@@ -92,6 +93,7 @@ const navItems = computed<NavItem[]>(() => [
     : []),
   { icon: IconFlow, label: t('nav.flow'), to: '/flow' },
   { icon: IconAi, label: t('nav.ai'), to: '/ai' },
+  { icon: IconKnowledge, label: t('nav.knowledge'), to: '/knowledge' },
     { icon: IconTools, label: t('nav.tools'), to: '/tools' },
   ...(auth.isAdmin ? [{ icon: IconTickets, label: t('nav.logs'), to: '/logs' }] : []),
   ...(auth.isAdmin ? [{ icon: IconSetting, label: t('nav.settings'), to: '/settings' }] : []),
