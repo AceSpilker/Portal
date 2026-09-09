@@ -1106,7 +1106,7 @@ function saveMonitor() {
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: rgba(23, 33, 58, 0.08);
+  background: var(--p-soft-2);
   color: var(--p-text);
   cursor: pointer;
   transition: background 0.12s, color 0.12s;

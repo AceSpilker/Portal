@@ -586,7 +586,7 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
 }
 .run-step {
   padding: 3px 8px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--p-soft-2);
   border-radius: 6px;
   margin-bottom: 4px;
 }

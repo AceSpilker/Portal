@@ -292,7 +292,7 @@ async function openDetail(c: DockerContainer) {
   font-weight: 600;
 }
 .log-view {
-  background: rgba(127, 127, 127, 0.1);
+  background: var(--p-soft-2);
   border-radius: 8px;
   padding: 10px 12px;
   font-family: ui-monospace, monospace;
@@ -317,7 +317,7 @@ async function openDetail(c: DockerContainer) {
 }
 .kv {
   padding: 5px 8px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--p-soft-2);
   border-radius: 6px;
 }
 h4 {

@@ -354,7 +354,7 @@ function saveCanvas() {
   border: 1.5px solid var(--p-card-border);
   border-radius: 10px;
   font-size: 12.5px;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--p-shadow-sm);
 }
 .fnode-dot {
   width: 9px;

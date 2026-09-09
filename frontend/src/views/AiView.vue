@@ -437,7 +437,7 @@ onMounted(async () => {
 }
 .conv-item.active,
 .conv-item:hover {
-  background: rgba(127, 127, 127, 0.14);
+  background: var(--p-soft-2);
 }
 .conv-title {
   flex: 1;
@@ -486,7 +486,7 @@ onMounted(async () => {
   border-radius: 12px;
   font-size: 13.5px;
   line-height: 1.6;
-  background: rgba(127, 127, 127, 0.12);
+  background: var(--p-soft-2);
   word-break: break-word;
 }
 .msg.user .bubble {
@@ -549,7 +549,7 @@ onMounted(async () => {
   gap: 10px;
   padding: 7px 10px;
   border-radius: 8px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--p-soft);
   font-size: 12.5px;
   margin-bottom: 6px;
 }
@@ -573,7 +573,7 @@ onMounted(async () => {
 }
 .kv {
   padding: 6px 8px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--p-soft);
   border-radius: 6px;
   font-size: 12.5px;
 }

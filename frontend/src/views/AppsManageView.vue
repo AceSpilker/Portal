@@ -981,7 +981,7 @@ async function doExport() {
   justify-content: space-between;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--p-soft-2);
   margin-bottom: 6px;
 }
 .rc-main {

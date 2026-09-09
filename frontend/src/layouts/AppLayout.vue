@@ -389,7 +389,7 @@ function logout() {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--p-up);
 }
 .env-dot.manual {
   background: var(--p-primary);

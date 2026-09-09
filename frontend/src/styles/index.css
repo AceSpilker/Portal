@@ -13,9 +13,22 @@
   --p-card-border: #e8ecf5;
   --p-text: #17213a;
   --p-muted: #6b7690;
+  --p-shadow-sm: 0 2px 10px rgba(23, 43, 99, 0.07);
   --p-shadow: 0 18px 50px rgba(23, 43, 99, 0.08);
+  --p-shadow-hover: 0 14px 34px rgba(23, 43, 99, 0.14);
+  --p-shadow-pop: 0 12px 32px rgba(23, 43, 99, 0.18);
   --p-tabbar-bg: rgba(255, 255, 255, 0.92);
   --p-soft: rgba(23, 33, 58, 0.06);
+  --p-soft-2: rgba(23, 33, 58, 0.11);
+
+  /* 圆角体系：卡片 lg / 常规面板 md / 内嵌小块 sm（084 统一封装） */
+  --p-radius-lg: 20px;
+  --p-radius: 14px;
+  --p-radius-sm: 10px;
+
+  /* 语义状态色（探活 up/端口 down 等跨页一致，084） */
+  --p-up: #22c55e;
+  --p-down: #ef4444;
 
   /* Element Plus 主色对齐 */
   --el-color-primary: #5b5ff1;
@@ -37,9 +50,13 @@ html.dark {
   --p-card-border: #273252;
   --p-text: #e6ebf8;
   --p-muted: #93a0ba;
+  --p-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
   --p-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --p-shadow-hover: 0 14px 34px rgba(0, 0, 0, 0.5);
+  --p-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.55);
   --p-tabbar-bg: rgba(13, 19, 34, 0.92);
   --p-soft: rgba(230, 235, 248, 0.08);
+  --p-soft-2: rgba(230, 235, 248, 0.15);
 
   --el-bg-color: #161e33;
   --el-bg-color-overlay: #1c2540;
@@ -78,11 +95,11 @@ body {
   background: transparent;
 }
 
-/* ---------- 白色玻璃卡片 ---------- */
+/* ---------- 卡片表面（全站唯一卡片封装：背景/描边/圆角/阴影全走令牌）---------- */
 .glass {
   background: var(--p-card);
   border: 1px solid var(--p-card-border);
-  border-radius: 20px;
+  border-radius: var(--p-radius-lg);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   box-shadow: var(--p-shadow);
@@ -153,7 +170,7 @@ body {
 .hover-lift:hover {
   transform: translateY(-4px);
   border-color: color-mix(in srgb, var(--p-primary) 40%, transparent);
-  box-shadow: 0 18px 44px color-mix(in srgb, var(--p-primary) 16%, transparent);
+  box-shadow: var(--p-shadow-hover);
 }
 
 /* ---------- 主按钮（渐变 + 光晕；跟随主题色，暗色下 dark-2 向白混合仍属主色系） ---------- */

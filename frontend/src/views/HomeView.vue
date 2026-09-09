@@ -647,7 +647,7 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
 .tile:hover {
   border-color: var(--p-primary);
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(23, 43, 99, 0.1);
+  box-shadow: var(--p-shadow-hover);
 }
 .tile-icon {
   position: relative;
@@ -664,7 +664,7 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   opacity: 0.5;
 }
 .status-dot.up {
-  background: #22c55e;
+  background: var(--p-up);
   opacity: 1;
 }
 .status-dot.down {
