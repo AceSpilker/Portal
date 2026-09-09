@@ -14,11 +14,13 @@ import socket
 import subprocess
 import time
 from datetime import datetime
+from pathlib import Path
 
 import psutil
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.port import PortEvent, PortMonitor
 from app.models.portal import App
 from app.services import notify
@@ -36,6 +38,152 @@ def _proc_info(pid: int | None) -> tuple[str, str]:
         return p.name(), " ".join(p.cmdline())[:120]
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
         return "-", ""
+
+
+def _decode_proc_inet(hex_addr: str, is_v6: bool) -> str:
+    """解码 /proc/net 的地址字段：v4 为 8 位十六进制小端 u32；v6 为 4 组小端 u32。"""
+    import ipaddress
+
+    raw = bytes.fromhex(hex_addr)
+    if not is_v6:
+        return ".".join(str(b) for b in raw[::-1])
+    return str(ipaddress.IPv6Address(b"".join(raw[i : i + 4][::-1] for i in range(0, 16, 4))))
+
+
+def _parse_proc_net(text: str) -> list[tuple[str, int, str, str]]:
+    """解析 /proc/net/{tcp,tcp6,udp,udp6} 文本，返回 (ip, port, inode, state 十六进制)。"""
+    out: list[tuple[str, int, str, str]] = []
+    for line in text.splitlines()[1:]:
+        parts = line.split()
+        if len(parts) < 10:
+            continue
+        local = parts[1]
+        inode = parts[9]
+        hex_addr, _, hex_port = local.rpartition(":")
+        if not hex_port:
+            continue
+        try:
+            port = int(hex_port, 16)
+        except ValueError:
+            continue
+        is_v6 = len(hex_addr) > 8
+        out.append((_decode_proc_inet(hex_addr, is_v6), port, inode, parts[3]))
+    return out
+
+
+# /proc/net/tcp 的 st 列（十六进制）→ 可读状态名；UDP 套接字无连接状态单独定名
+_PROC_TCP_STATES = {
+    "01": "ESTABLISHED",
+    "02": "SYN_SENT",
+    "03": "SYN_RECV",
+    "04": "FIN_WAIT1",
+    "05": "FIN_WAIT2",
+    "06": "TIME_WAIT",
+    "07": "CLOSE",
+    "08": "CLOSE_WAIT",
+    "09": "LAST_ACK",
+    "0A": "LISTEN",
+    "0B": "CLOSING",
+}
+
+
+def _host_proc_info(base: Path, pid: int | None) -> tuple[str, str]:
+    """宿主机 procfs 读进程名/命令行——容器内 psutil 看不到宿主 PID 命名空间，必须直读文件。"""
+    if not pid:
+        return "-", ""
+    try:
+        name = (base / str(pid) / "comm").read_text(errors="replace").strip() or "-"
+        raw = (base / str(pid) / "cmdline").read_bytes()
+        cmdline = " ".join(p.decode(errors="replace") for p in raw.split(b"\0") if p)[:120]
+        return name, cmdline
+    except OSError:
+        return "-", ""
+
+
+def _host_proc_entries() -> list[dict] | None:
+    """容器部署（HOST_PROC 指向宿主机 procfs）时读宿主机全部 inet 套接字。
+
+    /proc/net 是指向 self/net 的符号链接——容器内读它只能看到容器网络命名空间
+    （NAS 实机只剩容器自身 2 个端口）。改读 <HOST_PROC>/1/net/* 即宿主机 1 号
+    进程的初始网络命名空间；inode → 进程映射靠扫宿主机各进程的 fd 符号链接。
+    返回 None 表示宿主数据不可用（未设 HOST_PROC/非 Linux/读取失败），调用方回退。
+    """
+    import os
+
+    base = Path(settings.host_proc) if settings.host_proc else None
+    if not base or not base.is_dir():
+        return None
+    net_dir = base / "1" / "net"
+    tcp_files = [
+        (net_dir / "tcp", "tcp"),
+        (net_dir / "tcp6", "tcp"),
+        (net_dir / "udp", "udp"),
+        (net_dir / "udp6", "udp"),
+    ]
+
+    entries: list[tuple[str, str, int, str, str]] = []  # (proto, addr, port, inode, state)
+    for f, proto in tcp_files:
+        try:
+            text = f.read_text()
+        except OSError:
+            continue
+        for ip, port, inode, state in _parse_proc_net(text):
+            entries.append((proto, ip, port, inode, state))
+    if not entries:
+        return None
+
+    # inode → 进程：扫宿主机所有进程的 fd 符号链接
+    inode_pid: dict[str, int] = {}
+    try:
+        for pid_dir in base.iterdir():
+            if not pid_dir.name.isdigit():
+                continue
+            fd_dir = pid_dir / "fd"
+            try:
+                for fd in fd_dir.iterdir():
+                    try:
+                        target = os.readlink(fd)
+                    except OSError:
+                        continue
+                    if target.startswith("socket:["):
+                        inode_pid.setdefault(target[8:-1], int(pid_dir.name))
+            except OSError:
+                continue
+    except OSError:
+        return None
+
+    rows: list[dict] = []
+    seen: set[tuple] = set()
+    for proto, ip, port, inode, state in entries:
+        status = "UNCONN" if proto == "udp" else _PROC_TCP_STATES.get(state.upper(), state)
+        pid = inode_pid.get(inode)
+        proc_name, cmdline = _host_proc_info(base, pid)
+        key = (proto, ip, port, pid, status)
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(
+            {
+                "proto": proto,
+                "addr": ip,
+                "port": port,
+                "status": status,
+                "pid": pid,
+                "proc": proc_name,
+                "cmdline": cmdline,
+            }
+        )
+    return rows
+
+
+def _listen_via_host_proc() -> list[dict] | None:
+    """宿主机命名空间的监听清单：TCP 只留 LISTEN，UDP 绑定即服务（无监听态）。"""
+    rows = _host_proc_entries()
+    if rows is None:
+        return None
+    rows = [r for r in rows if r["proto"] == "udp" or r["status"] == "LISTEN"]
+    # UDP 动态端口段是出站客户端套接字，不是服务，与 psutil 路径同一口径剔除
+    return [r for r in rows if not (r["proto"] == "udp" and 49152 <= r["port"] <= 65535)]
 
 
 def _listen_via_lsof() -> list[dict] | None:
@@ -83,7 +231,18 @@ def listen_list() -> list[dict]:
     UDP 套接字没有 LISTEN 状态（绑定即服务，状态恒为 CONN_NONE），
     只按 TCP LISTEN 过滤会把 UDP 服务全部漏掉（077 用户反馈协议不全）。
     同地址/端口/进程的重复行（IPv4 映射、SO_REUSEPORT）去重。
+
+    容器部署（HOST_PROC 指向宿主机 procfs）时优先读宿主机网络命名空间——
+    否则 psutil 只能看到容器自己的 netns（077 实测宿主机端口全部缺失）。
     """
+    if settings.host_proc:
+        host_rows = _listen_via_host_proc()
+        if host_rows is not None:
+            host_rows = [
+                r for r in host_rows if not (r["proto"] == "udp" and 49152 <= r["port"] <= 65535)
+            ]
+            host_rows.sort(key=lambda r: (r["proto"], r["port"]))
+            return host_rows
     rows: list[dict] = []
     seen: set[tuple] = set()
     try:
@@ -170,6 +329,20 @@ def _lookup_via_lsof(port: int) -> list[dict] | None:
 
 def lookup_port(port: int) -> list[dict]:
     """端口占用检索（M18-5）：返回占用该端口的进程与命令行。"""
+    # 容器部署：psutil 只见容器 netns，同样走宿主机数据
+    host_rows = _host_proc_entries()
+    if host_rows is not None:
+        seen: set[tuple] = set()
+        unique = []
+        for r in host_rows:
+            if r["port"] != port:
+                continue
+            key = (r["proto"], r["addr"], r["status"], r["pid"], r["proc"])
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append({**r, "username": ""})
+        return unique
     result = []
     try:
         conns = psutil.net_connections(kind="inet")
@@ -427,7 +600,8 @@ async def exposed_ports(session: AsyncSession) -> list[dict]:
     watched_ports = {m.port for m in monitors}
     result = []
     for e in listen_list():
-        host = str(e.get("host", ""))
+        # listen_list 行键为 addr/proc（此前误写 host/process，通配判断永假，清单恒空）
+        host = str(e.get("addr", ""))
         port = int(e.get("port", 0) or 0)
         if host not in ("0.0.0.0", "::", "*"):
             continue
@@ -439,7 +613,7 @@ async def exposed_ports(session: AsyncSession) -> list[dict]:
         result.append(
             {
                 "port": port,
-                "process": e.get("process", ""),
+                "process": e.get("proc", ""),
                 "host": host,
             }
         )

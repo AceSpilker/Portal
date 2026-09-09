@@ -260,9 +260,10 @@ def test_09_listen_history_and_exposed(client: TestClient):
     class FakePorts:
         @staticmethod
         def listen_list():
+            # 行键与真实 listen_list() 一致（addr/proc）
             return [
-                {"host": "0.0.0.0", "port": 6379, "process": "redis"},
-                {"host": "127.0.0.1", "port": 9999, "process": "priv"},
+                {"addr": "0.0.0.0", "port": 6379, "proc": "redis"},
+                {"addr": "127.0.0.1", "port": 9999, "proc": "priv"},
             ]
     import app.services.ports as pmod
     saved = pmod.listen_list
@@ -272,9 +273,9 @@ def test_09_listen_history_and_exposed(client: TestClient):
         @staticmethod
         def listen_list():
             return [
-                {"host": "0.0.0.0", "port": 6379, "process": "redis"},
-                {"host": "0.0.0.0", "port": 18080, "process": "unknown-svc"},
-                {"host": "127.0.0.1", "port": 9999, "process": "priv"},
+                {"addr": "0.0.0.0", "port": 6379, "proc": "redis"},
+                {"addr": "0.0.0.0", "port": 18080, "proc": "unknown-svc"},
+                {"addr": "127.0.0.1", "port": 9999, "proc": "priv"},
             ]
 
     pmod.listen_list = FakeWild.listen_list
