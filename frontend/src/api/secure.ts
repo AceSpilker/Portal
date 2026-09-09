@@ -66,20 +66,37 @@ export async function ensureSession(): Promise<void> {
       serverPlaintext = true
       return
     }
+    // 响应形态异常（旧后端/代理篡改等）：public_key 缺失时无法封装会话密钥，
+    // 与其抛 TypeError 中断所有请求（083 公司隧道登录报 reading 'includes'），
+    // 不如降级明文——后端加密开启时公钥必然存在，走到这里即后端实际未加密
+    if (!info || typeof info.public_key !== 'string' || !info.public_key) {
+      console.warn('[secure] 握手响应缺少公钥，降级为明文传输')
+      serverPlaintext = true
+      return
+    }
     const key = (await crypto.subtle.generateKey(
       { name: 'AES-GCM', length: 256 },
       true,
       ['encrypt', 'decrypt'],
     )) as CryptoKey
     const raw = await crypto.subtle.exportKey('raw', key)
-    const pub = await crypto.subtle.importKey(
-      'spki',
-      fromB64(normalizePublicKey(info.public_key)),
-      { name: 'RSA-OAEP', hash: 'SHA-256' },
-      false,
-      ['encrypt'],
-    )
-    const wrapped = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, pub, raw)
+    let wrapped: ArrayBuffer
+    try {
+      const pub = await crypto.subtle.importKey(
+        'spki',
+        fromB64(normalizePublicKey(info.public_key)),
+        { name: 'RSA-OAEP', hash: 'SHA-256' },
+        false,
+        ['encrypt'],
+      )
+      wrapped = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, pub, raw)
+    } catch {
+      // 公钥解析/封装失败（格式损坏等）：降级明文；若后端实际开着加密，
+      // 后续请求会以 1100 拒绝并由 request.ts 给出部署错配指引
+      console.warn('[secure] 会话密钥封装失败，降级为明文传输')
+      serverPlaintext = true
+      return
+    }
     const id = toB64(crypto.getRandomValues(new Uint8Array(8)).buffer)
     await axios.post('/api/crypto/handshake', { sid: id, key: toB64(wrapped) })
     session = { id, key }
