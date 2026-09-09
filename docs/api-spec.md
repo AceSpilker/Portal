@@ -387,6 +387,17 @@
 | GET/POST/DELETE | /api/tokens… | API Token 管理 | M | M2 |
 | GET | /api/audit-logs?action=&method=&range= | 审计日志（087 起 items 含执行详情：method/path/query/status/duration_ms/user_agent/error_msg/username） | M | M2 |
 | GET | /api/sync-logs?kind=mysql\|redis&limit= | 同步/连接事件日志（088：MySQL 推送/测试/恢复与 Redis 连接/降级/回切/测试，各保留 200 条） | M | — |
+### 4.13 知识库（091）
+
+| 方法 | 路径 | 说明 | 权 | 阶段 |
+|---|---|---|---|---|
+| GET | /api/knowledge/sources | 数据源列表（local=服务器映射目录 / git=仓库） | A | — |
+| POST / PUT / DELETE | /api/knowledge/sources[/{id}] | 数据源增改删（M；git 建源即克隆，密码 Fernet 加密） | M | — |
+| POST | /api/knowledge/sources/{id}/sync | git 拉取同步（pull 失败自动重建克隆） | M | — |
+| GET | /api/knowledge/{id}/tree?path= | 目录清单（防穿越；hidden/依赖目录不入树） | A | — |
+| GET | /api/knowledge/{id}/read?path= | 内容读取：文本类返回 text；docx/xlsx/pptx 服务端转 HTML | A | — |
+| GET | /api/knowledge/{id}/raw?path= | 原文件流（图片/视频/音频/pdf；Range 拖动） | A | — |
+| PUT | /api/knowledge/{id}/file?path= | 保存文本（仅 local 源；git 源只读） | M | — |
 | GET | /api/system-logs?level=&q=&range=&page= | 系统日志分页（072） | M | 072 |
 | GET | /api/calendar/holidays?year= | 法定节假日动态数据（holiday-cn 多源+内置兜底，含调休与按名聚合摘要）（077） | U | 077 |
 > **全站写操作自动审计（072）**：AuditMiddleware 对 /api 的 POST/PUT/PATCH/DELETE 自动写 audit_logs（action=`{METHOD} {path}`，detail=`status={code} {ms}ms`，不落请求体）；豁免 /api/auth/login|refresh（已有业务语义审计）、/api/hooks/*。手写业务审计与自动审计并存。
