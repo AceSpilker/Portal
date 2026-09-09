@@ -90,6 +90,7 @@ const readLoading = ref(false)
 const editing = ref(false)
 const editContent = ref('')
 const saving = ref(false)
+const viewSrc = ref('')
 
 const renderedMd = computed(() => {
   if (!readResult.value?.text) return ''
@@ -99,6 +100,7 @@ const renderedMd = computed(() => {
 function resetViewer() {
   readResult.value = null
   editing.value = false
+  viewSrc.value = ''
 }
 
 async function openFile(path: string) {
@@ -108,6 +110,11 @@ async function openFile(path: string) {
   readLoading.value = true
   try {
     readResult.value = await knowledgeApi.read(activeSource.value.id, path)
+    // iframe/img/video 无法携带请求头：换短期签名 URL（092）
+    if (['html', 'image', 'video', 'audio', 'pdf', 'binary'].includes(readResult.value?.kind ?? '')) {
+      const r = await knowledgeApi.rawSigned(activeSource.value.id, path)
+      viewSrc.value = r.url
+    }
   } catch (e) {
     ElMessage.error((e as Error).message)
     resetViewer()
@@ -137,9 +144,6 @@ async function saveEdit() {
   }
 }
 
-const rawSrc = computed(() =>
-  activeSource.value ? knowledgeApi.rawUrl(activeSource.value.id, currentPath.value) : '',
-)
 
 // ---------- 源管理（管理员） ----------
 const srcDialog = ref(false)
@@ -314,7 +318,7 @@ onMounted(() => loadSources())
         <header class="view-head">
           <span class="view-path">{{ currentPath }}</span>
           <span class="spacer" />
-          <a v-if="['image', 'video', 'audio', 'pdf', 'binary', 'html'].includes(readResult.kind)" :href="rawSrc" target="_blank" class="dl-link">{{ t('knowledge.openRaw') }}</a>
+          <a v-if="['image', 'video', 'audio', 'pdf', 'binary', 'html'].includes(readResult.kind)" :href="viewSrc" target="_blank" class="dl-link">{{ t('knowledge.openRaw') }}</a>
           <el-button v-if="readResult.editable && !editing" size="small" type="primary" @click="startEdit">
             {{ t('common.edit') }}
           </el-button>
@@ -342,23 +346,23 @@ onMounted(() => loadSources())
           <!-- html：沙箱 iframe -->
           <iframe
             v-else-if="readResult.kind === 'html'"
-            :src="rawSrc"
+            :src="viewSrc"
             class="kb-frame"
             sandbox="allow-same-origin"
           />
 
           <!-- pdf：原生预览 -->
-          <iframe v-else-if="readResult.kind === 'pdf'" :src="rawSrc" class="kb-frame" />
+          <iframe v-else-if="readResult.kind === 'pdf'" :src="viewSrc" class="kb-frame" />
 
           <!-- 图片 -->
           <div v-else-if="readResult.kind === 'image'" class="kb-center">
-            <img :src="rawSrc" class="kb-img" :alt="currentPath" />
+            <img :src="viewSrc" class="kb-img" :alt="currentPath" />
           </div>
 
           <!-- 视频/音频 -->
           <div v-else-if="['video', 'audio'].includes(readResult.kind)" class="kb-center">
-            <video v-if="readResult.kind === 'video'" :src="rawSrc" controls class="kb-media" />
-            <audio v-else :src="rawSrc" controls />
+            <video v-if="readResult.kind === 'video'" :src="viewSrc" controls class="kb-media" />
+            <audio v-else :src="viewSrc" controls />
           </div>
 
           <!-- office：服务端转换 HTML -->
@@ -367,7 +371,7 @@ onMounted(() => loadSources())
           <!-- 其它：下载 -->
           <div v-else class="kb-center kb-binary">
             <p>{{ t('knowledge.binaryHint') }}</p>
-            <a :href="rawSrc" target="_blank"><el-button size="small" type="primary">{{ t('knowledge.download') }}</el-button></a>
+            <a :href="viewSrc" target="_blank"><el-button size="small" type="primary">{{ t('knowledge.download') }}</el-button></a>
           </div>
         </div>
       </template>
@@ -467,6 +471,71 @@ onMounted(() => loadSources())
 </template>
 
 <style scoped>
+.kb-md :deep(h1) { font-size: 26px; margin: 18px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--p-card-border); }
+.kb-md :deep(h2) { font-size: 21px; margin: 16px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--p-card-border); }
+.kb-md :deep(h3) { font-size: 17px; margin: 14px 0 8px; }
+.kb-md :deep(h4), .kb-md :deep(h5), .kb-md :deep(h6) { font-size: 14.5px; margin: 12px 0 6px; }
+.kb-md :deep(p) { margin: 8px 0; }
+.kb-md :deep(a) { color: var(--p-primary); }
+.kb-md :deep(ul), .kb-md :deep(ol) { padding-left: 24px; margin: 8px 0; }
+.kb-md :deep(li) { margin: 3px 0; }
+.kb-md :deep(blockquote) {
+  margin: 10px 0;
+  padding: 6px 14px;
+  border-left: 4px solid color-mix(in srgb, var(--p-primary) 55%, transparent);
+  background: var(--p-soft);
+  color: var(--p-muted);
+  border-radius: 0 var(--p-radius-sm) var(--p-radius-sm) 0;
+}
+.kb-md :deep(code) {
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+  background: var(--p-soft);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.kb-md :deep(pre) {
+  background: var(--p-soft);
+  border: 1px solid var(--p-card-border);
+  border-radius: var(--p-radius-sm);
+  padding: 12px 14px;
+  overflow: auto;
+  margin: 10px 0;
+}
+.kb-md :deep(pre code) {
+  background: transparent;
+  padding: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.kb-md :deep(table) {
+  border-collapse: collapse;
+  margin: 12px 0;
+  width: 100%;
+  font-size: 13px;
+}
+.kb-md :deep(th),
+.kb-md :deep(td) {
+  border: 1px solid var(--p-card-border);
+  padding: 6px 12px;
+  text-align: left;
+}
+.kb-md :deep(th) {
+  background: var(--p-soft);
+  font-weight: 700;
+}
+.kb-md :deep(tr:nth-child(2n)) {
+  background: color-mix(in srgb, var(--p-soft) 55%, transparent);
+}
+.kb-md :deep(img) {
+  max-width: 100%;
+  border-radius: var(--p-radius-sm);
+}
+.kb-md :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--p-card-border);
+  margin: 16px 0;
+}
 .path-pick {
   display: flex;
   gap: 8px;

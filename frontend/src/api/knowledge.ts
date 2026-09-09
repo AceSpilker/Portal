@@ -71,6 +71,9 @@ export const knowledgeApi = {
   write: (id: number, path: string, content: string) =>
     request.put<never, null>(`/knowledge/${id}/file`, { content }, { params: { path } }),
   rawUrl: (id: number, path: string) => `/api/knowledge/${id}/raw?path=${encodeURIComponent(path)}`,
+  /** 签名 raw URL（092）：iframe/img/video 无法携带 Authorization 头 */
+  rawSigned: (id: number, path: string) =>
+    request.get<never, { url: string }>(`/knowledge/${id}/raw-url`, { params: { path } }),
   /** 映射目录浏览（091 增补）：path 空=推荐挂载根；否则逐级下钻 */
   localDirs: (path = '') =>
     request.get<

@@ -10,19 +10,28 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.deps import get_current_user, require_admin
+from app.core.deps import _bearer, get_auth_context, get_current_user, require_admin
 from app.core.i18n import t
-from app.core.response import CODE_NOT_FOUND, CODE_VALIDATION, BizError, ok
+from app.core.response import (
+    CODE_NOT_FOUND,
+    CODE_TOKEN_INVALID,
+    CODE_VALIDATION,
+    BizError,
+    ok,
+)
 from app.core.secret_box import decrypt_secret, encrypt_secret
 from app.db.session import get_session
 from app.models.knowledge import KnowledgeSource
@@ -312,14 +321,65 @@ async def read_file(
     return ok({"path": path, **payload})
 
 
-@router.get("/knowledge/{source_id}/raw")
-async def raw_file(
+def _sign_raw(source_id: int, path: str, exp: int) -> str:
+    import hashlib
+    import hmac
+
+    msg = f"{source_id}:{path}:{exp}".encode()
+    return hmac.new(settings.secret_key.encode(), msg, hashlib.sha256).hexdigest()
+
+
+def _raw_url(source_id: int, path: str, ttl: int = 600) -> str:
+    """iframe/img/video 无法携带 Authorization 头——发短期签名 URL（默认 10 分钟）。"""
+    import time as _t
+
+    exp = int(_t.time()) + ttl
+    sig = _sign_raw(source_id, path, exp)
+    return f"/api/knowledge/{source_id}/raw?path={quote(path)}&exp={exp}&sig={sig}"
+
+
+@router.get("/knowledge/{source_id}/raw-url")
+async def raw_url(
     source_id: int,
     path: str = Query(...),
     _: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """原文件流（图片/视频/音频/pdf/下载）：FileResponse 支持 Range（视频拖动）。"""
+    """签发 raw 短期签名 URL（iframe/img/video 加载用，10 分钟有效）。"""
+    await _get_source(source_id, session)
+    return ok({"url": _raw_url(source_id, path)})
+
+
+@router.get("/knowledge/{source_id}/raw")
+async def raw_file(
+    request: Request,
+    source_id: int,
+    path: str = Query(...),
+    exp: int | None = Query(None),
+    sig: str | None = Query(None),
+    cred: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    session: AsyncSession = Depends(get_session),
+):
+    """原文件流（图片/视频/音频/pdf/下载）：FileResponse 支持 Range（视频拖动）。
+
+    鉴权双通道：Authorization 头（JWT/API Token）或短期签名参数（exp+sig，
+    供 iframe/img/video 等无法携带请求头的场景）。
+    """
+
+    signature_ok = False
+    if exp is not None and sig and exp >= int(time.time()):
+        signature_ok = hmac.compare_digest(_sign_raw(source_id, path, exp), sig)
+    if not signature_ok:
+        try:
+            ctx = await get_auth_context(request, cred, session)
+        except Exception:
+            raise BizError(
+                CODE_TOKEN_INVALID, t("err.unauthenticated"), 401
+            ) from None
+        if ctx is None or ctx.user is None:
+            raise BizError(
+                CODE_TOKEN_INVALID, t("err.unauthenticated"), 401
+            )
     src = await _get_source(source_id, session)
     root = _root_of(src)
     try:

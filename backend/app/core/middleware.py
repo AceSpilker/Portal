@@ -30,7 +30,16 @@ class TransportEncryptionMiddleware:
 
         path = scope["path"]
         # /api/hooks/*：外部回调（Flow webhook，token 自鉴权），传输加密豁免（api-spec §1）
-        if not path.startswith("/api") or path in EXEMPT_PATHS or path.startswith("/api/hooks/"):
+        query = (scope.get("query_string") or b"").decode("latin-1")
+        # 知识库 raw 签名 URL（092）：HMAC+有效期本身即授权票据，豁免信封加密，
+        # 否则 iframe/img/video 无法携带加密会话头被 1100 拦截
+        signed_raw = path.startswith("/api/knowledge/") and "sig=" in query
+        if (
+            not path.startswith("/api")
+            or path in EXEMPT_PATHS
+            or path.startswith("/api/hooks/")
+            or signed_raw
+        ):
             await self.app(scope, receive, send)
             return
 
