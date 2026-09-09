@@ -22,6 +22,17 @@ export interface SyncTableState {
   message: string
 }
 
+/** 同步/连接事件日志（088）：MySQL 与 Redis 共用 */
+export interface SyncLogItem {
+  id: number
+  kind: 'mysql' | 'redis'
+  action: string
+  status: 'ok' | 'failed' | 'info'
+  duration_ms: number
+  message: string
+  created_at: string
+}
+
 export const syncApi = {
   getConfig: () => request.get<never, SyncConfig>('/settings/sync'),
   saveConfig: (payload: Partial<SyncConfig> & { password?: string }) =>
@@ -33,4 +44,8 @@ export const syncApi = {
     request.get<never, { enabled: boolean; host: string; database: string; interval_min: number; tables: SyncTableState[] }>('/sync/status'),
   restore: () =>
     request.post<never, { ok: boolean; backup: string; error?: string }>('/sync/restore', { confirm: true }),
+  syncLogs: (kind: 'mysql' | 'redis', limit = 30) =>
+    request.get<never, { items: SyncLogItem[] }>('/sync-logs', {
+      params: { kind, limit },
+    }),
 }

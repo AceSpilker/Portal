@@ -9,6 +9,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh as IconRefresh } from '@element-plus/icons-vue'
 import { redisApi } from '../api/redis'
 import type { RedisStatus } from '../api/redis'
+import SyncLogList from './SyncLogList.vue'
 
 const { t } = useI18n()
 
@@ -148,6 +149,9 @@ onMounted(load)
       <p class="desc">{{ t('redis.statusDesc') }}</p>
     </section>
   </div>
+
+  <!-- 连接事件日志（088）：连接/降级/回切/测试 -->
+  <SyncLogList kind="redis" />
 </template>
 
 <style scoped>

@@ -441,6 +441,12 @@ export default {
     exportCsv: 'Export CSV',
   },
   sync: {
+    logTitle: 'Sync logs',
+    logColTime: 'Time',
+    logColAction: 'Action',
+    logColStatus: 'Status',
+    logColDuration: 'Took',
+    logColMessage: 'Message',
     configTitle: 'MySQL Connection',
     configDesc: 'Mirror business data to MySQL on schedule; password stored encrypted; tests/pushes never affect local runs',
     host: 'Host',

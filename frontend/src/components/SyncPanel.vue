@@ -9,6 +9,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh as IconRefresh, Upload as IconPush } from '@element-plus/icons-vue'
 import { syncApi } from '../api/sync'
 import type { SyncTableState } from '../api/sync'
+import SyncLogList from './SyncLogList.vue'
 
 const { t } = useI18n()
 
@@ -211,6 +212,9 @@ onMounted(load)
       <el-button type="danger" plain @click="restore">{{ t('sync.restoreBtn') }}</el-button>
     </section>
   </div>
+
+    <!-- 同步日志（088）：最近推送/测试/恢复事件 -->
+    <SyncLogList kind="mysql" />
 </template>
 
 <style scoped>

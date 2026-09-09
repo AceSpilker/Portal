@@ -441,6 +441,12 @@ export default {
     exportCsv: '导出 CSV',
   },
   sync: {
+    logTitle: '同步日志',
+    logColTime: '时间',
+    logColAction: '动作',
+    logColStatus: '状态',
+    logColDuration: '耗时',
+    logColMessage: '消息',
     configTitle: 'MySQL 连接配置',
     configDesc: '业务数据定时镜像到 MySQL；密码加密存储，测试/推送均不影响本地运行',
     host: '主机',
