@@ -247,6 +247,7 @@ function stopPolling() {
 
 onMounted(async () => {
   connectWs()
+  document.addEventListener('fullscreenchange', onFullscreenChange)
   try {
     applyOverview(await monitorApi.system()) // 首屏先出数据，不等 WS 首推
   } catch {
@@ -257,6 +258,8 @@ onBeforeUnmount(() => {
   closed = true
   ws?.close()
   stopPolling()
+  exitWall()
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 
 // ---- 图表公共外观 ----
@@ -537,7 +540,49 @@ const reportDialog = ref(false)
 const reportDays = ref<DayReport[]>([])
 const agentDialog = ref(false)
 const agentNodes = ref<Array<{ hostname: string; cpu_pct: number; mem_pct: number; disk_pct: number; online: boolean }>>([])
+
+// ---------- 大屏模式（P21.2）：全屏暗色数据墙 + HUD 时钟 ----------
+const monitorRoot = ref<HTMLElement>()
 const wallMode = ref(false)
+const wallClock = ref('')
+const wallDate = ref('')
+let wallTimer: number | undefined
+
+function tickWallClock() {
+  const d = new Date()
+  wallClock.value = d.toLocaleTimeString('zh-CN', { hour12: false })
+  wallDate.value = d.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  })
+}
+
+function exitWall() {
+  wallMode.value = false
+  window.clearInterval(wallTimer)
+  wallTimer = undefined
+  if (document.fullscreenElement) void document.exitFullscreen()
+}
+
+function toggleWall() {
+  if (wallMode.value) {
+    exitWall()
+    return
+  }
+  wallMode.value = true
+  tickWallClock()
+  wallTimer = window.setInterval(tickWallClock, 1000)
+  const el = monitorRoot.value
+  // 全屏尽力而为：被浏览器拒绝（非用户手势等）也保持暗色大墙
+  if (el?.requestFullscreen) void el.requestFullscreen().catch(() => {})
+}
+
+// Esc 退出全屏时同步退出大屏模式（否则只剩一个没有出口的暗色页）
+function onFullscreenChange() {
+  if (!document.fullscreenElement && wallMode.value) exitWall()
+}
 
 async function exportCsv() {
   try {
@@ -583,20 +628,22 @@ async function registerAgent() {
     ElMessage.error((e as Error).message)
   }
 }
-
-function toggleWall() {
-  wallMode.value = !wallMode.value
-  const el = document.querySelector('.monitor')
-  if (el instanceof HTMLElement) {
-    el.classList.toggle('wall-mode', wallMode.value)
-    if (wallMode.value && el.requestFullscreen) void el.requestFullscreen()
-    else if (document.fullscreenElement) void document.exitFullscreen()
-  }
-}
 </script>
 
 <template>
-  <div class="monitor">
+  <div ref="monitorRoot" class="monitor" :class="{ 'wall-mode': wallMode }">
+    <!-- 大屏模式 HUD：主机名/日期 + 实时时钟 + 退出（084 重设计） -->
+    <div v-if="wallMode" class="wall-hud">
+      <div class="wall-left">
+        <span class="wall-name">{{ sysInfo?.hostname || 'Portal' }}</span>
+        <span class="wall-date">{{ wallDate }}</span>
+      </div>
+      <div class="wall-right">
+        <span class="wall-clock">{{ wallClock }}</span>
+        <button type="button" class="wall-exit" @click="exitWall">{{ t('monitor.wallExit') }}</button>
+      </div>
+    </div>
+
     <header class="page-head">
       <h2>{{ t('monitor.title') }}</h2>
       <div class="mon-tools">
@@ -895,7 +942,7 @@ function toggleWall() {
   flex-wrap: wrap;
   gap: 8px 28px;
   padding: 14px 20px;
-  border-radius: 14px;
+  border-radius: var(--p-radius);
 }
 .sys-item .k {
   color: var(--p-muted);
@@ -913,7 +960,7 @@ function toggleWall() {
 }
 .chart-card {
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: var(--p-radius);
 }
 .chart-card h3 {
   margin: 0 0 6px;
@@ -974,7 +1021,7 @@ function toggleWall() {
 }
 .history {
   padding: 14px 16px;
-  border-radius: 14px;
+  border-radius: var(--p-radius);
 }
 .history-head {
   display: flex;
@@ -1019,7 +1066,7 @@ function toggleWall() {
   opacity: 1;
 }
 .as-dot.down {
-  background: var(--el-color-danger, #ef4444);
+  background: var(--p-down);
   opacity: 1;
 }
 .as-name {
@@ -1032,10 +1079,10 @@ function toggleWall() {
   color: var(--p-muted);
 }
 .as-state.up {
-  color: #22c55e;
+  color: var(--p-up);
 }
 .as-state.down {
-  color: var(--el-color-danger, #ef4444);
+  color: var(--p-down);
 }
 @media (max-width: 768px) {
   .chart-grid {
@@ -1043,12 +1090,120 @@ function toggleWall() {
   }
 }
 
+/* ===== 大屏模式（084 重设计）=====
+   固定全屏暗色数据墙：在容器上重定义 --p 与 --el 全套变量，级联到所有
+   .glass 面板与 Element Plus 组件（子组件零改动整体变暗），不再出现
+   白卡片贴深底的割裂观感。 */
 .monitor.wall-mode {
   position: fixed;
   inset: 0;
   z-index: 60;
-  overflow: auto;
-  background: #060b1c;
-  padding: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 20px 20px;
+  background:
+    radial-gradient(1100px 520px at 82% -12%, rgba(91, 95, 241, 0.2), transparent 62%),
+    radial-gradient(900px 480px at -8% 108%, rgba(6, 182, 212, 0.12), transparent 60%),
+    linear-gradient(165deg, #0a1126 0%, #060b1c 58%, #071022 100%);
+  color: var(--p-text);
+}
+/* 变量级联：语义色/卡片表面/EP 组件全套换暗色（写法对齐 html.dark） */
+.monitor.wall-mode {
+  --p-text: #dce4f7;
+  --p-muted: #8e9abc;
+  --p-card: rgba(17, 27, 56, 0.55);
+  --p-card-border: rgba(126, 146, 255, 0.16);
+  --p-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --el-bg-color: #131c38;
+  --el-bg-color-overlay: #182348;
+  --el-text-color-primary: #dce4f7;
+  --el-text-color-regular: #b9c3e0;
+  --el-border-color: rgba(126, 146, 255, 0.22);
+  --el-border-color-light: rgba(126, 146, 255, 0.16);
+  --el-border-color-lighter: rgba(255, 255, 255, 0.08);
+  --el-fill-color-blank: transparent;
+  --el-fill-color-light: rgba(255, 255, 255, 0.06);
+}
+.monitor.wall-mode .glass {
+  border-radius: var(--p-radius);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.monitor.wall-mode .fade-up {
+  animation: none; /* 大屏常驻显示，不要入场抖动 */
+}
+.monitor.wall-mode .page-head {
+  display: none; /* 工具动作不属于数据墙，出口走 HUD 退出按钮/Esc */
+}
+.monitor.wall-mode .chart-grid {
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 12px;
+}
+.monitor.wall-mode .chart-card {
+  padding: 12px 14px;
+}
+/* 暗底上提亮主数值（--p-primary 原色在深蓝底上发闷） */
+.monitor.wall-mode .now,
+.monitor.wall-mode .disk-head .pct {
+  color: #a3a7ff;
+}
+.monitor.wall-mode .chart-card :deep(.el-progress-bar__outer) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* HUD：左主机名+日期，右时钟+退出 */
+.wall-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 2px;
+}
+.wall-left {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+.wall-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(120deg, #9ba0ff, #37e0ff 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+.wall-date {
+  font-size: 13px;
+  color: var(--p-muted);
+  white-space: nowrap;
+}
+.wall-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.wall-clock {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  color: var(--p-text);
+}
+.wall-exit {
+  border: 1px solid rgba(126, 146, 255, 0.3);
+  background: rgba(21, 30, 62, 0.6);
+  color: #b9c3e0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.wall-exit:hover {
+  color: #fff;
+  border-color: var(--p-primary);
 }
 </style>

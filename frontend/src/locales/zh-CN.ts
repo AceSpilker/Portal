@@ -106,6 +106,7 @@ export default {
     agentRegistered: '节点已注册，token 已生成（见脚本）',
     agentScriptTip: '在节点上运行生成的轻量脚本（psutil+httpx）即可自动上报；SNMP 探测见 /api/monitor/snmp/test',
     wallMode: '大屏模式',
+    wallExit: '退出大屏',
     title: '服务器监控',
     hostname: '主机名',
     os: '操作系统',

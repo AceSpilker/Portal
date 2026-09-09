@@ -106,6 +106,7 @@ export default {
     agentRegistered: 'Node registered, token generated (see script)',
     agentScriptTip: 'Run the lightweight script (psutil+httpx) on the node; SNMP probe via /api/monitor/snmp/test',
     wallMode: 'Wall mode',
+    wallExit: 'Exit wall mode',
     title: 'Server Monitor',
     hostname: 'Hostname',
     os: 'OS',
