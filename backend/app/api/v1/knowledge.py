@@ -549,7 +549,12 @@ async def office_pdf(
     if not p.is_file():
         raise BizError(CODE_NOT_FOUND, t("err.knowledge_file_missing"), 404)
     pdf = await _convert_office_to_pdf(p)
-    return FileResponse(pdf, media_type="application/pdf", filename=p.stem + ".pdf")
+    return FileResponse(
+        pdf,
+        media_type="application/pdf",
+        filename=p.stem + ".pdf",
+        content_disposition_type="inline",  # attachment 会让 iframe 直接变下载（097）
+    )
 
 
 @router.get("/knowledge/{source_id}/raw")
