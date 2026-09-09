@@ -7,6 +7,8 @@ import { useI18n } from 'vue-i18n'
 import { monitorApi, type ProcRow } from '../api/monitor'
 
 const { t } = useI18n()
+/** 大屏模式（086）：压低表格高度、隐藏搜索框 */
+defineProps<{ compact?: boolean }>()
 const rows = ref<ProcRow[]>([])
 const sort = ref<'cpu' | 'mem'>('cpu')
 const q = ref('')
@@ -40,6 +42,7 @@ onUnmounted(() => window.clearInterval(timer))
       <h3>{{ t('monitor.procTitle') }}</h3>
       <div class="proc-tools">
         <el-input
+          v-if="!compact"
           v-model="q"
           size="small"
           clearable
@@ -53,7 +56,7 @@ onUnmounted(() => window.clearInterval(timer))
         </el-radio-group>
       </div>
     </header>
-    <el-table :data="rows" size="small" height="260" v-loading="loading">
+    <el-table :data="rows" size="small" :height="compact ? 168 : 260" v-loading="loading">
       <el-table-column prop="pid" label="PID" width="80" />
       <el-table-column prop="name" :label="t('monitor.procName')" min-width="160" show-overflow-tooltip />
       <el-table-column prop="username" :label="t('monitor.procUser')" min-width="100" show-overflow-tooltip />

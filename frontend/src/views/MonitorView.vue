@@ -584,6 +584,17 @@ function onFullscreenChange() {
   if (!document.fullscreenElement && wallMode.value) exitWall()
 }
 
+// ---- 大屏单屏适配（086）：页面 overflow hidden 不出滚动条，各块压缩限行 ----
+// 图表高度：常规模式定值，大屏交给 flex 容器自适应（MonitorChart 有 ResizeObserver）
+const chartH = computed(() => (wallMode.value ? '100%' : '230px'))
+const histH = computed(() => (wallMode.value ? '100%' : '300px'))
+// 列表类数据大屏截断限行，保证整页一屏放下
+const diskRows = computed(() => (wallMode.value ? disks.value.slice(0, 3) : disks.value))
+const tempRows = computed(() => (wallMode.value ? temps.value.slice(0, 3) : temps.value))
+const statusRows = computed(() =>
+  wallMode.value ? appStatusRows.value.slice(0, 6) : appStatusRows.value,
+)
+
 async function exportCsv() {
   try {
     const r = await monitorEnterpriseApi.exportCsv('cpu', '7d')
@@ -697,7 +708,7 @@ async function registerAgent() {
           {{ t('monitor.cpuTitle') }}
           <b v-if="cpuBlock" class="now">{{ cpuBlock.percent.toFixed(1) }}%</b>
         </h3>
-        <MonitorChart :option="cpuOption" height="230px" />
+        <div class="chart-box"><MonitorChart :option="cpuOption" :height="chartH" /></div>
       </section>
       <section class="glass chart-card">
         <h3>
@@ -705,7 +716,7 @@ async function registerAgent() {
           <b v-if="memBlock" class="now">{{ memBlock.percent.toFixed(1) }}%</b>
           <small v-if="memBlock" class="sub">{{ formatBytes(memBlock.used) }} / {{ formatBytes(memBlock.total) }}</small>
         </h3>
-        <MonitorChart :option="memOption" height="230px" />
+        <div class="chart-box"><MonitorChart :option="memOption" :height="chartH" /></div>
       </section>
       <section class="glass chart-card">
         <h3>
@@ -715,14 +726,14 @@ async function registerAgent() {
             {{ formatRate(netBlock.reduce((s, n) => s + n.tx_rate, 0)) }}
           </small>
         </h3>
-        <MonitorChart :option="netOption" height="230px" />
+        <div class="chart-box"><MonitorChart :option="netOption" :height="chartH" /></div>
       </section>
 
       <!-- 磁盘分区（M17-4） -->
       <section class="glass chart-card">
         <h3>{{ t('monitor.diskTitle') }}</h3>
         <div class="disk-list">
-          <div v-for="d in disks" :key="d.mount" class="disk-row">
+          <div v-for="d in diskRows" :key="d.mount" class="disk-row">
             <div class="disk-head">
               <span class="mount">{{ d.mount }}</span>
               <span class="usage">{{ formatBytes(d.used) }} / {{ formatBytes(d.total) }}</span>
@@ -743,7 +754,7 @@ async function registerAgent() {
             {{ t('monitor.read') }} {{ formatRate(ioBlock.read_rate) }} · {{ t('monitor.write') }} {{ formatRate(ioBlock.write_rate) }}
           </small>
         </h3>
-        <MonitorChart :option="ioOption" height="230px" />
+        <div class="chart-box"><MonitorChart :option="ioOption" :height="chartH" /></div>
       </section>
 
       <!-- GPU（尽力而为：nvidia-smi / Windows GPU Engine 计数器；无数据整卡隐藏） -->
@@ -758,7 +769,7 @@ async function registerAgent() {
             {{ formatBytes(gpuBlock[0].mem_used) }} / {{ formatBytes(gpuBlock[0].mem_total) }}
           </small>
         </h3>
-        <MonitorChart :option="gpuOption" height="230px" />
+        <div class="chart-box"><MonitorChart :option="gpuOption" :height="chartH" /></div>
       </section>
 
       <!-- 温度（M17-11；无传感器时显示提示，NAS/Linux 有 hwmon 自动出数据） -->
@@ -766,7 +777,7 @@ async function registerAgent() {
         <h3>{{ t('monitor.tempTitle') }}</h3>
         <p v-if="!hasTemps" class="empty">{{ t('monitor.noTempSensor') }}</p>
         <div v-else class="disk-list">
-          <div v-for="s in temps" :key="s.name" class="disk-row">
+          <div v-for="s in tempRows" :key="s.name" class="disk-row">
             <div class="disk-head">
               <span class="mount">{{ s.name }}</span>
               <span class="usage" v-if="s.high !== null">{{ t('monitor.tempHigh', { temp: s.high }) }}</span>
@@ -785,36 +796,38 @@ async function registerAgent() {
       </section>
     </div>
 
-    <!-- 应用状态（M17-9 + M07-2） -->
-    <section class="glass history fade-up">
-      <div class="history-head">
-        <h3>{{ t('monitor.statusList') }}</h3>
-      </div>
-      <div class="app-status-list">
-        <div v-for="row in appStatusRows" :key="row.id" class="app-status-row">
-          <span class="as-dot" :class="row.state" />
-          <span class="as-name">{{ row.name }}</span>
-          <span class="as-state" :class="row.state">
-            {{ row.state === 'up' ? t('monitor.statusUp') : row.state === 'down' ? t('monitor.statusDown') : t('monitor.statusUnknown') }}
-            <small v-if="row.state === 'up' && row.latency_ms !== null"> · {{ row.latency_ms }}ms</small>
-          </span>
-          <el-button link size="small" @click="checkNow(row.id)">{{ t('home.probeCheckNow') }}</el-button>
+    <!-- 应用状态 + 进程榜：大屏下两列并排（086），常规模式 display:contents 不影响原布局 -->
+    <div class="mid-grid">
+      <section class="glass history fade-up">
+        <div class="history-head">
+          <h3>{{ t('monitor.statusList') }}</h3>
         </div>
-        <p v-if="!appStatusRows.length" class="empty">{{ t('monitor.noData') }}</p>
-      </div>
-    </section>
+        <div class="app-status-list">
+          <div v-for="row in statusRows" :key="row.id" class="app-status-row">
+            <span class="as-dot" :class="row.state" />
+            <span class="as-name">{{ row.name }}</span>
+            <span class="as-state" :class="row.state">
+              {{ row.state === 'up' ? t('monitor.statusUp') : row.state === 'down' ? t('monitor.statusDown') : t('monitor.statusUnknown') }}
+              <small v-if="row.state === 'up' && row.latency_ms !== null"> · {{ row.latency_ms }}ms</small>
+            </span>
+            <el-button link size="small" @click="checkNow(row.id)">{{ t('home.probeCheckNow') }}</el-button>
+          </div>
+          <p v-if="!appStatusRows.length" class="empty">{{ t('monitor.noData') }}</p>
+        </div>
+      </section>
 
-    <!-- P10.1 进程 Top 榜（M17-12，管理员） -->
-    <ProcessTop v-if="auth.isAdmin" class="fade-up" />
-    <!-- P10.2 Docker 资源占用（M17-13，无 socket 自动隐藏） -->
-    <DockerStatsCard class="fade-up" />
+      <!-- P10.1 进程 Top 榜（M17-12，管理员） -->
+      <ProcessTop v-if="auth.isAdmin" :compact="wallMode" class="fade-up" />
+    </div>
+    <!-- P10.2 Docker 资源占用（M17-13，无 socket 自动隐藏；大屏隐藏保证单屏） -->
+    <DockerStatsCard v-if="!wallMode" class="fade-up" />
     <!-- P10.4 可用性分析（M07-3/4） -->
-    <AvailabilityCard class="fade-up" />
+    <AvailabilityCard v-if="!wallMode" class="fade-up" />
     <!-- P10.5 域名证书（M07-6，未配置域名时自动隐藏） -->
-    <CertCard class="fade-up" />
+    <CertCard v-if="!wallMode" class="fade-up" />
 
     <!-- 历史曲线（M17-6） -->
-    <section class="glass history fade-up" v-loading="historyLoading">
+    <section class="glass history history-main fade-up" v-loading="historyLoading">
       <div class="history-head">
         <h3>{{ t('monitor.history') }}</h3>
         <div class="history-ctrl">
@@ -834,7 +847,7 @@ async function registerAgent() {
           </el-radio-group>
         </div>
       </div>
-      <MonitorChart :option="historyOption" height="300px" />
+      <div class="chart-box"><MonitorChart :option="historyOption" :height="histH" /></div>
     </section>
   </div>
 
@@ -1090,17 +1103,21 @@ async function registerAgent() {
   }
 }
 
-/* ===== 大屏模式（084 重设计）=====
+/* ===== 大屏模式（084 重设计 / 086 单屏无滚动重构）=====
    固定全屏暗色数据墙：在容器上重定义 --p 与 --el 全套变量，级联到所有
-   .glass 面板与 Element Plus 组件（子组件零改动整体变暗），不再出现
-   白卡片贴深底的割裂观感。 */
+   .glass 面板与 Element Plus 组件（子组件零改动整体变暗）。
+   086：页面本身不滚动（overflow hidden）——图表区弹性伸缩吃掉剩余高度
+   （MonitorChart 自带 ResizeObserver 随容器缩放），列表区截断限行，
+   可用性/证书/Docker 等次级卡在大屏隐藏，保证任何高度都一屏铺满。 */
 .monitor.wall-mode {
   position: fixed;
   inset: 0;
   z-index: 60;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 14px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  padding: 12px 18px 14px;
   background:
     radial-gradient(1100px 520px at 82% -12%, rgba(91, 95, 241, 0.2), transparent 62%),
     radial-gradient(900px 480px at -8% 108%, rgba(6, 182, 212, 0.12), transparent 60%),
@@ -1123,6 +1140,9 @@ async function registerAgent() {
   --el-border-color-lighter: rgba(255, 255, 255, 0.08);
   --el-fill-color-blank: transparent;
   --el-fill-color-light: rgba(255, 255, 255, 0.06);
+  /* v-loading 遮罩暗色化（086 用户反馈：白底刺眼） */
+  --el-mask-color: rgba(8, 14, 32, 0.72);
+  --el-mask-color-extra-light: rgba(8, 14, 32, 0.45);
 }
 .monitor.wall-mode .glass {
   border-radius: var(--p-radius);
@@ -1135,12 +1155,70 @@ async function registerAgent() {
 .monitor.wall-mode .page-head {
   display: none; /* 工具动作不属于数据墙，出口走 HUD 退出按钮/Esc */
 }
+/* 系统信息压成单行细条 */
+.monitor.wall-mode .sys-card {
+  flex: none;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  padding: 8px 16px;
+}
+.monitor.wall-mode .sys-item {
+  flex: none;
+  white-space: nowrap;
+}
+/* 图表区：3 列 × N 行等分剩余高度，卡片内图表随容器伸缩 */
 .monitor.wall-mode .chart-grid {
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 12px;
+  flex: 1 1 0;
+  min-height: 220px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 10px;
 }
 .monitor.wall-mode .chart-card {
-  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 10px 14px;
+}
+.monitor.wall-mode .chart-card h3 {
+  flex: none;
+  margin-bottom: 2px;
+}
+.monitor.wall-mode .chart-box {
+  flex: 1;
+  min-height: 0;
+}
+/* 应用状态 + 进程榜两列（display:contents 常规模式不改变原布局） */
+.mid-grid {
+  display: contents;
+}
+.monitor.wall-mode .mid-grid {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 10px;
+}
+.monitor.wall-mode .app-status-row {
+  padding: 4px 2px;
+}
+.monitor.wall-mode .disk-list {
+  gap: 8px;
+  padding-top: 2px;
+}
+/* 历史曲线定高压底 */
+.monitor.wall-mode .history-main .chart-box {
+  flex: none;
+  height: 150px;
+}
+/* 大屏内滚动条细而暗（表格内部滚动用） */
+.monitor.wall-mode ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.monitor.wall-mode ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
 }
 /* 暗底上提亮主数值（--p-primary 原色在深蓝底上发闷） */
 .monitor.wall-mode .now,
