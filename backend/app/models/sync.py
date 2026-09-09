@@ -21,3 +21,16 @@ class SyncState(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(16), default="idle")  # idle/running/ok/failed
     fail_count: Mapped[int] = mapped_column(Integer, default=0)
     message: Mapped[str] = mapped_column(Text, default="")
+
+
+class SyncLog(Base, TimestampMixin):
+    """同步/连接事件日志（088）：MySQL 推送与 Redis 连接共用，各保留最近 200 条。"""
+
+    __tablename__ = "sync_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(16))  # mysql / redis
+    action: Mapped[str] = mapped_column(String(32), default="")  # push/restore/test/connect/…
+    status: Mapped[str] = mapped_column(String(16), default="info")  # ok / failed / info
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    message: Mapped[str] = mapped_column(Text, default="")

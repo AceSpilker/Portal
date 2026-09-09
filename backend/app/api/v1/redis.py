@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +22,7 @@ from app.core.stores import stores
 from app.db.session import get_session
 from app.models.setting import Setting
 from app.models.user import User
+from app.services import sync_log
 
 router = APIRouter()
 
@@ -90,7 +93,10 @@ async def put_redis_config(
         if not connected:
             raise BizError(CODE_VALIDATION, t("err.redis_unreachable"), 422)
     else:
+        was_enabled = stores.enabled
         stores.configure_memory()
+        if was_enabled:
+            sync_log.fire("redis", "disable", "info", "已停用 Redis，切换内存模式")
     return ok(_mask(await get_config(session)), t("ok.saved"))
 
 
@@ -126,12 +132,21 @@ async def redis_test(
         host=cfg["host"], port=cfg["port"], password=cfg["password"] or None, db=cfg["db"],
         socket_timeout=2.0, socket_connect_timeout=2.0,
     )
+    started = time.perf_counter()
     try:
         await client.ping()
         info = await client.info("server")
         version = str(info.get("redis_version", ""))
+        sync_log.fire(
+            "redis", "test", "ok", f"连接测试通过 v{version}",
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )
         return ok({"ok": True, "server_version": version})
     except Exception as exc:
+        sync_log.fire(
+            "redis", "test", "failed", str(exc)[:300],
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )
         return ok({"ok": False, "error": str(exc)[:300]})
     finally:
         await client.aclose()

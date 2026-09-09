@@ -18,6 +18,13 @@ from typing import Any
 log = logging.getLogger("portal.stores")
 
 
+def _sync_log(action: str, status: str, message: str = "") -> None:
+    """同步/连接事件落 sync_logs（088）；旁路触发，失败静默。"""
+    from app.services import sync_log
+
+    sync_log.fire("redis", action, status, message)
+
+
 class MemoryStore:
     """进程内存实现：TTL 用到期时间戳惰性清理。"""
 
@@ -93,6 +100,7 @@ class StoreManager:
         self.enabled = False
         self.last_error = ""
         self.key_prefix = "portal:"
+        self._last_connect_failed: bool | None = None  # 088:连接结果变化才记日志
 
     @property
     def store(self) -> MemoryStore | RedisStore:
@@ -134,10 +142,16 @@ class StoreManager:
                 await client.aclose()
             except Exception:
                 pass
+            if self._last_connect_failed is not True:
+                _sync_log("connect", "failed", self.last_error)
+            self._last_connect_failed = True
             return False
         self._redis = RedisStore(client, self.key_prefix)
         self.mode = "redis"
         self.last_error = ""
+        if self._last_connect_failed is not False:
+            _sync_log("connect", "ok", "Redis 已连接")
+        self._last_connect_failed = False
         return True
 
     async def ping(self) -> bool:
@@ -152,11 +166,13 @@ class StoreManager:
         if ok:
             if self.mode != "redis":
                 log.info("redis recovered, switching back from %s", self.mode)
+                _sync_log("recover", "ok", f"Redis 恢复，已从 {self.mode} 回切")
             self.mode = "redis"
             self.last_error = ""
         else:
             if self.mode == "redis":
                 log.warning("redis unreachable, degrading to memory")
+                _sync_log("degrade", "failed", f"Redis 不可达，降级内存：{self.last_error}")
             self.mode = "redis-degraded"
         return ok
 

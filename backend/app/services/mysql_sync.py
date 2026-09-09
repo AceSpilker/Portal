@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from datetime import datetime, timedelta
 
 from sqlalchemy import Text
@@ -248,12 +249,15 @@ async def push_all(session: AsyncSession, force: bool = False) -> dict:
     """全量镜像推送（M23.3）：逐表 upsert+删除对齐，写 sync_state（M23.4）。
 
     - MySQL 不可达：全局状态 failed，本地不受影响；fail_count 退避重试；
-    - force=True 忽略退避（「立即推送」按钮）。
+    - force=True 忽略退避（「立即推送」按钮）；
+    - 088：每轮结果记入 sync_logs（未启用/连接失败/部分失败/成功），退避跳过不记。
     """
     from sqlalchemy import select as _sel
 
     from app.models.sync import SyncState
+    from app.services import sync_log
 
+    started = time.perf_counter()
     cfg = await get_config(session)
     now = datetime.utcnow()
     states = {
@@ -267,6 +271,7 @@ async def push_all(session: AsyncSession, force: bool = False) -> dict:
     }
     if not result["enabled"]:
         result["error"] = "disabled"
+        sync_log.fire("mysql", "push", "info", "同步未启用，跳过推送")
         return result
 
     # 全局退避判定：任一表未到期则跳过本轮（force 除外）
@@ -297,6 +302,11 @@ async def push_all(session: AsyncSession, force: bool = False) -> dict:
             st.message = str(exc)[:400]
         await session.commit()
         result["error"] = str(exc)[:300]
+        sync_log.fire(
+            "mysql", "push", "failed",
+            f"MySQL 不可达：{result['error']}",
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )
         return result
 
     try:
@@ -342,6 +352,17 @@ async def push_all(session: AsyncSession, force: bool = False) -> dict:
         conn.close()
     if errors:
         result["error"] = "; ".join(errors)[:400]
+        sync_log.fire(
+            "mysql", "push", "failed",
+            f"部分表失败（{result['tables']}/{len(SYNC_TABLES)}）：{result['error']}",
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )
+    else:
+        sync_log.fire(
+            "mysql", "push", "ok",
+            f"推送 {result['pushed']} 行 / {result['tables']} 表",
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )
     return result
 
 

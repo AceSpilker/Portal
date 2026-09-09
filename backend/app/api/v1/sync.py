@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import time
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +18,7 @@ from app.core.i18n import t
 from app.core.response import CODE_VALIDATION, BizError, ok
 from app.db.session import get_session
 from app.models.user import User
-from app.services import mysql_sync
+from app.services import mysql_sync, sync_log
 
 router = APIRouter()
 
@@ -68,9 +70,17 @@ async def mysql_test(
     if not cfg["host"]:
         raise BizError(CODE_VALIDATION, t("err.mysql_not_configured"), 422)
     try:
+        started = time.perf_counter()
         result = await mysql_sync.test_connection(cfg)
     except Exception as exc:
+        sync_log.fire("mysql", "test", "failed", str(exc)[:300])
         return ok({"ok": False, "error": str(exc)[:300]})
+    sync_log.fire(
+        "mysql", "test", "ok" if result.get("ok") else "failed",
+        f"连接测试{'通过' if result.get('ok') else '失败'} "
+        f"{result.get('server_version', '')}".strip(),
+        duration_ms=round((time.perf_counter() - started) * 1000),
+    )
     return ok(result)
 
 
@@ -103,8 +113,14 @@ async def sync_restore(
     from app.services.backup import write_disk_backup
 
     backup = await write_disk_backup(session)
+    started = time.perf_counter()
     try:
         counts = await mysql_sync.restore_from_mysql(session)
     except Exception as exc:
+        sync_log.fire("mysql", "restore", "failed", str(exc)[:300])
         return ok({"ok": False, "backup": backup.name, "error": str(exc)[:300]})
+    sync_log.fire(
+        "mysql", "restore", "ok", f"已从 MySQL 恢复（备份 {backup.name}）",
+        duration_ms=round((time.perf_counter() - started) * 1000),
+    )
     return ok({"ok": True, "backup": backup.name, **counts}, t("ok.restored"))

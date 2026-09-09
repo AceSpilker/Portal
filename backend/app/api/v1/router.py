@@ -27,6 +27,7 @@ from app.api.v1 import (
     schedule,
     settings,
     sync,
+    sync_log,
     system,
     tokens,
     tools,
@@ -59,6 +60,7 @@ api_router.include_router(docker.router, tags=["docker"])
 api_router.include_router(ai.router, tags=["ai"])
 api_router.include_router(flows.router, tags=["flows"])
 api_router.include_router(tokens.router, tags=["tokens"])
+api_router.include_router(sync_log.router, tags=["settings"])
 api_router.include_router(sync.router, tags=["sync"])
 api_router.include_router(redis.router, tags=["redis"])
 api_router.include_router(tunnels.router, tags=["tunnels"])
