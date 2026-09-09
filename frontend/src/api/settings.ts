@@ -17,8 +17,27 @@ export interface TokenRow {
 export interface AuditQuery {
   range: string
   action?: string
+  method?: string
   user_id?: number
   page: number
+}
+
+/** 审计条目（087 起含请求执行详情；旧记录 method/path 等为空串/0） */
+export interface AuditItem {
+  id: number
+  user_id: number | null
+  username: string
+  action: string
+  method: string
+  path: string
+  query: string
+  status: number
+  duration_ms: number
+  user_agent: string
+  error_msg: string
+  detail: string
+  ip: string
+  created_at: string
 }
 
 export interface UpdateInfo {
@@ -44,8 +63,15 @@ export const settingsApi = {
 
   // ---- P17.1 审计日志 ----
   auditLogs: (q: AuditQuery) =>
-    request.get<never, { total: number; page: number; page_size: number; items: Array<{ id: number; user_id: number | null; action: string; detail: string; ip: string; created_at: string }> }>('/audit-logs', {
-      params: { range: q.range, action: q.action || undefined, user_id: q.user_id, page: q.page, page_size: 50 },
+    request.get<never, { total: number; page: number; page_size: number; items: AuditItem[] }>('/audit-logs', {
+      params: {
+        range: q.range,
+        action: q.action || undefined,
+        method: q.method || undefined,
+        user_id: q.user_id,
+        page: q.page,
+        page_size: 50,
+      },
     }),
   auditExport: (range: string) =>
     request.get<never, { filename: string; csv: string }>('/audit-logs/export', {
