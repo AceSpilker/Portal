@@ -106,6 +106,46 @@ async def list_containers() -> list[dict]:
         return result
 
 
+async def containers_by_port(port: int) -> list[dict]:
+    """按宿主机端口找容器（089 端口画像）：匹配 /containers/json 的 Ports 发布映射。
+
+    优先匹配 PublicPort（宿主侧发布端口）；未发布但 PrivatePort 命中的容器一并列出
+    （host/bridge 模式下进程直listen 容器端口）。Docker 未启用返回空列表。
+    """
+    if not enabled():
+        return []
+    try:
+        async with _client() as c:
+            resp = await c.get("/containers/json?all=1")
+            resp.raise_for_status()
+            items = resp.json()
+    except Exception:
+        return []
+    out: list[dict] = []
+    for item in items:
+        hits: list[str] = []
+        for p in item.get("Ports") or []:
+            public = p.get("PublicPort")
+            private = p.get("PrivatePort")
+            if public == port or private == port:
+                ip = p.get("IP") or "0.0.0.0"
+                if public is not None:
+                    hits.append(f"{ip}:{public}->{private}/{p.get('Type', 'tcp')}")
+                else:
+                    hits.append(f"{private}/{p.get('Type', 'tcp')}（未发布）")
+        if hits:
+            out.append(
+                {
+                    "name": (item.get("Names") or [""])[0].lstrip("/"),
+                    "image": item.get("Image", ""),
+                    "state": item.get("State", ""),
+                    "publish": "; ".join(hits),
+                }
+            )
+    out.sort(key=lambda x: (x["state"] != "running", x["name"]))
+    return out
+
+
 async def container_op(name: str, op: str) -> dict:
     """生命周期操作（M08-2）：start/stop/restart。"""
     if not enabled():

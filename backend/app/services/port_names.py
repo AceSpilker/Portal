@@ -1,0 +1,103 @@
+"""常见端口语义词典（089 端口画像）：离线内置，覆盖通用服务与 NAS 常见服务。
+
+用途：端口页详情弹窗给出"这个端口大概是干什么的"提示；未收录端口返回 None。
+词典为经验值（同一端口不同软件可能占用），仅作参考提示而非权威结论。
+"""
+
+from __future__ import annotations
+
+# port -> (服务名, 说明)
+WELL_KNOWN: dict[int, tuple[str, str]] = {
+    20: ("FTP-DATA", "FTP 数据传输"),
+    21: ("FTP", "FTP 文件传输控制"),
+    22: ("SSH", "SSH 远程登录/SCP/SFTP"),
+    23: ("Telnet", "Telnet 远程登录（明文，不建议）"),
+    25: ("SMTP", "邮件发送"),
+    53: ("DNS", "域名解析"),
+    67: ("DHCP", "DHCP 服务端"),
+    68: ("DHCP", "DHCP 客户端"),
+    69: ("TFTP", "简单文件传输（PXE 网络启动常用）"),
+    80: ("HTTP", "Web 服务"),
+    110: ("POP3", "邮件收取"),
+    123: ("NTP", "网络时间同步"),
+    137: ("NetBIOS-NS", "Windows 名称解析"),
+    138: ("NetBIOS-DGM", "Windows 数据报"),
+    139: ("NetBIOS-SSN", "Windows 文件共享（旧）"),
+    143: ("IMAP", "邮件收取"),
+    161: ("SNMP", "网络设备管理"),
+    389: ("LDAP", "目录服务"),
+    443: ("HTTPS", "Web 服务（TLS 加密）"),
+    445: ("SMB", "Windows/Samba 文件共享"),
+    465: ("SMTPS", "邮件发送（TLS）"),
+    514: ("Syslog", "系统日志收集"),
+    515: ("LPD", "打印服务"),
+    587: ("SMTP-Submit", "邮件提交"),
+    631: ("IPP/CUPS", "打印服务"),
+    636: ("LDAPS", "目录服务（TLS）"),
+    993: ("IMAPS", "邮件收取（TLS）"),
+    995: ("POP3S", "邮件收取（TLS）"),
+    1080: ("SOCKS", "SOCKS 代理"),
+    1433: ("MSSQL", "微软 SQL Server"),
+    1521: ("Oracle", "Oracle 数据库"),
+    1900: ("SSDP", "UPnP 设备发现"),
+    2049: ("NFS", "网络文件系统"),
+    2181: ("ZooKeeper", "分布式协调服务"),
+    3000: ("Dev/Node/Grafana", "开发服务器或 Grafana"),
+    3306: ("MySQL/MariaDB", "MySQL 数据库"),
+    3389: ("RDP", "Windows 远程桌面"),
+    4443: ("HTTPS-Alt", "HTTPS 备用端口"),
+    5000: ("DSM/Synology", "群晖 DSM 管理界面（HTTP）或通用 Web"),
+    5001: ("DSM-Synology", "群晖 DSM 管理界面（HTTPS）"),
+    5002: ("AirPlay", "AirPlay 接收"),
+    5005: ("DS Video", "群晖 Video Station"),
+    5006: ("DS Video", "群晖 Video Station（HTTPS）"),
+    5353: ("mDNS", "局域网设备发现（Bonjour/Avahi）"),
+    5432: ("PostgreSQL", "PostgreSQL 数据库"),
+    5555: ("ADB", "Android 调试"),
+    5672: ("AMQP/RabbitMQ", "消息队列"),
+    5900: ("VNC", "VNC 远程桌面"),
+    6379: ("Redis", "Redis 缓存"),
+    6881: ("BitTorrent", "BT 下载"),
+    6889: ("BT", "BT 下载（常用段）"),
+    8000: ("HTTP-Dev", "开发服务器（uvicorn/Django 等）"),
+    8008: ("HTTP-Alt", "HTTP 备用端口"),
+    8009: ("CASTV2", "Chromecast 投屏"),
+    8080: ("HTTP-Alt", "Web 服务/反向代理（常见）"),
+    8081: ("HTTP-Alt", "HTTP 备用端口"),
+    8086: ("InfluxDB", "时序数据库"),
+    8123: ("Home Assistant", "Home Assistant 智能家居"),
+    8384: ("Syncthing", "Syncthing 文件同步"),
+    8443: ("HTTPS-Alt", "HTTPS 备用端口（常见面板）"),
+    8500: ("Consul", "服务发现"),
+    8888: ("HTTP-Alt", "HTTP 备用（Jupyter 等）"),
+    8989: ("qBittorrent", "qBittorrent WebUI（常用）"),
+    9000: ("Portainer/PHP-FPM", "Portainer 面板或 PHP-FPM"),
+    9001: ("Portainer", "Portainer 备用"),
+    9090: ("Prometheus/Cockpit", "Prometheus 或 Cockpit 面板"),
+    9091: ("Transmission", "Transmission BT 下载 WebUI"),
+    9100: ("Node Exporter", "Prometheus 节点导出器"),
+    9200: ("Elasticsearch", "Elasticsearch"),
+    9443: ("HTTPS-Alt", "HTTPS 备用（Synology 套件常用）"),
+    11211: ("Memcached", "内存缓存"),
+    15672: ("RabbitMQ", "RabbitMQ 管理界面"),
+    27017: ("MongoDB", "MongoDB 数据库"),
+    32400: ("Plex", "Plex 媒体服务器"),
+    49152: ("UPnP", "动态/UPnP 端口"),
+    51413: ("Transmission", "Transmission BT 数据"),
+    5666: ("NRPE", "Nagios 监控"),
+    6789: ("Synology", "群晖文件索引/图片站"),
+    6690: ("Synology Drive", "群晖 Drive 客户端同步"),
+    8096: ("Jellyfin/Emby", "Jellyfin/Emby 媒体服务器 HTTP"),
+    8920: ("Jellyfin/Emby", "Jellyfin/Emby 媒体服务器 HTTPS"),
+    9901: ("HTTP-Alt", "备用 Web 端口"),
+    51820: ("WireGuard", "WireGuard VPN（UDP）"),
+    1194: ("OpenVPN", "OpenVPN VPN（UDP/TCP）"),
+}
+
+
+def lookup(port: int) -> dict | None:
+    """端口说明；未收录返回 None。"""
+    hit = WELL_KNOWN.get(port)
+    if not hit:
+        return None
+    return {"name": hit[0], "desc": hit[1]}

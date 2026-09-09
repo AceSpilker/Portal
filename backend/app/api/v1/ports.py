@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json as _json
+import re
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -61,6 +62,84 @@ async def ports_listen(_: User = Depends(get_current_user)):
     import asyncio
 
     return ok(await asyncio.to_thread(ports.listen_list))
+
+
+@router.get("/ports/{port}/info")
+async def port_info(
+    port: int,
+    _: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """端口画像（089）：这个端口是干什么的——常见用途 + 容器来源 + 本机进程
+    + 系统内应用/监控项关联 + 当前连接统计。"""
+    import asyncio
+
+    from sqlalchemy import select as _sel
+
+    from app.models.port import PortMonitor
+    from app.models.portal import App, AppUrl
+    from app.services import docker_svc, port_names
+    from app.services import ports as ports_svc
+
+    def _parse_url_port(url: str) -> int | None:
+        m = re.search(r":(\d{1,5})(?:[/?]|$)", url or "")
+        return int(m.group(1)) if m else None
+
+    # 1) 常见用途（离线词典，经验参考）
+    well_known = port_names.lookup(port)
+
+    # 2) 监听套接字与连接统计
+    listeners = [r for r in await asyncio.to_thread(ports_svc.listen_list) if r["port"] == port]
+    conns = await asyncio.to_thread(ports_svc.lookup_port, port)
+    conn_stat: dict[str, int] = {}
+    for c in conns:
+        key = str(c.get("status", "UNKNOWN")).upper()
+        conn_stat[key] = conn_stat.get(key, 0) + 1
+
+    # 3) 容器来源（docker.sock 启用时）
+    containers = await docker_svc.containers_by_port(port)
+
+    # 4) 系统内关联：监控项 + 应用入口 URL 命中该端口
+    monitors = (
+        (await session.execute(_sel(PortMonitor).where(PortMonitor.port == port)))
+        .scalars()
+        .all()
+    )
+    app_rows = (
+        (await session.execute(_sel(AppUrl))).scalars().all()
+        if port else []
+    )
+    app_ids = {u.app_id for u in app_rows if _parse_url_port(u.url) == port}
+    apps = (
+        (
+            await session.execute(_sel(App).where(App.id.in_(app_ids)))
+        ).scalars().all()
+        if app_ids
+        else []
+    )
+    url_of = {
+        u.app_id: u.url
+        for u in app_rows
+        if u.app_id in app_ids and _parse_url_port(u.url) == port
+    }
+
+    return ok(
+        {
+            "port": port,
+            "well_known": well_known,
+            "listeners": listeners,
+            "connections": {"total": len(conns), "by_status": conn_stat},
+            "containers": containers,
+            "docker_enabled": docker_svc.enabled(),
+            "monitors": [
+                {"id": m.id, "name": m.name, "host": m.host, "state": m.state, "enabled": m.enabled}
+                for m in monitors
+            ],
+            "apps": [
+                {"id": a.id, "name": a.name, "url": url_of.get(a.id, "")} for a in apps
+            ],
+        }
+    )
 
 
 @router.get("/ports/lookup")
