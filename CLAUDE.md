@@ -8,7 +8,8 @@
 2. **同步契约文档**：新增/修改接口、数据表、枚举 → 同步 docs/api-spec.md（含权限列与阶段列）；需求变更 → 先改 docs/feature-spec.md 再同步 dev-plan；
 3. **写工作日志**：`logs/YYYY-MM-DD_NNN-标题.md`，编号递增；包含需求原意、完成情况、测试结果、关键决策、遗留；
 4. **提交并推送**：每个完成的逻辑单元单独 commit（格式 `type(scope): 中文描述`，如 `feat(P6): ...`、`fix(主题): ...`），完成后 push 到 origin main——用户在 Windows/macOS 两台机器间协作，不推送等于丢失；
-5. **两道测试关卡**：后端 pytest + ruff、前端 vitest + vue-tsc + eslint + build 全绿才算完成；阶段结束跑业务功能测试（浏览器端到端）。
+5. **两道测试关卡**：后端 pytest + ruff、前端 vitest + vue-tsc + eslint + build 全绿才算完成；阶段结束跑业务功能测试（浏览器端到端）；
+6. **部署 NAS（2026-09-09 起，用户指示）**：每次功能完成、commit + push 之后，必须重新部署到局域网 NAS 的 Docker 并验证——`ssh nas-portal`（端口 8082），同步源码到 `/volume1/docker/portal`（tar over ssh，排除 .git/node_modules/.venv/data/logs），`docker compose up -d --build`，随后验证容器 healthy 与核心接口。
 
 ## 技术与环境要点
 
