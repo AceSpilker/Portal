@@ -2,7 +2,8 @@
 /**
  * 日程与提醒面板（M13-1~5；dev-plan P16.1）。
  *
- * - el-calendar 月视图：日期单元格显示事件角标、待办缩略与农历节日；
+ * - el-calendar 月视图：日期单元格显示事件角标、待办缩略（完整标题、放不下
+ *   省略号、完成态划线）与节日（日期右侧）；整格任意位置可点击（102）；
  *   点击日期不整格变色，仅"今天"保持高亮（099）；
  * - 点日期查看/新增当日事件；事件支持重复规则、农历生日、提醒提前分钟；
  * - 待办清单（101：整行点击编辑——复选框/删除除外；日期带年份，
@@ -221,11 +222,6 @@ function todosOn(day: Date): TodoItem[] {
 /** 日历格内待办最多显示条数，超出折叠为 +N */
 const TODO_CELL_MAX = 2
 
-/** 待办缩略（099 用户需求：格内显示内容而非数量）——前 5 个字符，超出补 … */
-function shortTodo(title: string): string {
-  return title.length > 5 ? `${title.slice(0, 5)}…` : title
-}
-
 // ---- 待办编辑（077：区间待办） ----
 const todoDlg = ref(false)
 const editingTodo = ref<TodoItem | null>(null)
@@ -311,7 +307,10 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
       <el-calendar v-model="viewDate">
         <template #date-cell="{ data }">
           <div class="cell" @click="openDay(data.date)">
-            <span class="cell-day">{{ data.date.getDate() }}</span>
+            <div class="cell-head">
+              <span class="cell-day">{{ data.date.getDate() }}</span>
+              <span v-for="f in festivalsOn(data.date)" :key="f.name" class="cell-fest">{{ f.name }}</span>
+            </div>
             <span class="cell-dots">
               <i v-for="e in eventsOn(data.date).slice(0, 3)" :key="e.id + e.date" class="dot" :title="e.title" />
             </span>
@@ -320,15 +319,15 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
                 v-for="td in todosOn(data.date).slice(0, TODO_CELL_MAX)"
                 :key="td.id"
                 class="cell-todo"
+                :class="{ done: td.done }"
                 :title="td.title"
               >
-                {{ shortTodo(td.title) }}
+                {{ td.title }}
               </span>
               <span v-if="todosOn(data.date).length > TODO_CELL_MAX" class="cell-todo more" :title="t('eff.todos')">
                 +{{ todosOn(data.date).length - TODO_CELL_MAX }}
               </span>
             </template>
-            <span v-for="f in festivalsOn(data.date)" :key="f.name" class="cell-fest">{{ f.name }}</span>
             <span v-if="holidayOn(data.date)?.isOffDay" class="cell-off">休</span>
             <span v-else-if="holidayOn(data.date)" class="cell-work">班</span>
           </div>
@@ -532,6 +531,8 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 }
 .cal-wrap :deep(.el-calendar-table .el-calendar-day) {
   height: 100%;
+  /* 102：padding 归零并移入 .cell，点击区域覆盖整格（修复只有内容区可点） */
+  padding: 0;
 }
 /* 099：点击日期不再整格变色，仅"今天"保持高亮底色 */
 .cal-wrap :deep(.el-calendar-table td.is-selected) {
@@ -545,11 +546,21 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 52px;
+  /* 102：撑满日期格全部高度（宽布局），窄布局退化为内容高度并保底 52px */
+  min-height: max(52px, 100%);
+  padding: 8px;
+  box-sizing: border-box;
   cursor: pointer;
+}
+.cell-head {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
 }
 .cell-day {
   font-size: 13px;
+  flex-shrink: 0;
 }
 .cell-dots {
   display: flex;
@@ -562,20 +573,29 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
   background: var(--p-primary);
 }
 .cell-fest {
-  font-size: 10.5px;
+  font-size: 11px;
   color: #e0566a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cell-todo {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11.5px;
   line-height: 1.4;
   padding: 0 4px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--p-primary) 10%, transparent);
   color: var(--p-primary);
+}
+/* 102：已完成待办——划线+置灰，与未完成区分 */
+.cell-todo.done {
+  text-decoration: line-through;
+  color: var(--p-muted);
+  background: color-mix(in srgb, var(--p-muted) 10%, transparent);
 }
 .cell-todo.more {
   padding: 0;
@@ -711,4 +731,4 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 }
 </style>
 
-<!-- 101r1 cache-bust -->
+<!-- 102r1 cache-bust -->
