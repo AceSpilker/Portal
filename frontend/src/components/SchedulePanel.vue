@@ -4,7 +4,8 @@
  *
  * - el-calendar 月视图：日期单元格显示事件角标、待办缩略（完整标题、放不下
  *   省略号、完成态划线）与节日（日期右侧）；整格任意位置可点击（102）；
- *   点击日期不整格变色，仅"今天"保持高亮（099）；
+ *   点击日期不整格变色，仅"今天"保持高亮（099）；选中日期以主题融合色
+ *   高亮，与右侧当日事件卡呼应（103）；
  * - 点日期查看/新增当日事件；事件支持重复规则、农历生日、提醒提前分钟；
  * - 待办清单（101：整行点击编辑——复选框/删除除外；日期带年份，
  *   点击日期行内弹日期面板直接改起止日期，不打开编辑框；勾选完成、按日期分组）。
@@ -306,7 +307,7 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
     <div class="cal-wrap glass">
       <el-calendar v-model="viewDate">
         <template #date-cell="{ data }">
-          <div class="cell" @click="openDay(data.date)">
+          <div class="cell" :class="{ selected: data.isSelected }" @click="openDay(data.date)">
             <div class="cell-head">
               <span class="cell-day">{{ data.date.getDate() }}</span>
               <span v-for="f in festivalsOn(data.date)" :key="f.name" class="cell-fest">{{ f.name }}</span>
@@ -558,6 +559,12 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
   gap: 5px;
   min-width: 0;
 }
+/* 103：选中日期以主题融合色高亮——与右侧"当日事件"卡所选日期呼应 */
+.cell.selected {
+  background: color-mix(in srgb, var(--p-primary) 13%, transparent);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--p-primary) 30%, transparent);
+}
 .cell-day {
   font-size: 13px;
   flex-shrink: 0;
@@ -731,4 +738,4 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 }
 </style>
 
-<!-- 102r1 cache-bust -->
+<!-- 103r1 cache-bust -->
