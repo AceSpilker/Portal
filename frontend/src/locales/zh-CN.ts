@@ -692,6 +692,7 @@ export default {
     remindBefore: '提前 {n} 分钟',
     todos: '待办',
     todoPlaceholder: '添加待办，回车确认',
+    todoDateTip: '点击修改日期',
     colName: '名称',
     colSize: '大小',
     colMtime: '修改时间',

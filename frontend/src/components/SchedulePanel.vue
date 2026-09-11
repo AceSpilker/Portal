@@ -5,9 +5,11 @@
  * - el-calendar 月视图：日期单元格显示事件角标、待办缩略与农历节日；
  *   点击日期不整格变色，仅"今天"保持高亮（099）；
  * - 点日期查看/新增当日事件；事件支持重复规则、农历生日、提醒提前分钟；
- * - 待办清单（勾选完成、按日期分组）。
+ * - 待办清单（101：整行点击编辑——复选框/删除除外；日期带年份，
+ *   点击日期行内弹日期面板直接改起止日期，不打开编辑框；勾选完成、按日期分组）。
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete as IconDelete, Plus as IconPlus } from '@element-plus/icons-vue'
@@ -257,6 +259,44 @@ async function saveTodoEdit() {
   }
 }
 
+// ---- 待办行内改日期（101：点日期直接弹面板，不打开编辑框） ----
+const dateEditId = ref<number | null>(null)
+const dateDraft = ref<[string, string] | null>(null)
+let datePickEl: Element | ComponentPublicInstance | null = null
+
+function setDatePickEl(el: Element | ComponentPublicInstance | null) {
+  datePickEl = el
+}
+
+function openDateEdit(td: TodoItem) {
+  const base = td.date ?? ymd(viewDate.value)
+  dateEditId.value = td.id
+  dateDraft.value = [base, td.end_date ?? base]
+  void nextTick(() => {
+    ;(datePickEl as unknown as { handleOpen?: () => void } | null)?.handleOpen?.()
+  })
+}
+
+async function applyTodoDate(td: TodoItem) {
+  const range = dateDraft.value
+  if (!range || range.length !== 2 || !range[0] || !range[1]) return
+  try {
+    await scheduleApi.updateTodo(td.id, {
+      title: td.title,
+      done: td.done,
+      date: range[0],
+      end_date: range[1],
+    })
+    await loadTodos()
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
+function onDatePickVisible(v: boolean) {
+  if (!v) dateEditId.value = null
+}
+
 const openTodos = computed(() => todos.value.filter((x) => !x.done))
 const doneTodos = computed(() => todos.value.filter((x) => x.done))
 
@@ -330,17 +370,59 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
           <el-button size="small" :icon="IconPlus" @click="addTodo" />
         </div>
         <ul class="day-list">
-          <li v-for="td in openTodos" :key="td.id" class="day-item todo">
-            <el-checkbox :model-value="false" @change="toggleTodo(td)" />
-            <span class="ev-title todo-title" :title="t('common.edit')" @click="openTodoEdit(td)">{{ td.title }}</span>
-            <span v-if="td.date" class="todo-range">{{ td.end_date ? `${td.date.slice(5)}~${td.end_date.slice(5)}` : td.date.slice(5) }}</span>
-            <el-button link size="small" :icon="IconDelete" class="todo-del" @click="removeTodo(td)" />
+          <li v-for="td in openTodos" :key="td.id" class="day-item todo" @click="openTodoEdit(td)">
+            <el-checkbox :model-value="false" @click.stop @change="toggleTodo(td)" />
+            <span class="ev-title todo-title" :title="t('common.edit')">{{ td.title }}</span>
+            <el-date-picker
+              v-if="td.date && dateEditId === td.id"
+              :ref="setDatePickEl"
+              v-model="dateDraft"
+              type="daterange"
+              size="small"
+              value-format="YYYY-MM-DD"
+              start-placeholder="开始"
+              end-placeholder="结束"
+              class="todo-date-edit"
+              @click.stop
+              @change="applyTodoDate(td)"
+              @visible-change="onDatePickVisible"
+            />
+            <span
+              v-else-if="td.date"
+              class="todo-range"
+              :title="t('eff.todoDateTip')"
+              @click.stop="openDateEdit(td)"
+            >
+              {{ td.end_date ? `${td.date}~${td.end_date}` : td.date }}
+            </span>
+            <el-button link size="small" :icon="IconDelete" class="todo-del" @click.stop="removeTodo(td)" />
           </li>
-          <li v-for="td in doneTodos" :key="td.id" class="day-item todo done">
-            <el-checkbox :model-value="true" @change="toggleTodo(td)" />
-            <span class="ev-title todo-title" :title="t('common.edit')" @click="openTodoEdit(td)">{{ td.title }}</span>
-            <span v-if="td.date" class="todo-range">{{ td.end_date ? `${td.date.slice(5)}~${td.end_date.slice(5)}` : td.date.slice(5) }}</span>
-            <el-button link size="small" :icon="IconDelete" class="todo-del" @click="removeTodo(td)" />
+          <li v-for="td in doneTodos" :key="td.id" class="day-item todo done" @click="openTodoEdit(td)">
+            <el-checkbox :model-value="true" @click.stop @change="toggleTodo(td)" />
+            <span class="ev-title todo-title" :title="t('common.edit')">{{ td.title }}</span>
+            <el-date-picker
+              v-if="td.date && dateEditId === td.id"
+              :ref="setDatePickEl"
+              v-model="dateDraft"
+              type="daterange"
+              size="small"
+              value-format="YYYY-MM-DD"
+              start-placeholder="开始"
+              end-placeholder="结束"
+              class="todo-date-edit"
+              @click.stop
+              @change="applyTodoDate(td)"
+              @visible-change="onDatePickVisible"
+            />
+            <span
+              v-else-if="td.date"
+              class="todo-range"
+              :title="t('eff.todoDateTip')"
+              @click.stop="openDateEdit(td)"
+            >
+              {{ td.end_date ? `${td.date}~${td.end_date}` : td.date }}
+            </span>
+            <el-button link size="small" :icon="IconDelete" class="todo-del" @click.stop="removeTodo(td)" />
           </li>
         </ul>
       </section>
@@ -581,6 +663,20 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 .todo-del:hover {
   opacity: 1;
 }
+.todo-range {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--p-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.todo-range:hover {
+  color: var(--p-primary);
+}
+.todo-date-edit {
+  width: 100%;
+}
 .form-tip {
   margin-left: 8px;
   font-size: 12px;
@@ -615,4 +711,4 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 }
 </style>
 
-<!-- 100r1 cache-bust -->
+<!-- 101r1 cache-bust -->

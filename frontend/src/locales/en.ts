@@ -692,6 +692,7 @@ export default {
     remindBefore: '{n} min before',
     todos: 'Todos',
     todoPlaceholder: 'Add a todo, press Enter',
+    todoDateTip: 'Click to change dates',
     colName: 'Name',
     colSize: 'Size',
     colMtime: 'Modified',
