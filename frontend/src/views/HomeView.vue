@@ -654,14 +654,16 @@ onBeforeUnmount(() => window.clearInterval(clockTimer))
   display: inline-flex;
 }
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   position: absolute;
-  top: 8px;
-  right: 8px;
+  /* 105：骑在图标右上角角标位（原 top/right 8px 画进了图标内部） */
+  top: -3px;
+  right: -3px;
   background: var(--p-muted);
   opacity: 0.5;
+  box-shadow: 0 0 0 2px var(--p-card);
 }
 .status-dot.up {
   background: var(--p-up);
