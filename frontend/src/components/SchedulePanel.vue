@@ -2,7 +2,8 @@
 /**
  * 日程与提醒面板（M13-1~5；dev-plan P16.1）。
  *
- * - el-calendar 月视图：日期单元格显示事件角标与农历节日；
+ * - el-calendar 月视图：日期单元格显示事件角标、待办缩略与农历节日；
+ *   点击日期不整格变色，仅"今天"保持高亮（099）；
  * - 点日期查看/新增当日事件；事件支持重复规则、农历生日、提醒提前分钟；
  * - 待办清单（勾选完成、按日期分组）。
  */
@@ -204,14 +205,23 @@ async function removeTodo(td: TodoItem) {
   }
 }
 
-/** 当日覆盖的待办数（开始~结束区间内，077 用户需求：区间内在日历显示） */
-function todosOn(day: Date): number {
+/** 当日覆盖的待办列表（开始~结束区间内，077 用户需求：区间内在日历显示；未完成排前） */
+function todosOn(day: Date): TodoItem[] {
   const key = ymd(day)
-  return todos.value.filter((td) => {
+  const hit = todos.value.filter((td) => {
     const start = td.date ?? '0000-01-01'
     const end = td.end_date ?? td.date ?? start
     return start <= key && key <= end
-  }).length
+  })
+  return [...hit.filter((td) => !td.done), ...hit.filter((td) => td.done)]
+}
+
+/** 日历格内待办最多显示条数，超出折叠为 +N */
+const TODO_CELL_MAX = 2
+
+/** 待办缩略（099 用户需求：格内显示内容而非数量）——前 5 个字符，超出补 … */
+function shortTodo(title: string): string {
+  return title.length > 5 ? `${title.slice(0, 5)}…` : title
 }
 
 // ---- 待办编辑（077：区间待办） ----
@@ -265,9 +275,19 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
             <span class="cell-dots">
               <i v-for="e in eventsOn(data.date).slice(0, 3)" :key="e.id + e.date" class="dot" :title="e.title" />
             </span>
-            <span v-if="todosOn(data.date)" class="cell-todo" :title="t('eff.todos')">
-              ☑ {{ todosOn(data.date) }}
-            </span>
+            <template v-if="todosOn(data.date).length">
+              <span
+                v-for="td in todosOn(data.date).slice(0, TODO_CELL_MAX)"
+                :key="td.id"
+                class="cell-todo"
+                :title="td.title"
+              >
+                {{ shortTodo(td.title) }}
+              </span>
+              <span v-if="todosOn(data.date).length > TODO_CELL_MAX" class="cell-todo more" :title="t('eff.todos')">
+                +{{ todosOn(data.date).length - TODO_CELL_MAX }}
+              </span>
+            </template>
             <span v-for="f in festivalsOn(data.date)" :key="f.name" class="cell-fest">{{ f.name }}</span>
             <span v-if="holidayOn(data.date)?.isOffDay" class="cell-off">休</span>
             <span v-else-if="holidayOn(data.date)" class="cell-work">班</span>
@@ -409,6 +429,13 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 .cal-wrap {
   padding: 8px;
 }
+/* 099：点击日期不再整格变色，仅"今天"保持高亮底色 */
+.cal-wrap :deep(.el-calendar-table td.is-selected) {
+  background-color: transparent;
+}
+.cal-wrap :deep(.el-calendar-table td.is-today) {
+  background-color: var(--el-calendar-selected-bg-color);
+}
 .cell {
   position: relative;
   display: flex;
@@ -433,6 +460,23 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 .cell-fest {
   font-size: 10.5px;
   color: #e0566a;
+}
+.cell-todo {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--p-primary) 10%, transparent);
+  color: var(--p-primary);
+}
+.cell-todo.more {
+  padding: 0;
+  background: none;
+  color: var(--p-muted);
 }
 .side {
   display: flex;
@@ -543,4 +587,4 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 }
 </style>
 
-<!-- 077r2 cache-bust -->
+<!-- 099r1 cache-bust -->
