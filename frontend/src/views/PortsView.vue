@@ -387,7 +387,8 @@ function timeLabel(iso: string): string {
         />
         <el-button size="small" :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
       </div>
-      <el-table :data="filteredListen" size="small" height="480">
+      <div class="table-fill">
+        <el-table :data="filteredListen" size="small" height="100%">
           <el-table-column prop="proto" :label="t('ports.colProto')" width="70" />
           <el-table-column prop="addr" :label="t('ports.colAddr')" min-width="140" />
           <el-table-column prop="port" :label="t('ports.colPort')" width="90" />
@@ -413,7 +414,8 @@ function timeLabel(iso: string): string {
             </el-button>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
       </el-tab-pane>
       <el-tab-pane :label="t('ports.tabMonitors')" name="monitors">
         <el-table :data="sorted" size="small" v-loading="loading">
@@ -778,8 +780,30 @@ function timeLabel(iso: string): string {
   white-space: nowrap;
 }
 .tabs-card {
+  /* 100：主内容卡撑满右侧视口高度，各页签内部滚动 */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 10px 14px 14px;
   border-radius: 12px;
+}
+.tabs-card :deep(.el-tabs__header) {
+  flex-shrink: 0;
+}
+.tabs-card :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+}
+.tabs-card :deep(.el-tab-pane) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.table-fill {
+  flex: 1;
+  min-height: 0;
 }
 .state-pill {
   display: inline-block;
@@ -843,6 +867,7 @@ function timeLabel(iso: string): string {
   gap: 8px;
   margin-bottom: 10px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .stat-chip {
   font-size: 12.5px;

@@ -421,13 +421,35 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 
 <style scoped>
 .schedule {
+  flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 12px;
-  align-items: start;
 }
+/* 100：内容区撑满右侧视口高度——日历表随卡片拉伸，格子高度自适应 */
 .cal-wrap {
   padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.cal-wrap :deep(.el-calendar) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cal-wrap :deep(.el-calendar__header) {
+  flex-shrink: 0;
+}
+.cal-wrap :deep(.el-calendar__body) {
+  flex: 1;
+  min-height: 0;
+}
+.cal-wrap :deep(.el-calendar-table) {
+  height: 100%;
+}
+.cal-wrap :deep(.el-calendar-table .el-calendar-day) {
+  height: 100%;
 }
 /* 099：点击日期不再整格变色，仅"今天"保持高亮底色 */
 .cal-wrap :deep(.el-calendar-table td.is-selected) {
@@ -482,8 +504,13 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
 }
 .day-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 12px 14px;
 }
 .side-head {
@@ -507,7 +534,8 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 320px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 .day-item {
@@ -587,4 +615,4 @@ const REPEATS = ['none', 'daily', 'weekly', 'monthly', 'yearly', 'custom']
 }
 </style>
 
-<!-- 099r1 cache-bust -->
+<!-- 100r1 cache-bust -->

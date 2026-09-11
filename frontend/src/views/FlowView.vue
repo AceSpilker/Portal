@@ -304,7 +304,7 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
     </header>
 
     <section class="glass list-card">
-      <el-table :data="sorted" size="default" v-loading="loading">
+      <el-table :data="sorted" size="default" v-loading="loading" height="100%" class="fill-table">
         <el-table-column :label="t('flow.colName')" min-width="180">
           <template #default="{ row }">
             <div class="f-name">{{ row.name }}</div>
@@ -508,8 +508,17 @@ const sorted = computed(() => [...items.value].sort((a, b) => (b.enabled ? 1 : 0
   font-size: 12.5px;
 }
 .list-card {
+  /* 100：主内容卡撑满右侧视口高度，表格内部滚动 */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 10px 14px 14px;
   border-radius: 12px;
+}
+.fill-table {
+  flex: 1;
+  min-height: 0;
 }
 .f-name {
   font-weight: 600;
