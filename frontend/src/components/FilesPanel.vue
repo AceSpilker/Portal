@@ -319,6 +319,9 @@ onMounted(loadRoots)
 
 <style scoped>
 .files {
+  /* 104：面板撑满效率页剩余高度 */
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -340,8 +343,10 @@ onMounted(loadRoots)
   display: none;
 }
 .files-body {
-  padding: 6px 10px;
+  flex: 1;
   min-height: 200px;
+  padding: 6px 10px;
+  overflow: auto;
 }
 .file-table {
   width: 100%;
@@ -398,9 +403,11 @@ onMounted(loadRoots)
   padding: 26px 0 !important;
 }
 .empty-state {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   padding: 46px 0;
   color: var(--p-muted);

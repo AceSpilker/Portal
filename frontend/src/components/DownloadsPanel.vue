@@ -114,7 +114,7 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="glass dl-body">
+      <section class="glass dl-body grow">
         <header class="sec-head">
           <h3>{{ t('eff.tasks') }}</h3>
           <span class="spacer" />
@@ -130,7 +130,7 @@ onMounted(load)
           {{ t('eff.dlUnreachable', { msg: summary.error ?? '' }) }}
         </p>
 
-        <el-table :data="tasks" size="small" style="width: 100%">
+        <el-table :data="tasks" size="small" style="width: 100%" height="100%" class="fill-table">
           <el-table-column prop="name" :label="t('eff.colName')" min-width="240" show-overflow-tooltip />
           <el-table-column :label="t('eff.colProgress')" width="170">
             <template #default="{ row }">
@@ -180,10 +180,19 @@ onMounted(load)
 </template>
 
 <style scoped>
+.dl {
+  /* 104：面板撑满效率页剩余高度 */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .stat-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+  flex-shrink: 0;
 }
 .stat-card {
   display: flex;
@@ -202,6 +211,17 @@ onMounted(load)
 }
 .dl-body {
   padding: 12px 16px;
+}
+/* 104：任务卡撑满剩余高度，表格内部滚动 */
+.dl-body.grow {
+  flex: 1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+.fill-table {
+  flex: 1;
+  min-height: 0;
 }
 .sec-head {
   display: flex;
@@ -258,9 +278,11 @@ figcaption {
   color: var(--p-muted);
 }
 .empty-state {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   padding: 46px 0;
   color: var(--p-muted);
