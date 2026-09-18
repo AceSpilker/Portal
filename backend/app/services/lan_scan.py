@@ -188,13 +188,22 @@ def detect_segments() -> list[dict]:
 
 
 def auto_cidrs() -> list[str]:
-    """扫描网段缺省值：默认网关所在网段（/24 优先，同一网段去重）。"""
+    """扫描网段缺省值：默认网关所在 /24。
+
+    容器部署时 /proc/net 按网络命名空间生成（HOST_PROC 也拿不到宿主网络表），
+    自动识别到的是 Docker 网桥（常为 172.x/16，超 4096 地址上限会被拒）——
+    统一收敛为网关 /24 保证缺省可用；物理网段由用户在扫描设置里覆盖。
+    """
+    gw_ip, _ = default_gateway()
+    if gw_ip:
+        try:
+            return [str(ipaddress.ip_network(f"{gw_ip}/24", strict=False))]
+        except ValueError:
+            pass
     seen: list[str] = []
     for seg in detect_segments():
         if seg["cidr"] not in seen:
             seen.append(seg["cidr"])
-        if seg["is_gateway_iface"] and seg["gateway"]:
-            return [seg["cidr"]]
     return seen[:4]
 
 
