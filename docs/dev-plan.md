@@ -1,6 +1,8 @@
 # Portal · 开发计划与技术清单（Dev Plan）
 
-> **版本**：v1.5b ｜ **日期**：2026-09-02 ｜ **关联文档**：《功能详述 feature-spec》v1.6、《总体设计方案 design-proposal》v0.7、《接口详述 api-spec》v1.2
+> **版本**：v1.6 ｜ **日期**：2026-09-18 ｜ **关联文档**：《功能详述 feature-spec》v1.7、《总体设计方案 design-proposal》v0.8、《接口详述 api-spec》v1.4
+>
+> **v1.6 变更（设计补充）**：新增 **P26 · 局域网设备发现与路由器**（5 步）与 **P27 · 局域网数据库服务发现与只读查看**（6 步）两个阶段（对应 feature-spec M19/M20、api-spec §3.12/§4.14/§4.15）——网段扫描（TCP 并发 + ARP 融合，免 ICMP/免 root）、路由器识别与详情（UPnP IGD / SNMP 复用）、数据库指纹发现（9 类端口握手指纹）、凭据 Fernet 加密管理、MySQL/Redis/MinIO **只读查看器**（白名单固定视图）。**零新增后端依赖**（复用 aiomysql/redis-py/httpx，SSDP-UPnP 与 SigV4 用标准库实现）。总步骤 120 → **131**，阶段 26 → **28**，当前进度 **120 / 131**。
 >
 > **v1.1 变更**：数据库策略调整——**SQLite 为运行主库，定时镜像推送到 NAS 上的 MySQL**（灾备/集中存储）；新增 **P23 · MySQL 数据同步** 阶段（5 步），技术清单补充 MySQL 驱动；总步骤 103 → 108。
 >
@@ -18,7 +20,7 @@
 
 **状态图例**：⬜ 未开始 ｜ 🔄 进行中 ｜ ✅ 已完成（须通过该阶段两道测试关卡）｜ ⛔ 阻塞
 
-**规模总览**：**26 个开发阶段 · 120 个步骤**，分布在三个里程碑（M1 MVP / M2 增强 / M3 进阶）。当前进度：**120 / 120**（全部 26 个阶段步骤完成：P0~P25；M1/M2 本机验收关闭，M3 验收通过；P3/P8 待真实环境验收，P9/P10 待渠道真机收包验收，P13 待真实模型验证，P14 Flow 稳定运行 3 天观察中）。
+**规模总览**：**28 个开发阶段 · 131 个步骤**，分布在三个里程碑（M1 MVP / M2 增强 / M3 进阶）。当前进度：**120 / 131**（P0~P25 全部完成：M1/M2 本机验收关闭，M3 验收通过；P26/P27 为 v1.6 新增局域网发现两阶段，待开发；P3/P8 待真实环境验收，P9/P10 待渠道真机收包验收，P13 待真实模型验证，P14 Flow 稳定运行 3 天观察中）。
 
 ---
 
@@ -65,6 +67,8 @@
 | asyncssh | SSH 托管隧道与 Web 终端 | P20/P21 |
 | cryptography | 传输加密：RSA 密钥管理与 AES-256-GCM 信封 | P24 |
 | docker（Docker SDK for Python） | 容器管理、`docker stats` 兜底采集 | P12 |
+| 标准库 asyncio UDP（SSDP M-SEARCH / UPnP rootDesc 解析） | 路由器 IGD 发现（P26，零新增依赖） | P26 |
+| 标准库 hmac/hashlib/base64（AWS SigV4 手工签名） | MinIO S3 API 只读访问（P27，不引入 minio SDK） | P27 |
 | python-multipart | 文件/图标上传 | P2 |
 | sse-starlette | AI 流式输出（SSE） | P13 |
 | pytest + pytest-asyncio + coverage | 后端单元/接口测试与覆盖率 | P0 |
@@ -128,12 +132,14 @@
 | P23 | MySQL 数据同步（SQLite→MySQL） | M2 | 6 | ✅ |
 | P24 | 传输加密（全链路密文化）★ | M2 | 5 | ✅ |
 | P25 | Redis 缓存与会话 | M2 | 4 | ✅ |
+| P26 | 局域网设备发现与路由器 ★ | M2 | 5 | ⬜ |
+| P27 | 局域网数据库服务（发现与只读查看） | M2 | 6 | ⬜ |
 | P19 | Flow 画布编排 | M3 | 3 | ✅ |
 | P20 | SSH 托管隧道与端口进阶 | M3 | 3 | ✅ |
 | P21 | 监控与企业化进阶 | M3 | 4 | ✅ |
 | P22 | 其余远期项与 M3 验收 | M3 | 3 | ✅ |
 
-合计：26 阶段 / 118 步骤。以下为各阶段明细。
+合计：28 阶段 / 131 步骤。以下为各阶段明细。
 
 ---
 
@@ -450,6 +456,39 @@
 **单元测试关卡**：RedisStore / 内存实现行为一致（set/get/ttl/del/黑名单）；断连降级自动切换；登出黑名单拦截；限速计数准确；会话过期清理。——✅ 后端 test_p25_redis.py 8 例（全量 197 passed；含本机真实 Redis 读写/TTL/重建连接数据保持）。
 **业务功能测试关卡**：配置 NAS 真实 Redis → 登录 → 重启后端 → 会话仍有效（免重新登录）；登出后旧 token 立即失效；停掉 Redis → 全部功能照常（降级内存）；健康自检正确显示 Redis 状态。——✅ 本机 Docker Redis 7.4.1 实链路（2026-09-04）：UI 配置启用→测试连接（7.4.1）→浏览器免登录会话跨后端重启保持→登出黑名单立即 401→docker stop Redis 后浏览/登录照常（降级内存）→docker start 后 30s 探活自动回切（面板显示 Redis·已连接）；健康自检 redis 字段 enabled/mode/connected/degraded。
 **退出标准**：真实 NAS Redis 环境 72h 无异常；断电重启场景会话保持验证通过。——🔄（机制本机已验证；72h 随 NAS 实机部署执行）
+
+### P26 · 局域网设备发现与路由器 ★（5 步 ｜ M2，v1.6 新增）
+
+> **扫描策略**：存活判定 = 并发 TCP connect（默认端口集，`lan.probe_ports` 可配）命中任意端口，或 ARP 邻居表存在记录——**不使用 ICMP**（容器无 CAP_NET_RAW 也可运行），不引入 scapy/ping3 等新依赖；并发由 Semaphore（`lan.concurrency`，默认 128）限速。扫描目标仅限私网 CIDR 白名单（10/8、172.16/12、192.168/16、169.254/16 + `lan.extra_cidrs`）。路由器识别 = 默认网关 + UPnP IGD 描述 + 端口特征多来源投票；SNMP 复用既有纯标准库实现（services/snmp.py）。
+
+| # | 步骤 | 内容 | 关联 | 状态 |
+|---|---|---|---|---|
+| 26.1 | 扫描引擎与数据模型 | services/lan_scan.py：网段识别（psutil 网卡 + 默认网关路由，平台分支 Linux/macOS/Docker-HOST_PROC）、TCP 并发探测（复用 connectivity Semaphore 范式）、ARP 邻居表读取（/proc/net/arp ｜ `arp -a`）、反向 DNS（线程池 + 超时）、内置 OUI 厂商前缀库；建表 lan_devices / lan_scan_runs / lan_device_events（api-spec §3.12）；`lan.*` 设置键与 /api/lan/settings；POST /api/lan/scan + GET status（4005 互斥/4006 网段校验） | M19-1/2/10 | ⬜ |
+| 26.2 | 设备清单与指纹 | 设备合并写入（ip 唯一，missed_scans≥3 判离线）、device_type 指纹规则（端口特征 + OUI）；GET /api/lan/devices(/{id})、事件流水 /api/lan/scans；前端 LanView 设备 tab（扫描按钮/进度条/表格/类型筛选/设备详情抽屉），路由 /lan + 侧栏导航 + i18n | M19-3 | ⬜ |
+| 26.3 | 路由器识别与详情 | SSDP M-SEARCH（urn:…InternetGatewayDevice:1/2）+ rootDesc.xml 解析（标准库 UDP/XML）、WAN 状态（GetExternalIPAddress / GetStatusInfo SOAP）、管理后台端口探测；GET /api/lan/router(/clients)；路由器详情视图：基础信息卡 / WAN 卡 / 连接设备表（本机 ARP 视角） | M19-4/5/6 | ⬜ |
+| 26.4 | SNMP 接口流量与路由器侧 ARP | `lan.snmp.*` 配置（community Fernet 加密、/snmp/test 即测即用）；ifTable 双采样（间隔 ≥2s 差分）上下行速率 + 累计流量（GET /api/lan/router/interfaces）；路由器侧 ipNetToMediaTable 融合进连接设备表（无凭据降级本机视角并注明 sources） | M19-6/7 | ⬜ |
+| 26.5 | 调度联动与关卡收尾 | APScheduler 定时扫描 job（lan.auto_scan/scan_interval_min，max_instances=1）；设备上下线事件 + P9 通知路由（source=lan）+ WS lan_device 帧；一键建端口监控项 / 加 WoL 目标；审计（扫描触发手写 + 写操作自动）；阶段测试两道关卡 | M19-8/9 | ⬜ |
+
+**单元测试关卡**：网段识别平台分支；TCP 判活与 ARP 融合合并逻辑（ip 唯一/MAC 更新/missed_scans 离线判定）；私网白名单校验（公网目标 4006）；扫描互斥（4005）；OUI 厂商匹配；UPnP rootDesc 解析（样例 XML）；SNMP 差分速率计算；设备上下线事件与通知触发。——待执行
+**业务功能测试关卡**：本机/家庭网段真实扫描 → 设备清单成型且非本机设备有 MAC/厂商；路由器被正确识别并展示型号/外网 IP；配置 SNMP 后接口速率与连接设备来自路由器；设备下线（关一台设备再扫）产生事件与通知。——待执行
+**退出标准**：NAS Docker 容器内扫描宿主网段可用（无特权运行）；家庭环境路由器详情三卡数据齐全（无 SNMP 时双卡 + 明示降级）。——待执行
+
+### P27 · 局域网数据库服务发现与只读查看（6 步 ｜ M2，v1.6 新增）
+
+> **只读策略**：查看器全部为服务端白名单固定查询，不接受任意 SQL/命令输入；凭据 Fernet 加密存储（复用 secret_box + SSH 凭据范式），回传 `password_set` 脱敏；目标限私网 CIDR（含 127.0.0.1）。**零新增依赖**：MySQL=aiomysql、Redis=redis.asyncio、MinIO=httpx + SigV4 手工签名（标准库 hmac/hashlib/base64）。
+
+| # | 步骤 | 内容 | 关联 | 状态 |
+|---|---|---|---|---|
+| 27.1 | 指纹扫描引擎 | services/db_fingerprint.py：数据库端口字典（3306/6379/9000·9001/5432/27017/9200/11211/2379/8123）+ 协议握手指纹（MySQL greeting 包版本 / Redis PING·INFO / MinIO health·Server 头 / PG SSLRequest / Mongo hello / ES GET /）；建表 lan_db_services；POST /api/lan/db/scan（复用扫描任务进度）+ GET services（关联 lan_devices 标注所属设备） | M20-1/2 | ⬜ |
+| 27.2 | 凭据管理 | 建表 db_credentials（api-spec §3.12）；CRUD + 测试端点（MySQL SELECT 1 / Redis PING / MinIO ListBuckets）；host:port 自动关联服务；脱敏与空密码保持原值；私网校验 + 审计 | M20-3/9 | ⬜ |
+| 27.3 | MySQL 只读查看器 | aiomysql 短连接（5s 超时）；白名单查询：overview（SHOW GLOBAL STATUS 摘要 + QPS 差分）、variables（SHOW VARIABLES 检索）、schemas（information_schema.TABLES）、processlist；GET /api/lan/db/mysql/{sid}/* 四端点 | M20-4 | ⬜ |
+| 27.4 | Redis 只读查看器 | redis.asyncio；INFO 归一化、SCAN 游标分页键浏览（禁 KEYS）、键详情（TYPE/TTL/MEMORY USAGE/值预览 4KB 截断、集合类 100 条、二进制 hex 预览）、SLOWLOG/CLIENT LIST；命令白名单（写命令不进代码路径） | M20-5 | ⬜ |
+| 27.5 | MinIO 只读查看器 | SigV4 手工签名（GET ListBuckets / ListObjectsV2 / health）；overview/buckets（对象数与前 1000 对象容量估算）/objects（前缀分页）；预签名 GET URL（5 分钟，GET /object-url） | M20-6 | ⬜ |
+| 27.6 | 服务页与探活联动 | 前端 LanView 数据库服务 tab：服务清单卡片/表格 + 凭据管理抽屉 + 查看器抽屉（MysqlViewer/RedisViewer/MinioViewer 子组件，概览/变量/库表/键值/桶对象只读视图）；定时探活 job + 状态翻转通知（source=db）+ WS db_service 帧 + 一键建监控项；权限：清单/概览 A、内容级 M；审计 | M20-2/7/8 | ⬜ |
+
+**单元测试关卡**：指纹解析（MySQL greeting 样例字节/Redis INFO 文本/MinIO 响应头）；凭据加密存储与脱敏（password_set/空密码保持）；白名单强制（越权命令无执行路径）、值预览截断与二进制检测；SigV4 签名向量（已知测试向量）；私网校验 4006；探活翻转事件。——待执行
+**业务功能测试关卡**：家庭网段扫描发现 NAS 上的 MySQL/Redis/MinIO 并显示版本 → 配置凭据测试连接通过 → 三种查看器分别浏览（库表/键空间/桶对象）确认无任何写操作入口 → 错误凭据给出清晰失败摘要 → user 角色可见清单但内容级入口无权限。——待执行
+**退出标准**：真实家庭环境三类数据库（MySQL/Redis/MinIO）只读浏览全链路可用；凭据库泄露面最小化（DB 文件中均为密文）。——待执行
 
 ### P19 · Flow 画布编排（3 步 ｜ M3）
 

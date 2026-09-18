@@ -1,6 +1,8 @@
 # Portal — NAS 门户系统设计方案
 
-> **版本**：v0.7 ｜ **日期**：2026-09-02 ｜ **状态**：开发中
+> **版本**：v0.8 ｜ **日期**：2026-09-18 ｜ **状态**：开发中
+>
+> **v0.8 变更**：新增 **§3.10 局域网设备与数据服务发现**（M19 局域网设备与路由器 ★ / M20 局域网数据库服务）——网段扫描与设备指纹、路由器识别与详情（UPnP IGD / SNMP）、数据库服务指纹发现与**只读查看器**（MySQL/Redis/MinIO，凭据 Fernet 加密、白名单强制只读）；§4 数据模型补 5 张表（lan_devices / lan_scan_runs / lan_device_events / lan_db_services / db_credentials，字段级定义见 api-spec v1.4 §3.12）。全程零新增后端依赖。功能点明细见 feature-spec v1.7，开发拆解见 dev-plan v1.6 P26/P27。
 >
 > **v0.7 变更**：**外部存储与缓存体系设计定稿**（§2.3）——客户机已有的 MySQL（灾备镜像）与 Redis（会话存储 + 高速缓存）仅需在本系统配置即可使用；未配置时自动回退 SQLite + 进程内存，零依赖默认。
 >
@@ -307,11 +309,22 @@ sequenceDiagram
 - **MySQL 同步**（可选）：连接配置与测试、推送间隔、立即推送、每表同步状态、从 MySQL 恢复（见 §2.3，dev-plan P23）。
 - **Redis**（可选）：连接配置与测试、存储模式展示（dev-plan P25）。
 
+### 3.10 局域网设备与数据服务发现（v0.8 新增，概览）
+
+> 功能点明细见 feature-spec M19/M20，字段级契约见 api-spec §3.12/§4.14/§4.15，开发拆解见 dev-plan P26/P27；本节为方案概览。
+
+**① 设备与路由器（M19 ★）**：回答"局域网里都有谁、路由器什么状态"。技术路线刻意避开 ICMP 与特权依赖——存活判定 = 并发 TCP connect（默认端口集可配）命中，或本机 ARP 邻居表存在记录（Docker 内读挂载的宿主 /proc/net/arp），再叠加反向 DNS 主机名与 MAC OUI 厂商指纹，合并为以 IP 为主键的设备清单（连续 3 轮未命中判离线，上下线走既有通知路由）。路由器识别 = 默认网关 + UPnP IGD（SSDP M-SEARCH → rootDesc.xml 型号/固件 → GetExternalIPAddress/GetStatusInfo WAN 状态，标准库 UDP+XML）+ 端口特征投票；SNMP v2c（复用既有纯标准库 BER 实现）按需增强：ifTable 双采样算接口上下行速率、ipNetToMediaTable 取路由器侧在线设备（community Fernet 加密，未配置降级本机 ARP 视角并明示）。
+
+**② 数据库服务（M20）**：常见数据库端口（MySQL 3306 / Redis 6379 / MinIO 9000·9001 / PostgreSQL 5432 / MongoDB 27017 / Elasticsearch 9200 / Memcached 11211 / etcd 2379 / ClickHouse 8123）并发探测 + 协议握手指纹（MySQL greeting 包版本、Redis INFO、MinIO health 头、PG SSLRequest、Mongo hello、ES GET /），零凭据即可识别类型与版本；发现的服务与设备清单联动标注所属主机。凭据按服务独立配置（Fernet 加密存储、回传脱敏、SSH 凭据同范式），登录后进入**只读查看器**——全部为服务端白名单固定查询，无任意 SQL/命令输入：MySQL 概览/变量/库表/进程列表（aiomysql），Redis INFO/SCAN 键浏览/键值预览（截断+二进制安全）/慢日志（redis.asyncio，写命令不出现在代码路径），MinIO 桶与对象浏览 + 5 分钟预签名下载（httpx + SigV4 手工签名，不引入 minio SDK）。
+
+**安全边界（两模块共用）**：扫描与连接目标仅限私网 CIDR 白名单（含 127.0.0.1，`lan.extra_cidrs` 可扩展，公网目标 4006 拒绝）；扫描并发/速率上限；凭据密文落库 + 审计日志覆盖扫描触发与查看器连接。权限：查看类 A（数据库内容级 M），扫描与凭据管理 M。
+
+
 ---
 
 ## 4. 数据模型设计
 
-**存储策略（v0.2）**：以 **SQLite 为运行主库**（`/app/data/portal.db`，零依赖、低延迟），通过定时任务把业务数据**镜像推送到 NAS 上的 MySQL** 作为灾备与集中存储；MySQL 不可达不影响本地运行。**字段级表结构（32 张表）的权威定义见《接口详述 api-spec》§3**，此处列核心表概览：
+**存储策略（v0.2）**：以 **SQLite 为运行主库**（`/app/data/portal.db`，零依赖、低延迟），通过定时任务把业务数据**镜像推送到 NAS 上的 MySQL** 作为灾备与集中存储；MySQL 不可达不影响本地运行。**字段级表结构（37 张表）的权威定义见《接口详述 api-spec》§3**，此处列核心表概览：
 
 | 表 | 关键字段 | 说明 |
 |---|---|---|
@@ -342,6 +355,10 @@ sequenceDiagram
 | `api_tokens` | id, name, token_hash, scope, expires_at | 开放 API（M2） |
 | `sync_state` | id, table_name, last_push_at, rows_pushed, status | MySQL 同步状态（M2） |
 | `dashboard_layouts` | id, user_id, tab, layout(JSON) | 首页多标签页布局（M1） |
+| `lan_devices` | ip(UNIQUE), mac, hostname, vendor, device_type, is_gateway, open_ports(JSON), online, missed_scans, first/last_seen | 局域网设备清单（M2，P26） |
+| `lan_scan_runs` / `lan_device_events` | 扫描运行（cidrs/status/progress/found/new/gone）；设备上下线事件（ip/mac/event） | 扫描历史与设备事件（M2，P26） |
+| `lan_db_services` | host+port(UNIQUE), service_type, version, fingerprint(JSON), credential_id, state, latency | 数据库服务发现（M2，P27） |
+| `db_credentials` | service_type, host, port, username, secret(Fernet 加密), extra(JSON), last_test_* | 数据库凭据库（M2，P27） |
 
 ---
 
@@ -550,7 +567,7 @@ services:
 
 ## 10. 开发路线图
 
-> v0.2 注：本表为里程碑概览；细粒度的 24 阶段 / 108 步骤分解、每阶段测试关卡与完成状态，以《开发计划 dev-plan》v1.1 为准。
+> v0.2 注：本表为里程碑概览；细粒度的 28 阶段 / 131 步骤分解（v1.6 起新增 P26 局域网设备发现与路由器、P27 局域网数据库服务）、每阶段测试关卡与完成状态，以《开发计划 dev-plan》v1.6 为准。
 
 | 阶段 | 周期 | 内容 | 里程碑验收 |
 |---|---|---|---|

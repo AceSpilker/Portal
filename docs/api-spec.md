@@ -1,6 +1,8 @@
 # Portal · 接口与数据模型详述（API Spec）
 
-> **版本**：v1.3 ｜ **日期**：2026-09-04 ｜ **关联文档**：《功能详述 feature-spec》v1.6、《总体设计方案 design-proposal》v0.7
+> **版本**：v1.4 ｜ **日期**：2026-09-18 ｜ **关联文档**：《功能详述 feature-spec》v1.7、《总体设计方案 design-proposal》v0.8
+>
+> **v1.4 变更**：**局域网发现两模块契约**（M19/M20，dev-plan P26/P27）——新增 §3.12 五张表（lan_devices / lan_scan_runs / lan_device_events / lan_db_services / db_credentials）；新增 §4.14 局域网设备与路由器、§4.15 局域网数据库服务端点组（查看器全部只读：白名单固定视图，凭据 Fernet 加密、目标限私网 CIDR）；§1 枚举补 `device_type` / `db_service_type`；§2 补 4005/4006 错误码；§3.11 settings 补 `lan.*` 键组（SNMP community 加密存储）。表数 32 → 37。
 >
 > **v1.3 变更**：**M2 全量契约落地确认**（P15~P25）——§3.1 users 补 totp 列、user_sessions/api_tokens 对齐实现；§3.2 补 dashboard_layouts.title 与 url_probe_samples；§3.10 日程/待办对齐实现（重复规则/农历/提醒）；§3.11 统一键值存储（P25）与 sync_state 细化；§4.2/4.11/4.12 补 P15~P25 全部端点。
 >
@@ -8,7 +10,7 @@
 >
 > **v1.2 变更**：**外部存储与缓存**——§1 增补可选外部服务约定；§3.11 settings 补 `mysql.*` / `redis.*` 键组；§4.12 增补 `POST /api/redis/test`、`POST /api/mysql/test`；§6.1 补 Redis 环境变量；同步 icons 表 v2 定义。
 >
-> **文档定位**：后端建表与前后端联调的**契约依据**——字段级数据模型（32 张表）、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发时以此为准；字段或契约变更需升版本并在 `logs/` 记录。
+> **文档定位**：后端建表与前后端联调的**契约依据**——字段级数据模型（37 张表）、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发时以此为准；字段或契约变更需升版本并在 `logs/` 记录。
 
 ---
 
@@ -22,7 +24,7 @@
 | 分页 | 请求 `?page=1&page_size=20`；响应 `data: {"items": [...], "total": 123, "page": 1, "page_size": 20}` |
 | 时间 | 存储/传输统一 ISO8601 字符串（UTC），前端本地化显示 |
 | ID | 自增整数；对外不暴露内部密文字段（Token/密钥只回传脱敏掩码） |
-| 枚举 | `access_type`: domain/lan/ssh/vpn/custom；`role`: admin/user；`state`: up/down/unknown；`level`: info/warn/error；`trigger_type`: cron/webhook/manual/event；`open_mode`: newtab/current/iframe；`visibility`: all/users/admin/public |
+| 枚举 | `access_type`: domain/lan/ssh/vpn/custom；`role`: admin/user；`state`: up/down/unknown；`level`: info/warn/error；`trigger_type`: cron/webhook/manual/event；`open_mode`: newtab/current/iframe；`visibility`: all/users/admin/public；`device_type`: router/nas/printer/iot/host/db/unknown（P26）；`db_service_type`: mysql/redis/minio/postgresql/mongodb/elasticsearch/memcached/etcd/clickhouse/unknown（P27） |
 | 文档 | FastAPI 自动生成 `/docs`（OpenAPI），本文为业务契约补充 |
 | 传输加密 | `/api` 全部密文传输（RSA+AES-GCM 信封，见 §7）；豁免：health、crypto 握手、静态资源 |
 | 访客模式 | 设置键 `guest.enabled`（M2）：开启后未登录可访问访客首页（仅 visibility=public 应用）；关闭时 /api/public/apps 返回 404 |
@@ -47,13 +49,15 @@
 | 4002 | 名称/唯一键重复 | 409 |
 | 4003 | 操作冲突（如已删除/已停用） | 409 |
 | 4004 | 目标不可达（探活/推送失败等业务失败） | 200（业务失败，code 区分） |
+| 4005 | 已有扫描任务进行中（局域网扫描互斥，前端引导查看进度） | 409 |
+| 4006 | 目标地址不在允许的私网网段（内置私网 CIDR + `lan.extra_cidrs` 可扩展） | 422 |
 | 5001 | 服务器内部错误 | 500 |
 | 5002 | 依赖服务不可用（MySQL/AI/通知渠道） | 502 |
 | 1100 | 加密会话缺失/无效（前端应重新握手） | 400 |
 | 1101 | 密文重放（nonce 重复） | 400 |
 | 1102 | 密文解密失败 | 400 |
 
-## 3. 数据模型（字段级，32 张表）
+## 3. 数据模型（字段级，37 张表）
 
 > **建表策略**：随阶段建表（下表"建表"列），M1 建 12 张；`sync_state` 表结构 M2 落地。所有表含 `created_at`，业务表含 `updated_at`（同步依赖），下表不再重复列出。
 
@@ -169,9 +173,21 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）、`lan.*`（P26：scan_cidrs(JSON，空=自动识别)/auto_scan(默认 0)/scan_interval_min(默认 30，0=仅手动)/probe_ports(JSON 探测端口集)/dns_lookup(默认 1)/concurrency(默认 128)/extra_cidrs(JSON 追加允许网段)、`lan.snmp.*`（enabled/community 加密存储/timeout_s），SNMP community 由 /api/lan/settings 管理、回传脱敏）。
 
 **sync_state**（M2，P23 落地）：id；table_name TEXT UNIQUE；last_push_at NULL；last_try_at NULL；rows_pushed INT 0；status TEXT（idle/running/ok/failed）；fail_count INT 0（失败退避：60s×2^n，上限 30min）；message TEXT ''。同步范围=业务表（categories/apps/app_urls/network_profiles/flows/settings/wol_targets/notify_channels/notify_rules），users/会话/Token/审计等敏感表排除；MySQL 端 DDL 由 ORM 元数据生成（TEXT 唯一键前缀 191、剥离 TEXT DEFAULT）。
+
+### 3.12 局域网发现（P26/P27，M19/M20）
+
+**lan_devices**（P26）：id；ip TEXT UNIQUE NOT NULL（IPv4）；mac TEXT NULL（冒号小写规范格式）；hostname TEXT NULL（反向 DNS，解析失败为空）；vendor TEXT NULL（MAC OUI 厂商）；device_type TEXT 'unknown'（router/nas/printer/iot/host/db/unknown）；is_gateway INT 0（默认网关标记，路由器识别结果之一）；open_ports TEXT(JSON) '[]'（最近一次扫描命中的端口数组）；source TEXT(JSON)（发现来源并集：tcp/arp/upnp/snmp）；extra TEXT(JSON) '{}'（UPnP 型号/固件等扩展指纹）；online INT 1；missed_scans INT 0（连续未命中次数，≥3 判离线）；first_seen_at；last_seen_at。唯一键 (ip)（MAC 变化视为同 IP 设备更新）。
+
+**lan_scan_runs**（P26）：id；cidrs TEXT(JSON)（本次扫描网段）；status TEXT（running/done/failed）；progress INT 0（0~100，前端进度条）；total INT 0（网段地址数）；found INT 0（存活数）；new_count INT 0；gone_count INT 0；message TEXT ''；started_at；finished_at NULL。同一时刻仅允许一条 running（触发端点 4005 互斥）。
+
+**lan_device_events**（P26）：id；device_id FK NULL（设备删除后保留 ip/mac 快照）；ip TEXT；mac TEXT NULL；event TEXT（online/offline）；created_at。索引 (device_id, created_at)。设备 online↔offline 翻转时写入并走 P9 通知路由（source=lan）。
+
+**lan_db_services**（P27）：id；host TEXT NOT NULL；port INT NOT NULL；service_type TEXT（mysql/redis/minio/postgresql/mongodb/elasticsearch/memcached/etcd/clickhouse/unknown）；version TEXT NULL（握手指纹解析出的版本）；fingerprint TEXT(JSON)（原始指纹：MySQL 服务版本串/Redis redis_mode/MinIO Server 头等）；credential_id FK NULL（按 host:port 自动关联 db_credentials）；state TEXT 'unknown'（up/down/unknown）；latency_ms INT NULL；online INT 1；first_seen_at；last_seen_at。唯一键 (host, port)。
+
+**db_credentials**（P27）：id；name TEXT；service_type TEXT NOT NULL；host TEXT NOT NULL；port INT NOT NULL；username TEXT ''；secret TEXT（密码 Fernet 加密存储，接口只回 `password_set` 布尔，空密码提交=保持原值）；extra TEXT(JSON) '{}'（mysql: database/use_ssl；redis: db 号/ssl；minio: use_ssl/region）；enabled INT 1；last_test_at NULL；last_test_ok INT NULL；created_at；updated_at。同 SSH 凭据范式（tunnels/SSHCredential），删除前校验 lan_db_services 引用。
 
 ---
 
@@ -408,6 +424,53 @@
 | GET | /api/system/update/check | 立即检查更新：调 Gitee Releases API（settings update.repo 可配）对比本地版本，返回 {current, latest, changelog, has_update}；结果写站内通知 | M | M2 |
 | POST | /api/system/update/apply | 执行在线更新（源码部署路径）：自动备份 → fetch/checkout 新版本 → 依赖安装 → 重启自检，失败自动回滚；期间前端轮询 /api/health 等待恢复 | M | M2 |
 | GET | /api/system/update/status | 更新进度与最近一次结果（idle/checking/applying/ok/failed） | M | M2 |
+
+### 4.14 局域网设备与路由器（P26，M19）
+
+| 方法 | 路径 | 说明 | 权限 | 阶段 |
+|---|---|---|---|---|
+| GET | /api/lan/segments | 自动识别的本机网卡/默认网关/所在网段（psutil + 路由表，平台分支；供设置页预填） | A | P26 |
+| GET/PUT | /api/lan/settings | 扫描设置读写（`lan.*` 键组：scan_cidrs/auto_scan/scan_interval_min/probe_ports/dns_lookup/concurrency/extra_cidrs + `lan.snmp.*`；community 回传脱敏，空提交=保持原值） | M | P26 |
+| POST | /api/lan/scan | 触发网段扫描（body 可带 cidrs 覆盖；后台任务，已有任务进行中 4005；目标网段校验 4006） | M | P26 |
+| GET | /api/lan/scan/status | 当前扫描进度/最近一次结果 {run, progress}（前端轮询进度条） | A | P26 |
+| GET | /api/lan/devices?type=&online= | 设备清单（指纹/开放端口/在线状态；路由器置顶），分页 | A | P26 |
+| GET | /api/lan/devices/{id} | 设备详情：完整指纹、开放端口、发现来源、事件历史 | A | P26 |
+| GET | /api/lan/router | 路由器识别聚合视图：基础（IP/MAC/厂商/主机名）、UPnP 型号/固件、WAN 外网 IP 与连接状态/运行时长、管理后台候选地址[] | A | P26 |
+| GET | /api/lan/router/clients | 路由器连接设备表：本机 ARP + 路由器 SNMP ipNetToMedia 双来源（无 SNMP 凭据时仅本机视角，响应注明 sources） | A | P26 |
+| GET | /api/lan/router/interfaces | SNMP ifTable 接口流量：双采样（间隔 ≥2s）计算上下行速率 + 累计字节数；未配置 SNMP 返回空数组并提示 | A | P26 |
+| POST | /api/lan/router/snmp/test | SNMP v2c 连通测试（community 即测即用，不落库） | M | P26 |
+| GET | /api/lan/scans?limit= | 扫描历史与设备上下线事件流水 | A | P26 |
+| WS | /ws/notify（既有） | 新增 `{"type":"lan_device","data":{ip,mac,event}}`（设备上下线实时推送） | — | P26 |
+| POST | /api/lan/devices/{id}/monitor | 一键创建端口监控项（M18，取首个开放端口或指定） | M | P26 |
+| POST | /api/lan/devices/{id}/wol-target | 一键加入 WoL 唤醒目标（M10-1，需 MAC） | M | P26 |
+
+> **扫描引擎约定**（P26.1）：存活判定 = 并发 TCP connect（默认端口集 80/443/22/445/3306/5432/6379/8080/9000/27017 等，`lan.probe_ports` 可配）命中任意端口，或 ARP 邻居表存在记录；不使用 ICMP（容器无 CAP_NET_RAW 也可运行）。速率由 Semaphore（`lan.concurrency`，默认 128）与单地址超时 1.5s 约束。私网白名单：10/8、172.16/12、192.168/16、169.254/16 + `lan.extra_cidrs`。
+
+### 4.15 局域网数据库服务（P27，M20）
+
+| 方法 | 路径 | 说明 | 权限 | 阶段 |
+|---|---|---|---|---|
+| POST | /api/lan/db/scan | 触发数据库端口指纹扫描（范围 = 设置网段；后台任务复用 /scan/status 进度；4005/4006 同上） | M | P27 |
+| GET | /api/lan/db/services?type= | 服务清单：类型/IP:端口/版本/延迟/凭据状态/探活状态/所属设备（关联 lan_devices），分页 | A | P27 |
+| GET/POST | /api/lan/db/credentials · PUT/DELETE /{id} | 凭据 CRUD（secret Fernet 加密；回传 `password_set`，空密码=保持原值；删除校验服务引用） | M | P27 |
+| POST | /api/lan/db/credentials/{id}/test | 连接测试（按类型真实握手：MySQL SELECT 1 / Redis PING / MinIO ListBuckets，写 last_test_*） | M | P27 |
+| GET | /api/lan/db/mysql/{sid}/overview | MySQL 概览：版本/运行时长/Threads_connected/Threads_running/QPS(Questions 差分)/慢查询/流量（白名单 SHOW GLOBAL STATUS 摘要） | M | P27 |
+| GET | /api/lan/db/mysql/{sid}/variables?q= | 变量检索（SHOW VARIABLES，前缀/模糊匹配，截断 200 条） | M | P27 |
+| GET | /api/lan/db/mysql/{sid}/schemas | 库表清单（information_schema.TABLES：库/表/引擎/行数/总大小/索引大小，分页） | M | P27 |
+| GET | /api/lan/db/mysql/{sid}/processlist | 进程列表（SHOW PROCESSLIST：Id/User/Host/db/Command/Time/State/Info 截断） | M | P27 |
+| GET | /api/lan/db/redis/{sid}/info | INFO 全段概览（Server/Clients/Memory/Persistence/Stats/Replication，服务端归一化为键值段） | M | P27 |
+| GET | /api/lan/db/redis/{sid}/keys?db=&cursor=&match= | 键空间浏览（SCAN 游标分页，返回 {cursor, items[{key,type,ttl}]}；禁用 KEYS） | M | P27 |
+| GET | /api/lan/db/redis/{sid}/key?db=&key= | 键详情：类型/TTL/内存占用(MEMORY USAGE)/值预览（字符串≤4KB；list/hash/set/zset 各取前 100 条，超限截断标注）；二进制检测（\x00 或解码失败 → hex 预览 + binary 标记） | M | P27 |
+| GET | /api/lan/db/redis/{sid}/slowlog | 慢日志（SLOWLOG GET 20：序号/耗时μs/命令截断/时间） | M | P27 |
+| GET | /api/lan/db/redis/{sid}/clients | 客户端列表（CLIENT LIST → 解析为数组：id/addr/name/db/cmd/idle） | M | P27 |
+| GET | /api/lan/db/minio/{sid}/overview | MinIO 概览：健康（/minio/health/live）、版本（响应头/桶接口推断）、桶计数与总对象数 | M | P27 |
+| GET | /api/lan/db/minio/{sid}/buckets | 桶清单（ListBuckets：名称/创建时间 + 每桶对象数与前 1000 对象累计大小估算） | M | P27 |
+| GET | /api/lan/db/minio/{sid}/objects?bucket=&prefix=&marker= | 对象浏览（ListObjectsV2 分页：key/大小/ETag/最后修改，max-keys≤100） | M | P27 |
+| GET | /api/lan/db/minio/{sid}/object-url?bucket=&key= | 对象预签名下载 URL（SigV4 手工签名，5 分钟时效，只读 GET；不暴露 secret） | M | P27 |
+| POST | /api/lan/db/services/{sid}/monitor | 一键创建端口监控项（M18 联动） | M | P27 |
+| WS | /ws/notify（既有） | 新增 `{"type":"db_service","data":{service_id,service_type,state}}`（探活翻转推送） | — | P27 |
+
+> **只读与安全约定**（P27.2）：① 查看器端点全部走**服务端白名单固定查询**，不接受任意 SQL/命令输入；Redis 命令白名单 = INFO/DBSIZE/SCAN/TYPE/PTTL/TTL/MEMORY USAGE/GET/LRANGE/SMEMBERS/HGETALL/ZRANGE/SLOWLOG GET/CLIENT LIST/LASTSAVE（写命令不出现在代码路径）；MinIO 仅 List/Head/预签名 GET。② 连接为短连接（按请求建立，5s 超时），失败返回 4004 与错误摘要。③ 目标 host 必须命中私网白名单（含 127.0.0.1，允许查看 NAS 自身服务），否则 4006。④ 凭据查看器连接/浏览操作写 audit_logs（手写业务审计）。⑤ 内容级查看端点权限 M（服务清单/概览 A），对齐 feature-spec 权限矩阵。
 
 ## 5. 实时协议（WebSocket / SSE）
 

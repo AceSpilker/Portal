@@ -79,11 +79,11 @@
 
 <aside class="sidebar">
   <div class="brand">Portal<em>.</em></div>
-  <div class="sub">接口与数据模型 API Spec · v1.0</div>
+  <div class="sub">接口与数据模型 API Spec · v1.4</div>
   <nav class="toc">
     <a href="#intro">通用约定</a>
     <a href="#errors">错误码表</a>
-    <a href="#dm">数据模型（32 张表）</a>
+    <a href="#dm">数据模型（37 张表）</a>
     <a class="lv2" href="#dm-acc">3.1 账户与安全</a>
     <a class="lv2" href="#dm-core">3.2 门户核心</a>
     <a class="lv2" href="#dm-env">3.3 网络环境</a>
@@ -95,13 +95,16 @@
     <a class="lv2" href="#dm-ai">3.9 AI</a>
     <a class="lv2" href="#dm-eff">3.10 效率模块</a>
     <a class="lv2" href="#dm-sys">3.11 系统与同步</a>
+    <a class="lv2" href="#dm-lan">3.12 局域网发现（P26/P27）</a>
     <a class="toc-gap" href="#api">API 端点明细</a>
     <a class="lv2" href="#api-auth">4.1 认证与账户</a>
     <a class="lv2" href="#api-apps">4.2 分类与应用</a>
     <a class="lv2" href="#api-env">4.3 网络环境与隧道</a>
     <a class="lv2" href="#api-mon">4.4 服务器监控 ★</a>
     <a class="lv2" href="#api-port">4.5 端口监控 ★</a>
-    <a class="lv2" href="#api-rest">4.6~4.12 其余模块</a>
+    <a class="lv2" href="#api-rest">4.6~4.13 其余模块</a>
+    <a class="lv2" href="#api-lan">4.14 局域网设备与路由器 ★</a>
+    <a class="lv2" href="#api-db">4.15 局域网数据库服务</a>
     <a class="toc-gap" href="#rt">实时协议（WS/SSE）</a>
     <a href="#env">环境与配置附录</a>
     <a href="#sec7">传输加密协议 ★</a>
@@ -114,13 +117,13 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>接口与数据模型详述（API Spec）</h1>
-    <p class="tagline">后端建表与前后端联调的契约依据：32 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
+    <p class="tagline">后端建表与前后端联调的契约依据：37 张表的字段级定义、全量 API 端点、统一响应与错误码、WebSocket/SSE 实时协议、环境配置清单。开发以本文档为准。</p>
     <div class="meta">
-      <span class="chip">版本 v1.3</span>
-      <span class="chip">v1.3：M2 全量契约落地确认（P15~P25）</span>
-      <span class="chip">日期 2026-09-01</span>
-      <span class="chip">关联 feature-spec v1.3 · design-proposal v0.3</span>
-      <span class="chip">32 张表</span>
+      <span class="chip">版本 v1.4</span>
+      <span class="chip">v1.4：局域网发现两模块契约（M19/M20，P26/P27）</span>
+      <span class="chip">日期 2026-09-18</span>
+      <span class="chip">关联 feature-spec v1.7 · design-proposal v0.8</span>
+      <span class="chip">37 张表</span>
       <span class="chip">90+ 端点</span><span class="chip">v1.1 新增：传输加密协议</span>
     </div>
   </div>
@@ -138,7 +141,7 @@
       <tr><td>分页</td><td>请求 <code>?page=1&amp;page_size=20</code>；响应 <code>data:{items,total,page,page_size}</code></td></tr>
       <tr><td>时间</td><td>ISO8601 字符串（UTC 存储），前端本地化</td></tr>
       <tr><td>ID 与敏感值</td><td>自增整数；Token/密钥只回传脱敏掩码</td></tr>
-      <tr><td>核心枚举</td><td><code>access_type</code>: domain/lan/ssh/vpn/custom；<code>role</code>: admin/user；<code>state</code>: up/down/unknown；<code>level</code>: info/warn/error；<code>trigger_type</code>: cron/webhook/manual/event；<code>open_mode</code>: newtab/current/iframe</td></tr>
+      <tr><td>核心枚举</td><td><code>access_type</code>: domain/lan/ssh/vpn/custom；<code>role</code>: admin/user；<code>state</code>: up/down/unknown；<code>level</code>: info/warn/error；<code>trigger_type</code>: cron/webhook/manual/event；<code>open_mode</code>: newtab/current/iframe；<code>device_type</code>: router/nas/printer/iot/host/db/unknown（P26）；<code>db_service_type</code>: mysql/redis/minio/postgresql/mongodb/elasticsearch/memcached/etcd/clickhouse/unknown（P27）</td></tr>
       <tr><td>文档</td><td>FastAPI 自动 <code>/docs</code>（OpenAPI）；本文为业务契约补充</td></tr>
       <tr><td>传输加密</td><td><code>/api</code> 全部密文传输（RSA+AES-GCM 信封，见 §7 传输加密协议）；豁免：health、crypto 握手、静态资源</td></tr>
       <tr><td>可选外部服务</td><td>MySQL（灾备镜像）与 Redis（会话/缓存）均为<strong>可选</strong>：未配置时全部使用 SQLite + 进程内存，功能不受影响；配置存于 settings（密码加密存储），支持环境变量覆盖</td></tr>
@@ -166,6 +169,8 @@
       <tr><td class="c">4002</td><td>名称/唯一键重复</td><td class="c">409</td></tr>
       <tr><td class="c">4003</td><td>操作冲突（已删除/已停用等）</td><td class="c">409</td></tr>
       <tr><td class="c">4004</td><td>目标不可达（探活/推送失败等业务失败）</td><td class="c">200</td></tr>
+      <tr><td class="c">4005</td><td>已有扫描任务进行中（局域网扫描互斥）</td><td class="c">409</td></tr>
+      <tr><td class="c">4006</td><td>目标地址不在允许的私网网段</td><td class="c">422</td></tr>
       <tr><td class="c">5001</td><td>服务器内部错误</td><td class="c">500</td></tr>
       <tr><td class="c">5002</td><td>依赖服务不可用（MySQL/AI/通知渠道）</td><td class="c">502</td></tr>
       <tr><td class="c">1100</td><td>加密会话缺失/无效（前端应重新握手）</td><td class="c">400</td></tr>
@@ -302,9 +307,16 @@
   <strong>short_links</strong>（M2）：id；code UNIQUE；target；hits。</p>
 
   <h3 id="dm-sys">3.11 系统与同步</h3>
-  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.*</code>（含 custom_css，P17）/ <code>apps.*</code> / <code>home.*</code>（P15） / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code>（P17） / <code>backup.*</code>（P17） / <code>update.*</code>（P17） / <code>files.roots</code>（P16） / <code>downloads.*</code>（P16） / <code>media.*</code>（P16） / <code>mysql.*</code>（P23，专由 /api/settings/sync 管理） / <code>redis.*</code>（P25，专由 /api/settings/redis 管理）。<br>
+  <p><strong>settings</strong>（M1）：key TEXT PK；value(JSON)；updated_at。键名分组：<code>general.*</code> / <code>appearance.*</code>（含 custom_css，P17）/ <code>apps.*</code> / <code>home.*</code>（P15） / <code>ai.*</code> / <code>notify.*</code> / <code>security.*</code>（P17） / <code>backup.*</code>（P17） / <code>update.*</code>（P17） / <code>files.roots</code>（P16） / <code>downloads.*</code>（P16） / <code>media.*</code>（P16） / <code>mysql.*</code>（P23，专由 /api/settings/sync 管理） / <code>redis.*</code>（P25，专由 /api/settings/redis 管理） / <code>lan.*</code>（P26：scan_cidrs/auto_scan/scan_interval_min/probe_ports/dns_lookup/concurrency/extra_cidrs + <code>lan.snmp.*</code> enabled/community 加密/timeout_s，专由 /api/lan/settings 管理）。<br>
   <strong>sync_state</strong>（M2，P23 实现）：id；table_name UNIQUE；last_push_at；last_try_at；rows_pushed；status（idle/running/ok/failed）；fail_count（退避 60s×2^n，上限 30min）；message。</p>
   <p><strong>统一键值存储（P25）</strong>：core/stores.py——MemoryStore（进程内存，TTL 惰性过期）/ RedisStore（redis.asyncio，key 前缀隔离）同接口；StoreManager 单例管理模式（redis/memory/redis-degraded），失败自动降级内存、30s 探活回切。迁入键：登出黑名单 <code>bl:{jti}</code>、登录限速 <code>rl:{ip}</code>、加密会话密钥 <code>cs:{sid}</code>、监控实时概览缓存 <code>cache:monitor:system</code>（2s）。</p>
+
+  <h3 id="dm-lan">3.12 局域网发现（P26/P27，M19/M20）</h3>
+  <p><strong>lan_devices</strong>（P26）：id；ip UNIQUE；mac（规范小写冒号）；hostname NULL（反向 DNS）；vendor NULL（OUI）；device_type（router/nas/printer/iot/host/db/unknown）；is_gateway 0；open_ports(JSON)；source(JSON)（tcp/arp/upnp/snmp 并集）；extra(JSON)（UPnP 型号等）；online 1；missed_scans 0（≥3 判离线）；first_seen_at；last_seen_at。<br>
+  <strong>lan_scan_runs</strong>（P26）：id；cidrs(JSON)；status（running/done/failed）；progress 0~100；total/found/new_count/gone_count；message；started_at；finished_at。同一时刻仅一条 running（4005 互斥）。<br>
+  <strong>lan_device_events</strong>（P26）：id；device_id FK NULL；ip；mac；event（online/offline）；created_at（翻转时写入，走 P9 通知路由 source=lan）。<br>
+  <strong>lan_db_services</strong>（P27）：id；host+port UNIQUE；service_type（mysql/redis/minio/postgresql/mongodb/elasticsearch/memcached/etcd/clickhouse/unknown）；version NULL（握手指纹）；fingerprint(JSON)；credential_id FK NULL（host:port 自动关联）；state；latency_ms；online；first/last_seen。<br>
+  <strong>db_credentials</strong>（P27）：id；name；service_type；host；port；username；secret（Fernet 加密，回传 <code>password_set</code>，空密码=保持原值）；extra(JSON)（mysql database/use_ssl、redis db/ssl、minio use_ssl/region）；enabled；last_test_at/last_test_ok。同 SSH 凭据范式，删除前校验服务引用。</p>
 </section>
 
 <!-- ============ API ============ -->
@@ -411,6 +423,34 @@
     <tr><td>设置/同步</td><td class="c">GET/PUT /api/settings · /api/settings/sync · /api/settings/redis · POST /api/sync/push · GET /api/sync/status · POST /api/sync/restore · POST /api/mysql/test · POST /api/redis/test</td><td>键值设置 / MySQL 同步（P23）/ Redis 连接与状态（P25）</td><td class="c">M</td><td class="c">P7/P23/P25</td></tr>
     <tr><td>备份/系统</td><td class="c">GET /api/backup/export · POST /import · POST /factory-reset · CRUD /api/tokens · GET /api/audit-logs（+/export） · GET /api/system/info · /health-report（+/full） · GET /api/system/update/check · POST /apply · GET /status</td><td>备份 / Token / 审计 / 系统（P17）</td><td class="c">M</td><td class="c">P2~M2</td></tr>
   </tbody></table>
+
+  <h3 id="api-lan">4.14 局域网设备与路由器（P26，M19 ★）</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">GET</td><td class="c">/api/lan/segments</td><td>自动识别本机网卡/默认网关/所在网段（设置页预填）</td><td class="c">A</td><td class="c">P26</td></tr>
+    <tr><td class="c">GET/PUT</td><td class="c">/api/lan/settings</td><td>扫描设置（<code>lan.*</code> 键组 + <code>lan.snmp.*</code>，community 脱敏、空提交=保持原值）</td><td class="c">M</td><td class="c">P26</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/lan/scan</td><td>触发网段扫描（后台任务；进行中 4005；目标网段校验 4006）</td><td class="c">M</td><td class="c">P26</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/scan/status</td><td>扫描进度/最近结果（前端轮询进度条）</td><td class="c">A</td><td class="c">P26</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/devices?type=&online= · /{id}</td><td>设备清单（指纹/开放端口/在线；路由器置顶）/ 设备详情（端口/来源/事件历史）</td><td class="c">A</td><td class="c">P26</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/router · /router/clients · /router/interfaces</td><td>路由器聚合视图（UPnP 型号/固件/WAN 外网 IP 与连接状态/管理后台候选）/ 连接设备表（本机 ARP + 路由器 SNMP 双来源）/ SNMP ifTable 双采样接口速率</td><td class="c">A</td><td class="c">P26</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/lan/router/snmp/test</td><td>SNMP v2c 连通测试（community 即测即用）</td><td class="c">M</td><td class="c">P26</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/scans?limit=</td><td>扫描历史与设备上下线事件流水</td><td class="c">A</td><td class="c">P26</td></tr>
+    <tr><td class="c">WS</td><td class="c">/ws/notify（既有）</td><td>新增 <code>{"type":"lan_device","data":{ip,mac,event}}</code> 设备上下线实时推送</td><td class="c">—</td><td class="c">P26</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/lan/devices/{id}/monitor · /wol-target</td><td>一键建端口监控项（M18）/ 加入 WoL 目标（M10-1）</td><td class="c">M</td><td class="c">P26</td></tr>
+  </tbody></table>
+  <p class="note">扫描引擎约定：存活判定 = 并发 TCP connect（默认端口集 <code>lan.probe_ports</code> 可配）命中任意端口，或 ARP 邻居表存在记录；<strong>不使用 ICMP</strong>（容器无 CAP_NET_RAW 也可运行）。Semaphore（<code>lan.concurrency</code> 默认 128）限速；私网白名单 10/8、172.16/12、192.168/16、169.254/16 + <code>lan.extra_cidrs</code>。</p>
+
+  <h3 id="api-db">4.15 局域网数据库服务（P27，M20）</h3>
+  <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>
+    <tr><td class="c">POST</td><td class="c">/api/lan/db/scan</td><td>触发数据库端口指纹扫描（复用扫描任务进度）</td><td class="c">M</td><td class="c">P27</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/db/services?type=</td><td>服务清单：类型/IP:端口/版本/延迟/凭据状态/探活/所属设备（关联 lan_devices）</td><td class="c">A</td><td class="c">P27</td></tr>
+    <tr><td class="c">CRUD</td><td class="c">/api/lan/db/credentials（/{id}） · POST /{id}/test</td><td>凭据管理（Fernet 加密、<code>password_set</code> 脱敏、空密码=保持原值；测试=真实握手 MySQL SELECT 1 / Redis PING / MinIO ListBuckets）</td><td class="c">M</td><td class="c">P27</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/db/mysql/{sid}/overview · /variables · /schemas · /processlist</td><td>MySQL 只读查看器：状态摘要（QPS 差分/连接/慢查询）/ 变量检索 / 库表清单（information_schema）/ 进程列表</td><td class="c">M</td><td class="c">P27</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/db/redis/{sid}/info · /keys · /key · /slowlog · /clients</td><td>Redis 只读查看器：INFO 概览 / SCAN 游标键浏览（禁 KEYS）/ 键详情（TTL/内存/值预览 4KB 截断、集合 100 条、二进制 hex）/ 慢日志 / 客户端列表</td><td class="c">M</td><td class="c">P27</td></tr>
+    <tr><td class="c">GET</td><td class="c">/api/lan/db/minio/{sid}/overview · /buckets · /objects · /object-url</td><td>MinIO 只读查看器：健康与桶统计 / 桶清单 / 对象浏览（ListObjectsV2 前缀分页）/ 5 分钟预签名下载（SigV4 手工签名）</td><td class="c">M</td><td class="c">P27</td></tr>
+    <tr><td class="c">POST</td><td class="c">/api/lan/db/services/{sid}/monitor</td><td>一键建端口监控项（M18 联动）</td><td class="c">M</td><td class="c">P27</td></tr>
+    <tr><td class="c">WS</td><td class="c">/ws/notify（既有）</td><td>新增 <code>{"type":"db_service","data":{service_id,service_type,state}}</code></td><td class="c">—</td><td class="c">P27</td></tr>
+  </tbody></table>
+  <p class="note">只读与安全：① 查看器全部服务端白名单固定查询，无任意 SQL/命令输入（Redis 写命令不进代码路径）；② 短连接 5s 超时，失败 4004；③ 目标限私网白名单（含 127.0.0.1），否则 4006；④ 凭据连接/浏览写 audit_logs；⑤ 清单/概览 A、内容级 M（对齐 feature-spec 权限矩阵）。</p>
 </section>
 
 <!-- ============ 实时协议 ============ -->
@@ -513,7 +553,7 @@ data: {"type": <span class="s">"error"</span>,  "code": <span class="k">5002</sp
   </ul>
 </section>
 
-<footer>Portal · 接口与数据模型详述 v1.3 · 2026-09-04 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · 接口与数据模型详述 v1.4 · 2026-09-18 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

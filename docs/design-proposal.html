@@ -155,7 +155,7 @@
 <!-- ============ 侧边目录 ============ -->
 <aside class="sidebar">
   <div class="brand">Portal<em>.</em></div>
-  <div class="sub">NAS 门户系统 · 设计方案 v0.1</div>
+  <div class="sub">NAS 门户系统 · 设计方案 v0.8</div>
   <nav class="toc">
     <a href="#s1">01 项目概述</a>
     <a href="#s2">02 总体架构</a>
@@ -169,6 +169,7 @@
     <a class="lv2" href="#s3-7">3.7 系统监控</a>
     <a class="lv2" href="#s3-8">3.8 通知中心</a>
     <a class="lv2" href="#s3-9">3.9 设置与通用能力</a>
+    <a class="lv2" href="#s3-10">3.10 局域网设备与数据服务发现</a>
     <a class="toc-gap" href="#s4">04 数据模型设计</a>
     <a href="#s5">05 API 设计</a>
     <a href="#s6">06 前端设计</a>
@@ -189,9 +190,10 @@
     <h1>Portal<span class="dot"> · </span>NAS 门户系统设计方案</h1>
     <p class="tagline">自托管门户 Dashboard —— 统一登录、Icon 磁贴直达服务、多网络环境智能解析、内置 AI 助手与 Flow 自动化，单 Docker 容器部署。</p>
     <div class="meta">
-      <span class="chip">版本 v0.7</span>
-      <span class="chip">日期 2026-09-01</span>
+      <span class="chip">版本 v0.8</span>
+      <span class="chip">日期 2026-09-18</span>
       <span class="chip">状态 待评审</span>
+      <span class="chip">v0.8 新增：局域网设备与数据服务发现（M19/M20）</span>
       <span class="chip">前端 Vue 3 + TS</span>
       <span class="chip">后端 Python · FastAPI</span>
       <span class="chip">部署 Docker 单容器</span>
@@ -473,13 +475,32 @@
     <li><strong>通知</strong>：渠道管理、免打扰时段。</li>
     <li><strong>安全</strong>：修改密码、会话管理（踢出设备）、TOTP 开关、审计日志查看。</li>
     <li><strong>数据</strong>：一键导出 / 导入（JSON 全量备份：应用、入口、环境、Flow、设置），图标随卷保留；危险区：恢复出厂。</li>
+    <li><strong>MySQL 同步</strong>（可选）：连接配置与测试、推送间隔、立即推送、每表同步状态、从 MySQL 恢复（见 §2.3，dev-plan P23）。</li>
+    <li><strong>Redis</strong>（可选）：连接配置与测试、存储模式展示（dev-plan P25）。</li>
+  </ul>
+</section>
+
+<!-- ============ 3.10 局域网发现 ============ -->
+<section id="s3-10">
+  <h2><span class="no">3.10</span>局域网设备与数据服务发现 <span class="badge core">v0.8 新增</span></h2>
+  <p>功能点明细见 feature-spec M19/M20，字段级契约见 api-spec §3.12/§4.14/§4.15，开发拆解见 dev-plan P26/P27；本节为方案概览。</p>
+  <h3>① 设备与路由器（M19 ★）</h3>
+  <p>回答"局域网里都有谁、路由器什么状态"。技术路线刻意避开 ICMP 与特权依赖——存活判定 = 并发 TCP connect（默认端口集可配）命中，或本机 ARP 邻居表存在记录（Docker 内读挂载的宿主 /proc/net/arp），再叠加反向 DNS 主机名与 MAC OUI 厂商指纹，合并为以 IP 为主键的设备清单（连续 3 轮未命中判离线，上下线走既有通知路由）。路由器识别 = 默认网关 + UPnP IGD（SSDP M-SEARCH → rootDesc.xml 型号/固件 → GetExternalIPAddress/GetStatusInfo WAN 状态，标准库 UDP+XML）+ 端口特征投票；SNMP v2c（复用既有纯标准库 BER 实现）按需增强：ifTable 双采样算接口上下行速率、ipNetToMediaTable 取路由器侧在线设备（community Fernet 加密，未配置降级本机 ARP 视角并明示）。</p>
+  <h3>② 数据库服务（M20）</h3>
+  <p>常见数据库端口（MySQL 3306 / Redis 6379 / MinIO 9000·9001 / PostgreSQL 5432 / MongoDB 27017 / Elasticsearch 9200 / Memcached 11211 / etcd 2379 / ClickHouse 8123）并发探测 + 协议握手指纹（MySQL greeting 包版本、Redis INFO、MinIO health 头、PG SSLRequest、Mongo hello、ES GET /），零凭据即可识别类型与版本；发现的服务与设备清单联动标注所属主机。凭据按服务独立配置（Fernet 加密存储、回传脱敏、SSH 凭据同范式），登录后进入<strong>只读查看器</strong>——全部为服务端白名单固定查询，无任意 SQL/命令输入：MySQL 概览/变量/库表/进程列表（aiomysql），Redis INFO/SCAN 键浏览/键值预览（截断+二进制安全）/慢日志（redis.asyncio，写命令不出现在代码路径），MinIO 桶与对象浏览 + 5 分钟预签名下载（httpx + SigV4 手工签名，不引入 minio SDK）。</p>
+  <h3>安全边界（两模块共用）</h3>
+  <ul>
+    <li>扫描与连接目标仅限私网 CIDR 白名单（含 127.0.0.1，<code>lan.extra_cidrs</code> 可扩展，公网目标 4006 拒绝）；</li>
+    <li>扫描并发/速率上限（Semaphore 默认 128）；</li>
+    <li>凭据密文落库 + 审计日志覆盖扫描触发与查看器连接；</li>
+    <li>权限：查看类 A（数据库内容级 M），扫描与凭据管理 M。</li>
   </ul>
 </section>
 
 <!-- ============ 04 数据模型 ============ -->
 <section id="s4">
   <h2><span class="no">04</span>数据模型设计</h2>
-  <p><strong>存储策略（v0.2）</strong>：以 <strong>SQLite 为运行主库</strong>（<code>/app/data/portal.db</code>，零依赖、低延迟），通过定时任务把业务数据<strong>镜像推送到 NAS 上的 MySQL</strong> 作为灾备与集中存储；MySQL 不可达不影响本地运行。<strong>字段级表结构（32 张表）的权威定义见《接口详述 api-spec》§3</strong>，此处列核心表概览：</p>
+  <p><strong>存储策略（v0.2）</strong>：以 <strong>SQLite 为运行主库</strong>（<code>/app/data/portal.db</code>，零依赖、低延迟），通过定时任务把业务数据<strong>镜像推送到 NAS 上的 MySQL</strong> 作为灾备与集中存储；MySQL 不可达不影响本地运行。<strong>字段级表结构（37 张表）的权威定义见《接口详述 api-spec》§3</strong>，此处列核心表概览：</p>
   <table>
     <thead><tr><th style="width:24%">表</th><th style="width:52%">关键字段</th><th>说明</th></tr></thead>
     <tbody>
@@ -510,6 +531,10 @@
       <tr><td><code>api_tokens</code></td><td>id, name, token_hash, scope, expires_at</td><td>开放 API（M2）</td></tr>
       <tr><td><code>sync_state</code></td><td>id, table_name, last_push_at, rows_pushed, status</td><td>MySQL 同步状态（M2）</td></tr>
       <tr><td><code>dashboard_layouts</code></td><td>id, user_id, tab, layout(JSON)</td><td>首页多标签页布局（M1）</td></tr>
+      <tr><td><code>lan_devices</code></td><td>ip(UNIQUE), mac, hostname, vendor, device_type, is_gateway, open_ports(JSON), online, missed_scans, first/last_seen</td><td>局域网设备清单（M2，P26）</td></tr>
+      <tr><td><code>lan_scan_runs</code> / <code>lan_device_events</code></td><td>扫描运行（cidrs/status/progress/found/new/gone）；设备上下线事件（ip/mac/event）</td><td>扫描历史与设备事件（M2，P26）</td></tr>
+      <tr><td><code>lan_db_services</code></td><td>host+port(UNIQUE), service_type, version, fingerprint(JSON), credential_id, state, latency</td><td>数据库服务发现（M2，P27）</td></tr>
+      <tr><td><code>db_credentials</code></td><td>service_type, host, port, username, secret(Fernet 加密), extra(JSON), last_test_*</td><td>数据库凭据库（M2，P27）</td></tr>
     </tbody>
   </table>
 </section>
@@ -680,7 +705,7 @@
 <!-- ============ 10 路线图 ============ -->
 <section id="s10">
   <h2><span class="no">10</span>开发路线图</h2>
-  <p><em>v0.2 注：本表为里程碑概览；细粒度的 24 阶段 / 108 步骤分解、每阶段测试关卡与完成状态，以《开发计划 dev-plan》v1.1 为准。</em></p>
+  <p><em>v0.2 注：本表为里程碑概览；细粒度的 28 阶段 / 131 步骤分解（v1.6 起新增 P26 局域网设备发现与路由器、P27 局域网数据库服务）、每阶段测试关卡与完成状态，以《开发计划 dev-plan》v1.6 为准。</em></p>
   <div class="timeline">
     <div class="phase">
       <h4>M1 · MVP <span class="dur">第 1~3 周</span></h4>
@@ -719,7 +744,7 @@
   <div class="callout">💡 前置问题已闭环，可直接进入 M1 开发：先搭前后端骨架与 Docker 流水线，再按"应用 CRUD → 多入口解析 → 首页磁贴"顺序迭代。</div>
 </section>
 
-<footer>Portal · NAS 门户系统设计方案 v0.7 · 2026-09-03 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · NAS 门户系统设计方案 v0.8 · 2026-09-18 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 

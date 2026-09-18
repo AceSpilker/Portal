@@ -90,14 +90,14 @@
 
 <aside class="sidebar">
   <div class="brand">Portal<em>.</em></div>
-  <div class="sub">开发计划 Dev Plan · v1.0</div>
+  <div class="sub">开发计划 Dev Plan · v1.6</div>
   <nav class="toc">
     <a href="#intro">文档说明</a>
     <a href="#tech">技术与工具清单</a>
     <a href="#test">测试策略总则</a>
     <a href="#board">阶段总览（进度看板）</a>
     <a class="toc-gap" href="#m1">M1 阶段明细（P0~P8）</a>
-    <a class="toc-gap" href="#m2">M2 阶段明细（P9~P18、P23~P25）</a>
+    <a class="toc-gap" href="#m2">M2 阶段明细（P9~P18、P23~P27）</a>
     <a class="toc-gap" href="#m3">M3 阶段明细（P19~P22）</a>
     <a class="toc-gap" href="#rules">执行约定</a>
   </nav>
@@ -109,19 +109,19 @@
 <header class="hero">
   <div class="inner">
     <h1>Portal<span class="dot"> · </span>开发计划与技术清单</h1>
-    <p class="tagline">把全部业务功能拆解为 26 个开发阶段、120 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
+    <p class="tagline">把全部业务功能拆解为 28 个开发阶段、131 个可执行步骤，每步带完成状态；每个阶段结束必须通过「单元测试 + 业务功能测试」两道关卡。开发按此文档逐步推进、实时更新状态。</p>
       <p style="margin-top:10px;font-size:13.5px;color:#c7d6ff">
-        <strong>v1.4</strong>：桌面 Web 专用，移除移动端适配（4.8 作废）；<strong>v1.5</strong>：补齐用户管理与权限设计——新增 7.4 用户管理、7.5 应用可见性与访客模式，P17.1 收窄；<strong>v1.5b</strong>：新增 17.5 在线更新与自升级（Gitee Releases：检查/一键更新/回滚）；监控接口权限对齐权限矩阵（A 任意登录用户）。
+        <strong>v1.4</strong>：桌面 Web 专用，移除移动端适配（4.8 作废）；<strong>v1.5</strong>：补齐用户管理与权限设计——新增 7.4 用户管理、7.5 应用可见性与访客模式，P17.1 收窄；<strong>v1.5b</strong>：新增 17.5 在线更新与自升级（Gitee Releases：检查/一键更新/回滚）；监控接口权限对齐权限矩阵（A 任意登录用户）；<strong>v1.6</strong>：新增 <strong>P26 局域网设备发现与路由器 ★</strong>（5 步）与 <strong>P27 局域网数据库服务（发现与只读查看）</strong>（6 步）——TCP+ARP 扫描、UPnP IGD/SNMP 路由器详情、数据库指纹发现、MySQL/Redis/MinIO 只读查看器；零新增后端依赖。
       </p>
     <div class="meta">
-      <span class="chip">版本 v1.5b</span>
-      <span class="chip">日期 2026-09-04（状态更新）</span>
-      <span class="chip">关联 feature-spec v1.6</span>
-      <span class="chip">26 阶段</span>
-      <span class="chip">120 步骤</span>
-      <span class="chip">进度 119 / 120</span>
-      <span class="chip">M1 / M2 本机关闭</span>
-      <span class="chip">v1.3~v1.5b：M1/M2 本机关闭 · MySQL 同步 · Redis 会话 · 7.4 用户管理 · 7.5 访客 · 17.5 在线更新</span>
+      <span class="chip">版本 v1.6</span>
+      <span class="chip">日期 2026-09-18（设计定稿）</span>
+      <span class="chip">关联 feature-spec v1.7</span>
+      <span class="chip">28 阶段</span>
+      <span class="chip">131 步骤</span>
+      <span class="chip">进度 120 / 131</span>
+      <span class="chip">M1 / M2 / M3 本机关闭 · P26/P27 待开发</span>
+      <span class="chip">v1.6 新增：局域网设备与路由器 P26 ★ · 数据库服务 P27</span>
     </div>
   </div>
 </header>
@@ -129,7 +129,7 @@
 <!-- ============ 文档说明 ============ -->
 <section id="intro">
   <h2><span class="no">00</span>文档说明</h2>
-  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.6 的 220 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
+  <p>本文档是 Portal 系统的<strong>开发执行依据</strong>：第 1 节梳理全部技术工具，第 2 节定义测试策略，第 3~4 节把业务功能（按《功能详述》v1.7 的 239 个功能点）拆解为阶段与步骤。步骤状态即开发进度真相。</p>
   <div class="legend">
     <b>状态图例：</b>
     <span class="st open">⬜ 未开始</span>
@@ -138,10 +138,10 @@
     <span class="st block">⛔ 阻塞</span>
   </div>
   <div class="stats">
-    <div class="stat"><b>26</b><span>开发阶段</span></div>
-    <div class="stat"><b>120</b><span>开发步骤</span></div>
+    <div class="stat"><b>28</b><span>开发阶段</span></div>
+    <div class="stat"><b>131</b><span>开发步骤</span></div>
     <div class="stat"><b>3</b><span>里程碑（M1/M2/M3）</span></div>
-    <div class="stat"><b>2×26</b><span>测试关卡（单测+业务）</span></div>
+    <div class="stat"><b>2×28</b><span>测试关卡（单测+业务）</span></div>
   </div>
 </section>
 
@@ -183,6 +183,8 @@
       <tr><td>SQLAlchemy 2.0 + aiosqlite</td><td>ORM（SQLite 运行主库，连接层兼容 MySQL）</td><td class="num">P0</td></tr>
       <tr><td>PyMySQL / aiomysql</td><td>MySQL 连接（灾备镜像推送，NAS 已有 MySQL）</td><td class="num">P23</td></tr>
       <tr><td>redis-py (redis.asyncio)</td><td>Redis 连接（会话存储与高速缓存，NAS 已有 Redis）</td><td class="num">P25</td></tr>
+      <tr><td>标准库 asyncio UDP（SSDP/UPnP IGD）</td><td>路由器发现（M-SEARCH + rootDesc 解析，零新增依赖）</td><td class="num">P26</td></tr>
+      <tr><td>标准库 hmac/hashlib（AWS SigV4 手工签名）</td><td>MinIO S3 API 只读访问（不引入 minio SDK）</td><td class="num">P27</td></tr>
       <tr><td>Pydantic v2 + pydantic-settings</td><td>数据校验与配置管理</td><td class="num">P0</td></tr>
       <tr><td>passlib[bcrypt]</td><td>密码哈希</td><td class="num">P1</td></tr>
       <tr><td>PyJWT</td><td>JWT 签发与校验</td><td class="num">P1</td></tr>
@@ -262,6 +264,8 @@
       <tr><td class="num">P23</td><td><a href="#p23">MySQL 数据同步（SQLite→MySQL）</a></td><td><span class="badge m2">M2</span></td><td>6</td><td><span class="st done">✅ 已完成（6/6）</span></td></tr>
       <tr><td class="num">P24</td><td><a href="#p24">传输加密（全链路密文化）<span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st done">✅ 已完成</span></td></tr>
       <tr><td class="num">P25</td><td><a href="#p25">Redis 缓存与会话</a></td><td><span class="badge m2">M2</span></td><td>4</td><td><span class="st done">✅ 已完成（4/4）</span></td></tr>
+      <tr><td class="num">P26</td><td><a href="#p26">局域网设备发现与路由器 <span class="badge core">★</span></a></td><td><span class="badge m2">M2</span></td><td>5</td><td><span class="st open">⬜ 未开始</span></td></tr>
+      <tr><td class="num">P27</td><td><a href="#p27">局域网数据库服务（发现与只读查看）</a></td><td><span class="badge m2">M2</span></td><td>6</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P19</td><td><a href="#p19">Flow 画布编排</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st done">✅ 已完成（3/3）</span></td></tr>
       <tr><td class="num">P20</td><td><a href="#p20">SSH 托管隧道与端口进阶</a></td><td><span class="badge m3">M3</span></td><td>3</td><td><span class="st open">⬜ 未开始</span></td></tr>
       <tr><td class="num">P21</td><td><a href="#p21">监控与企业化进阶</a></td><td><span class="badge m3">M3</span></td><td>4</td><td><span class="st done">✅ 已完成（4/4）</span></td></tr>
@@ -592,6 +596,39 @@
   <div class="gate"><b>业务功能测试关卡：</b><ul><li>配置 NAS 真实 Redis → 登录 → 重启后端 → 会话仍有效（免重新登录）；登出后旧 token 立即失效；停掉 Redis → 全部功能照常（降级内存）；健康自检正确显示 Redis 状态。——✅ 本机 Docker Redis 7.4.1 实链路（2026-09-04）：UI 配置启用→测试连接→浏览器免登录会话跨后端重启保持→登出黑名单立即 401→停 Redis 后浏览/登录照常（降级内存）→启动后 30s 探活自动回切（面板显示 Redis·已连接）。</li></ul></div>
   <div class="goal">退出标准：真实 NAS Redis 环境 72h 无异常；断电重启场景会话保持验证通过。——🔄（机制本机已验证；72h 随 NAS 实机部署执行）</div>
 
+  <h3 id="p26">P26 · 局域网设备发现与路由器 <span class="badge core">★</span> <span class="st open">⬜ 未开始（0/5）</span></h3>
+  <p><strong>扫描策略</strong>：存活判定 = 并发 TCP connect（默认端口集，<code>lan.probe_ports</code> 可配）命中任意端口，或 ARP 邻居表存在记录——<strong>不使用 ICMP</strong>（容器无 CAP_NET_RAW 也可运行），不引入 scapy/ping3 等新依赖；并发由 Semaphore（<code>lan.concurrency</code>，默认 128）限速。扫描目标仅限私网 CIDR 白名单（10/8、172.16/12、192.168/16、169.254/16 + <code>lan.extra_cidrs</code>）。路由器识别 = 默认网关 + UPnP IGD 描述 + 端口特征多来源投票；SNMP 复用既有纯标准库实现。</p>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">26.1</td><td>扫描引擎与数据模型</td><td>services/lan_scan.py：网段识别（psutil 网卡 + 默认网关路由，平台分支 Linux/macOS/Docker-HOST_PROC）、TCP 并发探测、ARP 邻居表读取（/proc/net/arp ｜ arp -a）、反向 DNS（线程池+超时）、内置 OUI 厂商前缀库；建表 lan_devices / lan_scan_runs / lan_device_events（api-spec §3.12）；<code>lan.*</code> 设置键与 /api/lan/settings；POST /api/lan/scan + GET status（4005 互斥/4006 网段校验）</td><td>M19-1/2/10</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">26.2</td><td>设备清单与指纹</td><td>设备合并写入（ip 唯一，missed_scans≥3 判离线）、device_type 指纹规则（端口特征 + OUI）；GET /api/lan/devices(/{id})、事件流水 /api/lan/scans；前端 LanView 设备 tab（扫描按钮/进度条/表格/类型筛选/设备详情抽屉），路由 /lan + 侧栏导航 + i18n</td><td>M19-3</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">26.3</td><td>路由器识别与详情</td><td>SSDP M-SEARCH（InternetGatewayDevice:1/2）+ rootDesc.xml 解析（标准库 UDP/XML）、WAN 状态（GetExternalIPAddress / GetStatusInfo SOAP）、管理后台端口探测；GET /api/lan/router(/clients)；路由器详情视图：基础信息卡 / WAN 卡 / 连接设备表（本机 ARP 视角）</td><td>M19-4/5/6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">26.4</td><td>SNMP 接口流量与路由器侧 ARP</td><td><code>lan.snmp.*</code> 配置（community Fernet 加密、/snmp/test 即测即用）；ifTable 双采样（间隔 ≥2s 差分）上下行速率 + 累计流量（GET /api/lan/router/interfaces）；路由器侧 ipNetToMediaTable 融合进连接设备表（无凭据降级本机视角并注明 sources）</td><td>M19-6/7</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">26.5</td><td>调度联动与关卡收尾</td><td>APScheduler 定时扫描 job（lan.auto_scan/scan_interval_min，max_instances=1）；设备上下线事件 + P9 通知路由（source=lan）+ WS lan_device 帧；一键建端口监控项 / 加 WoL 目标；审计；阶段测试两道关卡</td><td>M19-8/9</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>网段识别平台分支；TCP 判活与 ARP 融合合并逻辑（ip 唯一/MAC 更新/missed_scans 离线判定）；私网白名单校验（公网目标 4006）；扫描互斥（4005）；OUI 厂商匹配；UPnP rootDesc 解析（样例 XML）；SNMP 差分速率计算；设备上下线事件与通知触发。——待执行</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>本机/家庭网段真实扫描 → 设备清单成型且非本机设备有 MAC/厂商；路由器被正确识别并展示型号/外网 IP；配置 SNMP 后接口速率与连接设备来自路由器；设备下线（关一台设备再扫）产生事件与通知。——待执行</li></ul></div>
+  <div class="goal">退出标准：NAS Docker 容器内扫描宿主网段可用（无特权运行）；家庭环境路由器详情三卡数据齐全（无 SNMP 时双卡 + 明示降级）。——待执行</div>
+
+  <h3 id="p27">P27 · 局域网数据库服务发现与只读查看 <span class="st open">⬜ 未开始（0/6）</span></h3>
+  <p><strong>只读策略</strong>：查看器全部为服务端白名单固定查询，不接受任意 SQL/命令输入；凭据 Fernet 加密存储（复用 secret_box + SSH 凭据范式），回传 <code>password_set</code> 脱敏；目标限私网 CIDR（含 127.0.0.1）。<strong>零新增依赖</strong>：MySQL=aiomysql、Redis=redis.asyncio、MinIO=httpx + SigV4 手工签名（标准库）。</p>
+  <table>
+    <thead><tr><th style="width:8%">#</th><th style="width:20%">步骤</th><th>内容</th><th style="width:10%">关联</th><th style="width:12%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="num">27.1</td><td>指纹扫描引擎</td><td>services/db_fingerprint.py：数据库端口字典（3306/6379/9000·9001/5432/27017/9200/11211/2379/8123）+ 协议握手指纹（MySQL greeting 包版本 / Redis PING·INFO / MinIO health·Server 头 / PG SSLRequest / Mongo hello / ES GET /）；建表 lan_db_services；POST /api/lan/db/scan（复用扫描任务进度）+ GET services（关联 lan_devices 标注所属设备）</td><td>M20-1/2</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">27.2</td><td>凭据管理</td><td>建表 db_credentials（api-spec §3.12）；CRUD + 测试端点（MySQL SELECT 1 / Redis PING / MinIO ListBuckets）；host:port 自动关联服务；脱敏与空密码保持原值；私网校验 + 审计</td><td>M20-3/9</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">27.3</td><td>MySQL 只读查看器</td><td>aiomysql 短连接（5s 超时）；白名单查询：overview（SHOW GLOBAL STATUS 摘要 + QPS 差分）、variables（SHOW VARIABLES 检索）、schemas（information_schema.TABLES）、processlist；GET /api/lan/db/mysql/{sid}/* 四端点</td><td>M20-4</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">27.4</td><td>Redis 只读查看器</td><td>redis.asyncio；INFO 归一化、SCAN 游标分页键浏览（禁 KEYS）、键详情（TYPE/TTL/MEMORY USAGE/值预览 4KB 截断、集合类 100 条、二进制 hex 预览）、SLOWLOG/CLIENT LIST；命令白名单（写命令不进代码路径）</td><td>M20-5</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">27.5</td><td>MinIO 只读查看器</td><td>SigV4 手工签名（GET ListBuckets / ListObjectsV2 / health）；overview/buckets（对象数与前 1000 对象容量估算）/objects（前缀分页）；预签名 GET URL（5 分钟，GET /object-url）</td><td>M20-6</td><td><span class="st open">⬜</span></td></tr>
+      <tr><td class="num">27.6</td><td>服务页与探活联动</td><td>前端 LanView 数据库服务 tab：服务清单 + 凭据管理抽屉 + 查看器抽屉（MysqlViewer/RedisViewer/MinioViewer，只读视图）；定时探活 job + 状态翻转通知（source=db）+ WS db_service 帧 + 一键建监控项；权限：清单/概览 A、内容级 M；审计</td><td>M20-2/7/8</td><td><span class="st open">⬜</span></td></tr>
+    </tbody>
+  </table>
+  <div class="gate"><b>单元测试关卡：</b><ul><li>指纹解析（MySQL greeting 样例字节/Redis INFO 文本/MinIO 响应头）；凭据加密存储与脱敏（password_set/空密码保持）；白名单强制（越权命令无执行路径）、值预览截断与二进制检测；SigV4 签名向量（已知测试向量）；私网校验 4006；探活翻转事件。——待执行</li></ul></div>
+  <div class="gate"><b>业务功能测试关卡：</b><ul><li>家庭网段扫描发现 NAS 上的 MySQL/Redis/MinIO 并显示版本 → 配置凭据测试连接通过 → 三种查看器分别浏览（库表/键空间/桶对象）确认无任何写操作入口 → 错误凭据给出清晰失败摘要 → user 角色可见清单但内容级入口无权限。——待执行</li></ul></div>
+  <div class="goal">退出标准：真实家庭环境三类数据库（MySQL/Redis/MinIO）只读浏览全链路可用；凭据库泄露面最小化（DB 文件中均为密文）。——待执行</div>
+
 
   <h3 id="p24">P24 · 传输加密：全链路密文化 <span class="badge core">★</span> <span class="st done">✅ 已完成</span></h3>
   <p><strong>数据策略</strong>（用户要求：所有数据不能明文传输）：TLS 为基线，叠加<strong>应用层端到端加密</strong>——RSA-3072(OAEP/SHA-256) 会话密钥交换 + AES-256-GCM 信封；<code>/api</code> 全部请求体、响应体、Authorization 头密文传输；豁免：health、握手本身、静态资源。协议详见 api-spec §7。</p>
@@ -668,7 +705,7 @@
 <section id="rules">
   <h2><span class="no">05</span>执行约定</h2>
   <ol>
-    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；当前排期：P0~P21、P23~P25 步骤全部完成，<strong>M1/M2 关闭，M3 仅余 P22</strong>（企业登录/远期功能点/M3 验收）；</li>
+    <li><strong>顺序执行</strong>：按 P0 → P22 顺序推进，允许同里程碑内无依赖的阶段并行（如 P9 通知中心可提前）；当前排期：P0~P25 步骤全部完成，<strong>M1/M2/M3 本机关闭</strong>；v1.6 新增 <strong>P26/P27（局域网发现两模块）</strong>待开发；</li>
     <li><strong>契约同步</strong>：新增/修改接口、数据表、枚举、WebSocket 事件 → 同步 api-spec 对应小节（含权限列与阶段列）；</li>
     <li><strong>文档三处同步</strong>：完成步骤时，步骤状态/阶段看板/规模总览进度数字三处必须一致；</li>
     <li><strong>状态即真相</strong>：本文件的步骤状态就是开发进度，完成一步改一步，不写"记忆里的进度"；</li>
@@ -679,7 +716,7 @@
   <div class="callout">💡 评审通过本计划后，下一步即从 <strong>P0 项目脚手架</strong> 开始开发，每完成一个阶段我都会更新本文件状态并向你汇报测试结果。</div>
 </section>
 
-<footer>Portal · 开发计划 v1.1 · 2026-09-01 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<footer>Portal · 开发计划 v1.6 · 2026-09-18 · 纯静态 HTML，可直接在浏览器打开评审</footer>
 </div>
 </div>
 
