@@ -392,6 +392,24 @@ MESSAGES: dict[str, dict[str, str]] = {
         "zh-CN": "导入行格式应为 host:port 或 名称|host:port",
         "en": "Import lines must be host:port or name|host:port",
     },
+    # ---- 局域网发现（M19/M20；P26/P27）----
+    "err.lan_scan_busy": {"zh-CN": "已有扫描任务进行中", "en": "A scan task is already running"},
+    "err.lan_cidr_invalid": {
+        "zh-CN": "扫描网段不合法（需为私网 CIDR 且 ≤4096 地址）：{cidr}",
+        "en": "Invalid scan CIDR (private network, ≤4096 addresses): {cidr}",
+    },
+    "err.lan_target_forbidden": {
+        "zh-CN": "目标地址不在允许的私网网段",
+        "en": "Target is outside the allowed private network ranges",
+    },
+    "err.lan_device_not_found": {"zh-CN": "设备不存在", "en": "LAN device not found"},
+    "err.already_exists": {"zh-CN": "{name} 已存在", "en": "{name} already exists"},
+    "err.db_service_not_found": {"zh-CN": "数据库服务不存在", "en": "Database service not found"},
+    "err.db_credential_not_found": {"zh-CN": "凭据不存在", "en": "Credential not found"},
+    "err.db_credential_dup": {
+        "zh-CN": "该 host:port 已存在凭据",
+        "en": "A credential already exists for this host:port",
+    },
     # ---- 监控告警/证书（M17/P10）----
     "err.alert_rule_not_found": {"zh-CN": "告警规则不存在", "en": "Alert rule not found"},
     "err.cert_hosts_invalid": {

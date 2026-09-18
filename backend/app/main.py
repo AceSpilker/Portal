@@ -293,6 +293,19 @@ async def lifespan(_: FastAPI):
         ports_job, "interval", seconds=10, id="port_probe",
         max_instances=1, replace_existing=True,
     )
+    # 局域网定时扫描（P26.5/M19-8）：60s 心跳判断到期
+    from app.api.v1.lan import lan_scan_due_job
+    from app.api.v1.lan_db import db_probe_job
+
+    _scheduler.add_job(
+        lan_scan_due_job, "interval", seconds=60, id="lan_scan",
+        max_instances=1, replace_existing=True,
+    )
+    # 数据库服务探活（P27.6/M20-8）：状态翻转走通知
+    _scheduler.add_job(
+        db_probe_job, "interval", seconds=120, id="lan_db_probe",
+        max_instances=1, replace_existing=True,
+    )
     if not _scheduler.running:  # 测试环境会多次进入 lifespan
         _scheduler.start()
     yield

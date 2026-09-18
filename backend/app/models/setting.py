@@ -88,6 +88,17 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "redis.db": json.dumps(0),
     "redis.key_prefix": json.dumps("portal:"),
     "redis.enabled": json.dumps(False),
+    # 局域网设备发现（P26/M19）：扫描网段空=自动识别；密码类（SNMP community）Fernet 加密
+    "lan.scan_cidrs": json.dumps([]),
+    "lan.auto_scan": json.dumps(False),
+    "lan.scan_interval_min": json.dumps(30),
+    "lan.probe_ports": json.dumps([80, 443, 22, 445, 3306, 5432, 6379, 8080, 9000, 9001, 27017]),
+    "lan.dns_lookup": json.dumps(True),
+    "lan.concurrency": json.dumps(128),
+    "lan.extra_cidrs": json.dumps([]),
+    "lan.snmp.enabled": json.dumps(False),
+    "lan.snmp.community": json.dumps(""),  # 密文（sync.key Fernet）
+    "lan.snmp.timeout_s": json.dumps(2.0),
 }
 
 

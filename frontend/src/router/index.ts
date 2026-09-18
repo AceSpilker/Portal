@@ -11,6 +11,7 @@ import AppsManageView from '../views/AppsManageView.vue'
 import EfficiencyView from '../views/EfficiencyView.vue'
 import KnowledgeView from '../views/KnowledgeView.vue'
 import PortsView from '../views/PortsView.vue'
+import LanView from '../views/LanView.vue'
 import DockerView from '../views/DockerView.vue'
 import AiView from '../views/AiView.vue'
 import FlowView from '../views/FlowView.vue'
@@ -51,6 +52,7 @@ const router = createRouter({
         { path: 'efficiency', name: 'efficiency', component: EfficiencyView, meta: { titleKey: 'nav.efficiency' } },
         { path: 'knowledge', name: 'knowledge', component: KnowledgeView, meta: { titleKey: 'nav.knowledge' } },
         { path: 'ports', name: 'ports', component: PortsView, meta: { titleKey: 'nav.ports' } },
+        { path: 'lan', name: 'lan', component: LanView, meta: { titleKey: 'nav.lan' } },
         { path: 'docker', name: 'docker', component: DockerView, meta: { titleKey: 'nav.docker' } },
         { path: 'ai', name: 'ai', component: AiView, meta: { titleKey: 'nav.ai' } },
         { path: 'flow', name: 'flow', component: FlowView, meta: { titleKey: 'nav.flow' } },

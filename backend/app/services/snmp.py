@@ -61,8 +61,31 @@ def build_get(oid: str, community: str = "public", request_id: int = 1) -> bytes
     return _tlv(0x30, _tlv(0x02, b"\x00") + _tlv(0x04, community.encode()) + _tlv(0xA0, pdu))
 
 
+def build_getnext(oid: str, community: str = "public", request_id: int = 1) -> bytes:
+    """构造 SNMP v2c GETNEXT 报文（P26.4 表遍历用；body 与 GET 仅 PDU tag 不同）。"""
+    varbind = _tlv(0x30, _encode_oid(oid) + _tlv(0x05, b""))
+    varbinds = _tlv(0x30, varbind)
+    pdu = (
+        _tlv(0x02, bytes([request_id & 0x7F]))
+        + _tlv(0x02, b"\x00")
+        + _tlv(0x02, b"\x00")
+        + varbinds
+    )
+    return _tlv(0x30, _tlv(0x02, b"\x00") + _tlv(0x04, community.encode()) + _tlv(0xA1, pdu))
+
+
 def parse_response(payload: bytes) -> tuple[int, str, object]:
     """解析 GET 响应：返回 (error_status, oid, value)。仅支持单 varbind。"""
+    err, oid, (vtag, vbody) = parse_response_tlv(payload)
+    return err, oid, _decode_value((vtag, vbody))
+
+
+def parse_response_tlv(payload: bytes) -> tuple[int, str, tuple[int, bytes]]:
+    """解析响应并保留值的原始 TLV：(error_status, oid, (tag, raw_bytes))。
+
+    P26.4 表遍历（MAC 地址等二进制 OCTET STRING 需要原始字节）用；
+    _decode_value 的 utf-8 replace 会破坏 MAC 字节，此处不做解码。
+    """
 
     def _read_tlv(buf: bytes, off: int):
         tag = buf[off]
@@ -92,9 +115,7 @@ def parse_response(payload: bytes) -> tuple[int, str, object]:
     vo2 = 0
     _tag, oid_tlv, vo2 = _read_tlv(varbind, vo2)
     vtag, val_body, _vo = _read_tlv(varbind, vo2)
-    oid = _decode_oid(oid_tlv)
-    value = _decode_value((vtag, val_body))
-    return err, oid, value
+    return err, _decode_oid(oid_tlv), (vtag, val_body)
 
 
 def _decode_oid(raw: bytes) -> str:
@@ -121,3 +142,8 @@ def _decode_value(tlv: tuple[int, bytes]):
             v = (v << 8) | b
         return v
     return body.hex()
+
+
+def hex_mac(body: bytes) -> str:
+    """OCTET STRING 原始字节 → 冒号小写十六进制 MAC（ipNetToMedia 用）。"""
+    return ":".join(f"{b:02x}" for b in body)

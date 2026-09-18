@@ -26,6 +26,7 @@ import {
   Search as IconSearch,
   Calendar as IconCalendar,
   Reading as IconKnowledge,
+  Link as IconLan,
 } from '@element-plus/icons-vue'
 
 interface NavItem {
@@ -88,6 +89,7 @@ const navItems = computed<NavItem[]>(() => [
   { icon: IconCalendar, label: t('nav.efficiency'), to: '/efficiency' },
   { icon: IconMonitor, label: t('nav.monitor'), to: '/monitor' },
   { icon: IconConnection, label: t('nav.ports'), to: '/ports' },
+  { icon: IconLan, label: t('nav.lan'), to: '/lan' },
   ...(auth.isAdmin && dockerEnabled.value
     ? [{ icon: IconDocker, label: t('nav.docker'), to: '/docker' }]
     : []),
