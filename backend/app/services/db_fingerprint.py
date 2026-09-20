@@ -203,26 +203,53 @@ async def fingerprint_clickhouse(host: str, port: int) -> dict | None:
 async def sniff_unknown(host: str, port: int) -> dict | None:
     """未知端口的服务嗅探（M20-1 扩展：非默认端口的自建服务，如 MySQL@3309）。
 
-    依服务端是否先发言依次尝试：MySQL greeting（服务端先发）→ Redis PING →
-    PG SSLRequest → HTTP 探测（MinIO/ES/etcd/ClickHouse 特征头/路径）。
+    依服务端行为分派：MySQL greeting（服务端先发）→ 发 PING 看响应——
+    有 RESP 文本行 = Redis；完全静默 = PG 候选（发 SSLRequest，要求单字节
+    N/S 应答）；有 HTTP 风格文本行 = 跳过 PG，直接 HTTP 族探测。
+    （110 实测修正：HTTP 服务器对 SSLRequest 可能回单个 "S" 字节，造成
+    postgresql 误报——文本行门控消除该路径。）
     """
-    # 1) MySQL：服务端先发 greeting
     try:
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(host, port), CONNECT_TIMEOUT
         )
     except (OSError, TimeoutError):
         return None
+
+    async def _readline() -> bytes | None:
+        try:
+            return await asyncio.wait_for(reader.readline(), CONNECT_TIMEOUT)
+        except (OSError, TimeoutError, asyncio.IncompleteReadError):
+            return None
+
     try:
+        # 1) MySQL：服务端先发 greeting
         fp = await fingerprint_mysql(reader)
         if fp:
             return fp
-        fp = await fingerprint_redis(reader, writer)
-        if fp:
-            return fp
-        fp = await fingerprint_postgresql(reader, writer)
-        if fp:
-            return fp
+        # 2) Redis：PING → RESP 文本行（+PONG / -NOAUTH / $bulk）
+        writer.write(b"PING\r\n")
+        await writer.drain()
+        line = await _readline()
+        if line and (line.startswith(b"+") or line.startswith(b"$") or line.startswith(b"-")):
+            detail: dict = {}
+            version = None
+            if line.startswith(b"$"):
+                try:
+                    body = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), CONNECT_TIMEOUT)
+                    for row in body.decode("utf-8", "replace").splitlines():
+                        if row.startswith("redis_version:"):
+                            version = row.split(":", 1)[1]
+                except (OSError, TimeoutError, asyncio.IncompleteReadError):
+                    pass
+            elif line.startswith(b"-"):
+                detail["auth"] = "required"
+            return {"type": "redis", "version": version, "detail": detail or {"reply": "pong"}}
+        # 3) 完全静默 → PG 候选（真实 PG 对 PING 不响应，等 SSLRequest）
+        if line is None:
+            fp = await fingerprint_postgresql(reader, writer)
+            if fp:
+                return fp
     except (OSError, TimeoutError):
         return None
     finally:
@@ -231,7 +258,7 @@ async def sniff_unknown(host: str, port: int) -> dict | None:
             await writer.wait_closed()
         except (OSError, TimeoutError):
             pass
-    # 2) HTTP 族（MinIO health / ES / etcd /health / ClickHouse /ping）
+    # 4) HTTP 族（MinIO health / ES / etcd /health / ClickHouse /ping）
     http_probes = (
         fingerprint_minio, fingerprint_elasticsearch, fingerprint_etcd, fingerprint_clickhouse,
     )
