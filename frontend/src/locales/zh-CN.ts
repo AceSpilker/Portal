@@ -69,6 +69,7 @@ export default {
     setSnmpTimeout: '超时',
     snmpTest: '测试',
     keepPlaceholder: '留空保持不变',
+    portalSegment: 'Portal 访问地址',
     rBasic: '基础信息',
     rModel: '型号',
     rAdmin: '管理后台',

@@ -10,6 +10,8 @@ export interface LanSegment {
   cidr: string
   is_gateway_iface: boolean
   gateway: string | null
+  /** portal=由 Portal 访问地址派生（容器部署时的宿主网段来源）；nic=本机网卡 */
+  source?: 'portal' | 'nic'
 }
 
 export interface LanSettings {

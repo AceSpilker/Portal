@@ -60,7 +60,11 @@ async def post_db_scan(
     body = body or {}
     cidrs = [str(c)[:64] for c in (body.get("cidrs") or [])]
     try:
-        run = await db_fingerprint.start_db_scan(session, cidrs or None)
+        from app.api.v1.lan import _hint_ips
+
+        run = await db_fingerprint.start_db_scan(
+            session, cidrs or None, hint_ips=_hint_ips(request)
+        )
     except LookupError as exc:
         raise BizError(CODE_SCAN_BUSY, t("err.lan_scan_busy"), 409) from exc
     except ValueError as exc:

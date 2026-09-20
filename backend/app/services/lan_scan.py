@@ -187,13 +187,31 @@ def detect_segments() -> list[dict]:
     return segments
 
 
-def auto_cidrs() -> list[str]:
-    """扫描网段缺省值：默认网关所在 /24。
+def cidr_from_ip(ip: str) -> str | None:
+    """局域网 IP → 所属 /24（仅私网非回环地址有效；否则 None）。"""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return None
+    if addr.is_loopback or addr.version != 4 or not is_private_ip(ip):
+        return None
+    return str(ipaddress.ip_network(f"{ip}/24", strict=False))
 
-    容器部署时 /proc/net 按网络命名空间生成（HOST_PROC 也拿不到宿主网络表），
-    自动识别到的是 Docker 网桥（常为 172.x/16，超 4096 地址上限会被拒）——
-    统一收敛为网关 /24 保证缺省可用；物理网段由用户在扫描设置里覆盖。
+
+def auto_cidrs(hint_ips: list[str] | None = None) -> list[str]:
+    """扫描网段缺省值，按优先级：
+
+    1) Portal 访问地址提示（Host 头 IP / 客户端来源 IP）——容器部署时
+       /proc/net 按网络命名空间生成（HOST_PROC 也拿不到宿主网络表），容器内
+       自动识别只能看到 Docker 网桥；而管理员访问 Portal 用的就是 NAS 的
+       局域网地址，是"NAS 所在网段"最可靠的信号源；
+    2) 默认网关 /24（容器场景即 Docker 网桥，兜底可用）；
+    3) 本机网卡网段。
     """
+    for ip in hint_ips or []:
+        cidr = cidr_from_ip(ip)
+        if cidr:
+            return [cidr]
     gw_ip, _ = default_gateway()
     if gw_ip:
         try:
@@ -424,8 +442,14 @@ async def merge_scan_results(
     arp: dict[str, str],
     hostnames: dict[str, str],
     gateway_ip: str | None,
+    gateway_hint: str | None = None,
 ) -> dict:
-    """扫描结果合并进 lan_devices；返回 {new, gone, events}（上下线翻转走通知）。"""
+    """扫描结果合并进 lan_devices；返回 {new, gone, events}（上下线翻转走通知）。
+
+    gateway_hint：容器部署时默认网关是 Docker 网桥，不在被扫网段内——用
+    提示网段的 .1（家用惯例）作为候选，仅在扫描确实发现该地址时标记。
+    """
+    gateway_candidates = {ip for ip in (gateway_ip, gateway_hint) if ip}
     now = datetime.utcnow()
     ips_seen = set(found) | {ip for ip in arp if is_private_ip(ip)}
     existing = {
@@ -433,6 +457,9 @@ async def merge_scan_results(
     }
     events: list[dict] = []
     new_count = 0
+
+    def _is_gw(ip: str) -> bool:
+        return ip in gateway_candidates
 
     for ip in ips_seen:
         mac = _norm_mac(arp[ip]) if arp.get(ip) else None
@@ -442,8 +469,8 @@ async def merge_scan_results(
         if was is None:
             dev = LanDevice(
                 ip=ip, mac=mac, hostname=hostnames.get(ip), vendor=vendor,
-                device_type=fingerprint_device(ports, vendor, ip == gateway_ip),
-                is_gateway=1 if ip == gateway_ip else 0,
+                device_type=fingerprint_device(ports, vendor, _is_gw(ip)),
+                is_gateway=1 if _is_gw(ip) else 0,
                 open_ports=json.dumps(ports), source=json.dumps(
                     (["tcp"] if ports else []) + (["arp"] if mac else [])
                 ),
@@ -466,7 +493,7 @@ async def merge_scan_results(
                 was.hostname = hostnames[ip]
             if ports:
                 was.open_ports = json.dumps(ports)
-            was.is_gateway = 1 if ip == gateway_ip else (0 if gateway_ip else was.is_gateway)
+            was.is_gateway = 1 if _is_gw(ip) else (0 if gateway_candidates else was.is_gateway)
             src = set(json.loads(was.source or "[]"))
             if ports:
                 src.add("tcp")
@@ -532,13 +559,32 @@ def scan_status() -> dict | None:
     return dict(_current) if _current else None
 
 
-async def _run_scan(run_id: int, cidrs: list[str], cfg: dict) -> None:
+async def _run_scan(
+    run_id: int, cidrs: list[str], cfg: dict, hint_ips: list[str] | None = None,
+) -> None:
     """后台扫描主体：独立会话；异常写 failed 不抛出。"""
     global _current
     from app.services import lan_upnp
 
     arp = read_arp_table()
     gw_ip, _ = default_gateway()
+    # 容器部署时默认网关是 Docker 网桥（不在被扫网段内），"路由器=网关"判定
+    # 失效——退而用提示网段 +.1（家用网络惯例）作为候选，扫到才标记。
+    nets = [ipaddress.ip_network(c) for c in cidrs]
+    gw_hint: str | None = None
+    if gw_ip and any(ipaddress.ip_address(gw_ip) in n for n in nets):
+        pass  # 真实网关在被扫网段内，直接用
+    else:
+        for ip in hint_ips or []:
+            c = cidr_from_ip(ip)
+            if c and ipaddress.ip_network(c) in nets:
+                gw_hint = str(ipaddress.ip_network(c).network_address + 1)
+                break
+        if gw_hint is None and nets:
+            first = nets[0]
+            candidate = str(first.network_address + 1)
+            if ipaddress.ip_address(candidate) in first:
+                gw_hint = candidate
     hosts: list[str] = []
     seen_hosts: set[str] = set()
     for cidr in cidrs:
@@ -572,7 +618,10 @@ async def _run_scan(run_id: int, cidrs: list[str], cfg: dict) -> None:
                     except ValueError:
                         continue
             hostnames = await resolve_hostnames(list(found), bool(cfg.get("dns_lookup")))
-            merged = await merge_scan_results(session, found, arp, hostnames, gw_ip)
+            merged = await merge_scan_results(
+                session, found, arp, hostnames,
+                gw_ip, gateway_hint=gw_hint,
+            )
             pending_events = merged["events"]
             run = await session.get(LanScanRun, run_id)
             run.status = "done"
@@ -602,21 +651,26 @@ async def _run_scan(run_id: int, cidrs: list[str], cfg: dict) -> None:
 
 
 async def start_scan(
-    session: AsyncSession, cidrs: list[str] | None = None, kind: str = "devices"
+    session: AsyncSession, cidrs: list[str] | None = None, kind: str = "devices",
+    hint_ips: list[str] | None = None,
 ) -> LanScanRun:
-    """创建并启动扫描任务；已有任务进行中抛 LookupError（API 层转 4005）。"""
+    """创建并启动扫描任务；已有任务进行中抛 LookupError（API 层转 4005）。
+
+    网段缺省优先级：显式 cidrs → `lan.scan_cidrs` 设置 → Portal 访问地址
+    派生网段（hint_ips）→ 容器网关 /24。
+    """
     global _current
     if _current is not None:
         raise LookupError("scan busy")
     cfg = await get_lan_config(session)
-    target = cidrs if cidrs else (cfg["scan_cidrs"] or auto_cidrs())
+    target = cidrs if cidrs else (cfg["scan_cidrs"] or auto_cidrs(hint_ips))
     target = validate_scan_cidrs(target, cfg["extra_cidrs"])
     total = len({h for c in target for h in _hosts_of(c)})
     run = LanScanRun(kind=kind, cidrs=json.dumps(target), status="running", total=total)
     session.add(run)
     await session.commit()
     _current = {"run_id": run.id, "kind": kind}
-    asyncio.get_running_loop().create_task(_run_scan(run.id, target, cfg))
+    asyncio.get_running_loop().create_task(_run_scan(run.id, target, cfg, hint_ips))
     return run
 
 

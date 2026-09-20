@@ -370,18 +370,24 @@ async def _dispatch_state(session: AsyncSession, svc: LanDbService, state: str) 
     }})
 
 
-async def start_db_scan(session: AsyncSession, cidrs: list[str] | None = None) -> LanScanRun:
-    """触发数据库指纹扫描；设备扫描与 DB 扫描共用互斥位（一个时刻一个任务）。"""
+async def start_db_scan(
+    session: AsyncSession, cidrs: list[str] | None = None,
+    hint_ips: list[str] | None = None,
+) -> LanScanRun:
+    """触发数据库指纹扫描；设备扫描与 DB 扫描共用互斥位（一个时刻一个任务）。
+
+    网段缺省优先级与设备扫描一致（设置 → Portal 访问地址派生 → 容器网关）。
+    """
     global _current
     if _current is not None or scan_status() is not None:
         raise LookupError("scan busy")
     cfg = await get_lan_config(session)
     target = cidrs if cidrs else (cfg["scan_cidrs"] or [])
     if not target:
-        # 无配置网段：沿用设备扫描的自动识别
+        # 无配置网段：沿用设备扫描的自动识别（含 Portal 访问地址提示）
         from app.services.lan_scan import auto_cidrs
 
-        target = auto_cidrs()
+        target = auto_cidrs(hint_ips)
     target = validate_scan_cidrs(target, cfg["extra_cidrs"])
     run = LanScanRun(kind="db", cidrs=json.dumps(target), status="running",
                      total=len(DB_PORTS) * len({h for c in target for h in _hosts_of(c)}))

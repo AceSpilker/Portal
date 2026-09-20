@@ -69,6 +69,7 @@ export default {
     setSnmpTimeout: 'Timeout',
     snmpTest: 'Test',
     keepPlaceholder: 'Leave empty to keep',
+    portalSegment: 'Portal access address',
     rBasic: 'Basic',
     rModel: 'Model',
     rAdmin: 'Admin UI',

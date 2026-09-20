@@ -303,7 +303,7 @@ def test_11_scan_mutex_and_cidr_guard(client: TestClient, monkeypatch):
 
     started: list = []
 
-    async def _fake_run(run_id, cidrs, cfg):
+    async def _fake_run(run_id, cidrs, cfg, hint_ips=None):
         started.append((run_id, cidrs))
         # 模拟完成（互斥位在真实实现里由 finally 释放，这里手动）
         lan_scan._current = None
@@ -446,3 +446,78 @@ def test_15_device_linkage_monitor_wol(client: TestClient):
     conn.execute("DELETE FROM lan_devices WHERE ip = '192.168.91.50'")
     conn.commit()
     conn.close()
+
+
+def test_16_portal_segment_hints(client: TestClient):
+    """容器部署场景：Host 头/客户端 IP 派生 NAS 所在网段。"""
+    from app.services.lan_scan import cidr_from_ip
+
+    # 纯函数：私网 IPv4 → /24；回环/公网/非法 → None
+    assert cidr_from_ip("192.168.5.88") == "192.168.5.0/24"
+    assert cidr_from_ip("10.37.129.2") == "10.37.129.0/24"
+    assert cidr_from_ip("127.0.0.1") is None  # 回环不作为网段提示
+    assert cidr_from_ip("8.8.8.8") is None  # 公网
+    assert cidr_from_ip("portal.example.com") is None
+    assert cidr_from_ip("") is None
+
+    # segments 端点：Host 头带局域网 IP → 返回 source=portal 的网段且排最前
+    resp = client.get("/api/lan/segments", headers={**_auth(), "Host": "192.168.5.88:8080"})
+    assert resp.status_code == 200
+    items = resp.json()["data"]
+    assert items and items[0]["source"] == "portal"
+    assert items[0]["cidr"] == "192.168.5.0/24" and items[0]["address"] == "192.168.5.88"
+    # 其余为网卡识别项
+    assert all(s.get("source") in ("portal", "nic") for s in items)
+
+
+def test_17_scan_default_uses_hint(client: TestClient, monkeypatch):
+    """无显式网段且未配置 scan_cidrs 时，扫描缺省采用 Portal 访问地址网段。"""
+    import sqlite3
+    from pathlib import Path
+
+    conn = sqlite3.connect(Path(settings.data_dir) / "portal.db")
+    conn.execute("UPDATE settings SET value = '[]' WHERE key = 'lan.scan_cidrs'")
+    conn.commit()
+    conn.close()
+
+    from app.services import lan_scan
+
+    async def _fake_run(run_id, cidrs, cfg, hint_ips=None):
+        lan_scan._current = None
+
+    monkeypatch.setattr(lan_scan, "_run_scan", _fake_run)
+    resp = client.post(
+        "/api/lan/scan",
+        headers={**_auth(), "Host": "192.168.5.88:8080"},
+        json={},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["cidrs"] == ["192.168.5.0/24"]
+
+
+def test_18_gateway_hint_in_merge():
+    """容器场景：默认网关不在被扫网段时，.1 候选仅在扫到时标记为路由器。"""
+    from sqlalchemy import select
+
+    from app.db.session import SessionLocal
+    from app.models.lan import LanDevice
+    from app.services.lan_scan import merge_scan_results
+
+    async def run():
+        async with SessionLocal() as session:
+            # 容器网关 172.25.0.1 不在 192.168.5.0/24 → hint .1 = 192.168.5.1
+            await merge_scan_results(
+                session,
+                found={"192.168.5.1": [80, 443], "192.168.5.99": [8080]},
+                arp={"192.168.5.1": "80:2d:1a:5c:98:22"},
+                hostnames={}, gateway_ip="172.25.0.1", gateway_hint="192.168.5.1",
+            )
+            rows = {
+                d.ip: d
+                for d in (await session.execute(select(LanDevice))).scalars().all()
+            }
+            assert rows["192.168.5.1"].is_gateway == 1
+            assert rows["192.168.5.1"].device_type == "router"
+            assert rows["192.168.5.99"].is_gateway == 0
+
+    asyncio.run(run())

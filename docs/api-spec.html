@@ -437,7 +437,7 @@
     <tr><td class="c">WS</td><td class="c">/ws/notify（既有）</td><td>新增 <code>{"type":"lan_device","data":{ip,mac,event}}</code> 设备上下线实时推送</td><td class="c">—</td><td class="c">P26</td></tr>
     <tr><td class="c">POST</td><td class="c">/api/lan/devices/{id}/monitor · /wol-target</td><td>一键建端口监控项（M18）/ 加入 WoL 目标（M10-1）</td><td class="c">M</td><td class="c">P26</td></tr>
   </tbody></table>
-  <p class="note">扫描引擎约定：存活判定 = 并发 TCP connect（默认端口集 <code>lan.probe_ports</code> 可配）命中任意端口，或 ARP 邻居表存在记录；<strong>不使用 ICMP</strong>（容器无 CAP_NET_RAW 也可运行）。Semaphore（<code>lan.concurrency</code> 默认 128）限速；私网白名单 10/8、172.16/12、192.168/16、169.254/16 + <code>lan.extra_cidrs</code>。</p>
+  <p class="note">扫描引擎约定：存活判定 = 并发 TCP connect（默认端口集 <code>lan.probe_ports</code> 可配）命中任意端口，或 ARP 邻居表存在记录；<strong>不使用 ICMP</strong>（容器无 CAP_NET_RAW 也可运行）。Semaphore（<code>lan.concurrency</code> 默认 128）限速；私网白名单 10/8、172.16/12、192.168/16、169.254/16 + <code>lan.extra_cidrs</code>。<strong>网段缺省优先级</strong>：显式 cidrs → <code>lan.scan_cidrs</code> 设置 → Portal 访问地址派生（Host 头/客户端 IP → 私网 /24，容器部署时宿主网络表不可见，此为 NAS 所在网段的自动识别来源）→ 容器网关 /24。</p>
 
   <h3 id="api-db">4.15 局域网数据库服务（P27，M20）</h3>
   <table><thead><tr><th style="width:14%">方法</th><th style="width:42%">路径</th><th>说明</th><th style="width:8%">权限</th><th style="width:8%">阶段</th></tr></thead><tbody>

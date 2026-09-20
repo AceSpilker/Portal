@@ -126,7 +126,7 @@
           <el-select v-model="settings.scan_cidrs" multiple filterable allow-create default-first-option
             style="width: 100%" :placeholder="t('lan.setCidrsPh')">
             <el-option v-for="s in segmentOptions" :key="s.cidr" :value="s.cidr"
-              :label="`${s.cidr}（${s.iface}${s.gateway ? ' · GW ' + s.gateway : ''}）`" />
+              :label="segmentLabel(s)" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('lan.setAuto')">
@@ -289,7 +289,18 @@ async function openSettings() {
   settings.value = cfg
   portsText.value = cfg.probe_ports.join(', ')
   segmentOptions.value = segs
+  // 未配置过网段时预填 Portal 访问地址派生网段（NAS 容器部署时的宿主网段来源）
+  if (!cfg.scan_cidrs.length && segs.length) {
+    settings.value.scan_cidrs = [segs[0].cidr]
+  }
   settingsVisible.value = true
+}
+
+function segmentLabel(s: LanSegment) {
+  if (s.source === 'portal') {
+    return `${s.cidr}（${t('lan.portalSegment')} ${s.address}）`
+  }
+  return `${s.cidr}（${s.iface}${s.gateway ? ' · GW ' + s.gateway : ''}）`
 }
 
 async function testSnmp() {

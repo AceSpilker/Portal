@@ -429,9 +429,9 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| GET | /api/lan/segments | 自动识别的本机网卡/默认网关/所在网段（psutil + 路由表，平台分支；供设置页预填） | A | P26 |
+| GET | /api/lan/segments | 自动识别网段：本机网卡/默认网关（source=nic）+ **Portal 访问地址派生**（Host 头/客户端 IP → 私网 /24，source=portal，排最前）——容器部署时 /proc/net 按网络命名空间生成、宿主网络表不可见，访问地址派生是宿主网段的自动识别来源 | A | P26 |
 | GET/PUT | /api/lan/settings | 扫描设置读写（`lan.*` 键组：scan_cidrs/auto_scan/scan_interval_min/probe_ports/dns_lookup/concurrency/extra_cidrs + `lan.snmp.*`；community 回传脱敏，空提交=保持原值） | M | P26 |
-| POST | /api/lan/scan | 触发网段扫描（body 可带 cidrs 覆盖；后台任务，已有任务进行中 4005；目标网段校验 4006） | M | P26 |
+| POST | /api/lan/scan | 触发网段扫描（body 可带 cidrs 覆盖；后台任务，已有任务进行中 4005；目标网段校验 4006）；**网段缺省优先级：显式 cidrs → `lan.scan_cidrs` 设置 → Portal 访问地址派生网段 → 容器网关 /24**；默认网关不在被扫网段时以提示网段 .1 为路由器候选（扫到才标记） | M | P26 |
 | GET | /api/lan/scan/status | 当前扫描进度/最近一次结果 {run, progress}（前端轮询进度条） | A | P26 |
 | GET | /api/lan/devices?type=&online= | 设备清单（指纹/开放端口/在线状态；路由器置顶），分页 | A | P26 |
 | GET | /api/lan/devices/{id} | 设备详情：完整指纹、开放端口、发现来源、事件历史 | A | P26 |
@@ -450,7 +450,7 @@
 
 | 方法 | 路径 | 说明 | 权限 | 阶段 |
 |---|---|---|---|---|
-| POST | /api/lan/db/scan | 触发数据库端口指纹扫描（范围 = 设置网段；后台任务复用 /scan/status 进度；4005/4006 同上） | M | P27 |
+| POST | /api/lan/db/scan | 触发数据库端口指纹扫描（范围缺省优先级同 /api/lan/scan：设置 → Portal 访问地址派生 → 容器网关；后台任务复用 /scan/status 进度；4005/4006 同上） | M | P27 |
 | GET | /api/lan/db/services?type= | 服务清单：类型/IP:端口/版本/延迟/凭据状态/探活状态/所属设备（关联 lan_devices），分页 | A | P27 |
 | GET/POST | /api/lan/db/credentials · PUT/DELETE /{id} | 凭据 CRUD（secret Fernet 加密；回传 `password_set`，空密码=保持原值；删除校验服务引用） | M | P27 |
 | POST | /api/lan/db/credentials/{id}/test | 连接测试（按类型真实握手：MySQL SELECT 1 / Redis PING / MinIO ListBuckets，写 last_test_*） | M | P27 |

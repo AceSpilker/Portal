@@ -62,10 +62,44 @@ def _device_view(d: LanDevice) -> dict:
 
 # ---- 网段识别与设置 ----
 
+def _hint_ips(request: Request) -> list[str]:
+    """宿主网段提示来源（校验私网后才生效）：
+
+    1) 请求 Host 头的 IP 部分——管理员用 http://192.168.x.x:8080 访问 Portal
+       时即 NAS 的局域网地址；
+    2) 客户端来源 IP（含 XFF 首段）——管理员 PC 通常与 NAS 同网段。
+
+    容器部署时 /proc/net 按网络命名空间生成，宿主网络表不可见，这两个信号
+    是"NAS 所在网段"可靠的自动识别来源。
+    """
+    from app.services.network import client_ip_from_request
+
+    host = (request.headers.get("host") or "").rsplit(":", 1)[0].strip("[]")
+    return [host, client_ip_from_request(request)]
+
+
 @router.get("/lan/segments")
-async def get_segments(_: User = Depends(get_current_user)):
-    """自动识别的本机网卡/默认网关/所在网段（设置页预填）。"""
-    return ok(lan_scan.detect_segments())
+async def get_segments(request: Request, _: User = Depends(get_current_user)):
+    """自动识别网段：本机网卡/默认网关（source=nic）+ Portal 访问地址派生
+    （source=portal，排最前，容器部署时的宿主网段来源）。"""
+    items: list[dict] = []
+    seen: set[str] = set()
+    from app.services.lan_scan import cidr_from_ip
+
+    for ip in _hint_ips(request):
+        cidr = cidr_from_ip(ip)
+        if cidr and cidr not in seen:
+            seen.add(cidr)
+            items.append({
+                "iface": "portal", "address": ip, "cidr": cidr,
+                "is_gateway_iface": False, "gateway": None, "source": "portal",
+            })
+    for seg in lan_scan.detect_segments():
+        seg.setdefault("source", "nic")
+        if seg["cidr"] not in seen:
+            seen.add(seg["cidr"])
+            items.append(seg)
+    return ok(items)
 
 
 @router.get("/lan/settings")
@@ -124,7 +158,7 @@ async def post_scan(
     body = body or {}
     cidrs = [str(c)[:64] for c in (body.get("cidrs") or [])]
     try:
-        run = await lan_scan.start_scan(session, cidrs or None)
+        run = await lan_scan.start_scan(session, cidrs or None, hint_ips=_hint_ips(request))
     except LookupError as exc:
         raise BizError(CODE_SCAN_BUSY, t("err.lan_scan_busy"), 409) from exc
     except ValueError as exc:
