@@ -22,6 +22,7 @@ export interface LanSettings {
   dns_lookup: boolean
   concurrency: number
   extra_cidrs: string[]
+  db_extra_ports: number[]
   snmp: { enabled: boolean; community: string; timeout_s: number }
   snmp_community_set: boolean
 }
@@ -227,6 +228,10 @@ export const lanDbApi = {
     request.post<never, { run_id: number; cidrs: string[] }>('/lan/db/scan', cidrs?.length ? { cidrs } : {}),
   services: (type?: string) =>
     request.get<never, { items: DbServiceItem[]; total: number }>('/lan/db/services', { params: type ? { type } : {} }),
+  addService: (body: { host: string; port: number }) =>
+    request.post<never, { id: number; host: string; port: number; service_type: string; version: string | null; state: string; created: boolean }>(
+      '/lan/db/services', body,
+    ),
   createMonitor: (sid: number) => request.post<never, { id: number }>(`/lan/db/services/${sid}/monitor`),
   credentials: () =>
     request.get<never, { items: DbCredentialItem[]; total: number }>('/lan/db/credentials'),
@@ -249,6 +254,10 @@ export const lanDbApi = {
     ),
   mysqlProcesslist: (sid: number) =>
     request.get<never, { items: Array<Record<string, unknown>> }>(`/lan/db/mysql/${sid}/processlist`),
+  mysqlRows: (sid: number, params: { schema: string; table: string; page?: number; page_size?: number }) =>
+    request.get<never, { schema: string; table: string; page: number; page_size: number; total: number; columns: string[]; items: Array<Record<string, unknown>> }>(
+      `/lan/db/mysql/${sid}/rows`, { params },
+    ),
   redisInfo: (sid: number) => request.get<never, RedisInfoSections>(`/lan/db/redis/${sid}/info`),
   redisKeys: (sid: number, params: { db?: number; cursor?: number; match?: string }) =>
     request.get<never, { cursor: number; items: RedisKeyRow[] }>(`/lan/db/redis/${sid}/keys`, { params }),

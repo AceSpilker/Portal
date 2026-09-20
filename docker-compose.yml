@@ -29,6 +29,10 @@ services:
       # 可选：读取宿主机资源做监控（NAS 支持 mount 时开启，见 dev-plan P5.1）
       # - HOST_PROC=/host/proc
       # - HOST_SYS=/host/sys
+      # 局域网扫描网段（P26）：容器内 /proc/net 按网络命名空间生成，读不到宿主
+      # 路由表——用该变量显式声明 NAS 所在网段（逗号分隔 CIDR）；为空则自动
+      # 按 Portal 访问地址派生（本 NAS 部署为 192.168.5.88，见 scripts/deploy-nas.sh）
+      - LAN_SCAN_CIDRS=192.168.5.0/24
     volumes:
       - ./data:/app/data
       # - /var/run/docker.sock:/var/run/docker.sock

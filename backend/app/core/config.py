@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     )
     transport_rsa_bits: int = 3072
 
+    # ---- 局域网发现（P26）：容器部署时宿主网络表不可见，可用该环境变量
+    #      显式声明 NAS 所在网段（逗号分隔 CIDR）；为空则自动派生（见 lan_scan）----
+    lan_scan_cidrs: str = ""
+
 
 settings = Settings()
 settings.data_dir.mkdir(parents=True, exist_ok=True)

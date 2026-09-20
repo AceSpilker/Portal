@@ -200,10 +200,61 @@ async def fingerprint_clickhouse(host: str, port: int) -> dict | None:
     return {"type": "clickhouse", "version": version, "detail": {}}
 
 
-async def probe_service(host: str, port: int) -> dict | None:
-    """单 host:port 指纹探测：TCP 连接 → 按端口分派协议握手；失败返回 None。"""
+async def sniff_unknown(host: str, port: int) -> dict | None:
+    """未知端口的服务嗅探（M20-1 扩展：非默认端口的自建服务，如 MySQL@3309）。
+
+    依服务端是否先发言依次尝试：MySQL greeting（服务端先发）→ Redis PING →
+    PG SSLRequest → HTTP 探测（MinIO/ES/etcd/ClickHouse 特征头/路径）。
+    """
+    # 1) MySQL：服务端先发 greeting
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port), CONNECT_TIMEOUT
+        )
+    except (OSError, TimeoutError):
+        return None
+    try:
+        fp = await fingerprint_mysql(reader)
+        if fp:
+            return fp
+        fp = await fingerprint_redis(reader, writer)
+        if fp:
+            return fp
+        fp = await fingerprint_postgresql(reader, writer)
+        if fp:
+            return fp
+    except (OSError, TimeoutError):
+        return None
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except (OSError, TimeoutError):
+            pass
+    # 2) HTTP 族（MinIO health / ES / etcd /health / ClickHouse /ping）
+    http_probes = (
+        fingerprint_minio, fingerprint_elasticsearch, fingerprint_etcd, fingerprint_clickhouse,
+    )
+    for probe in http_probes:
+        fp = await probe(host, port)
+        if fp:
+            return fp
+    return None
+
+
+async def probe_service(host: str, port: int, sniff_extra: bool = False) -> dict | None:
+    """单 host:port 指纹探测：TCP 连接 → 按端口分派协议握手；失败返回 None。
+
+    sniff_extra=True 时对端口字典之外的自定义端口做通用协议嗅探。
+    """
     stype = DB_PORTS.get(port)
     if stype is None:
+        if sniff_extra:
+            started = time.perf_counter()
+            fp = await sniff_unknown(host, port)
+            if fp:
+                fp["latency_ms"] = int((time.perf_counter() - started) * 1000)
+            return fp
         return None
     started = time.perf_counter()
     if stype in ("minio", "elasticsearch", "etcd", "clickhouse"):
@@ -256,19 +307,20 @@ def db_scan_status() -> dict | None:
     return dict(_current) if _current else None
 
 
-async def _run_db_scan(run_id: int, cidrs: list[str]) -> None:
+async def _run_db_scan(run_id: int, cidrs: list[str], extra_ports: list[int] | None = None) -> None:
     global _current
-    targets: list[tuple[str, int]] = []
+    ports = list(DB_PORTS) + [p for p in (extra_ports or []) if p not in DB_PORTS]
+    targets: list[tuple[str, int, bool]] = []
     for cidr in cidrs:
         for host in _hosts_of(cidr):
-            for port in DB_PORTS:
-                targets.append((host, port))
+            for port in ports:
+                targets.append((host, port, port not in DB_PORTS))
     total = max(len(targets), 1)
     sem = asyncio.Semaphore(96)
 
-    async def _one(host: str, port: int):
+    async def _one(host: str, port: int, sniff: bool):
         async with sem:
-            return host, port, await probe_service(host, port)
+            return host, port, await probe_service(host, port, sniff_extra=sniff)
 
     results = []
     done = 0
@@ -276,7 +328,7 @@ async def _run_db_scan(run_id: int, cidrs: list[str]) -> None:
     async with SessionLocal() as session:
         try:
             for i in range(0, len(targets), batch):
-                part = await asyncio.gather(*(_one(h, p) for h, p in targets[i:i + batch]))
+                part = await asyncio.gather(*(_one(h, p, s) for h, p, s in targets[i:i + batch]))
                 results.extend(r for r in part if r[2])
                 done += len(part)
                 run = await session.get(LanScanRun, run_id)
@@ -389,13 +441,47 @@ async def start_db_scan(
 
         target = auto_cidrs(hint_ips)
     target = validate_scan_cidrs(target, cfg["extra_cidrs"])
+    extra = cfg.get("db_extra_ports") or []
+    port_count = len(DB_PORTS) + len([p for p in extra if p not in DB_PORTS])
     run = LanScanRun(kind="db", cidrs=json.dumps(target), status="running",
-                     total=len(DB_PORTS) * len({h for c in target for h in _hosts_of(c)}))
+                     total=port_count * len({h for c in target for h in _hosts_of(c)}))
     session.add(run)
     await session.commit()
     _current = {"run_id": run.id, "kind": "db"}
-    asyncio.get_running_loop().create_task(_run_db_scan(run.id, target))
+    asyncio.get_running_loop().create_task(_run_db_scan(run.id, target, extra))
     return run
+
+
+async def probe_and_upsert(
+    session: AsyncSession, host: str, port: int
+) -> tuple[LanDbService, bool]:
+    """手动添加服务（M20 扩展）：立即指纹探测并 upsert；探测失败也入库
+    （state=down/unknown），便于先配凭据、服务上线后由定时探活接续。"""
+    fp = await probe_service(host, port, sniff_extra=True)
+    now = datetime.utcnow()
+    svc = (
+        await session.execute(
+            select(LanDbService).where(LanDbService.host == host, LanDbService.port == port)
+        )
+    ).scalar_one_or_none()
+    created = svc is None
+    if created:
+        svc = LanDbService(host=host, port=port, first_seen_at=now)
+        session.add(svc)
+    if fp:
+        if fp.get("type") != "unknown":
+            svc.service_type = fp["type"]
+        if fp.get("version"):
+            svc.version = fp["version"]
+        svc.fingerprint = json.dumps(fp.get("detail", {}), ensure_ascii=False)
+        svc.state, svc.online, svc.latency_ms = "up", 1, fp.get("latency_ms")
+    else:
+        svc.state, svc.online = "down", 0
+    svc.last_seen_at = now
+    if svc.credential_id is None:
+        svc.credential_id = await _match_credential(session, host, port)
+    await session.commit()
+    return svc, created
 
 
 async def probe_due_services(session: AsyncSession) -> int:

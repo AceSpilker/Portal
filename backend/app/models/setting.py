@@ -96,6 +96,8 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "lan.dns_lookup": json.dumps(True),
     "lan.concurrency": json.dumps(128),
     "lan.extra_cidrs": json.dumps([]),
+    # 数据库指纹扫描的额外端口（M20-1：非默认端口的自建服务，如 MySQL@3309）
+    "lan.db_extra_ports": json.dumps([]),
     "lan.snmp.enabled": json.dumps(False),
     "lan.snmp.community": json.dumps(""),  # 密文（sync.key Fernet）
     "lan.snmp.timeout_s": json.dumps(2.0),

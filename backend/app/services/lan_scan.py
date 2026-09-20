@@ -89,21 +89,63 @@ LAN_KEYS = (
 )
 
 
+def sanitize_cidrs(raw_list: list, limit: int = 8) -> list[str]:
+    """配置清洗：保留可解析、私网非回环、≤4096 地址的 CIDR（丢弃坏配置）。
+
+    修复实例：NAS 上曾误存 `127.0.0.0/8`（回环，扫描无意义且超限），清洗后
+    自动落到下一优先级（env/访问地址派生），不再阻塞扫描。
+    """
+    out: list[str] = []
+    for c in raw_list or []:
+        if not isinstance(c, str):
+            continue
+        try:
+            net = ipaddress.ip_network(c.strip(), strict=False)
+        except ValueError:
+            continue
+        if net.num_addresses > 4096 or net.network_address.is_loopback:
+            continue
+        if not is_private_ip(str(net.network_address)):
+            continue
+        s = str(net)
+        if s not in out:
+            out.append(s)
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def get_lan_config(session: AsyncSession) -> dict:
-    """读 `lan.*` 设置键 → 归一化配置（snmp 为嵌套 dict，community 已解密）。"""
+    """读 `lan.*` 设置键 → 归一化配置（snmp 为嵌套 dict，community 已解密）。
+
+    scan_cidrs 经过清洗；清洗后为空时依次回退：LAN_SCAN_CIDRS 环境变量
+    （docker-compose 显式声明 NAS 网段）→ 由调用方继续走访问地址派生。
+    """
     raw: dict = {}
     for key in LAN_KEYS:
         row = await session.get(Setting, key)
         raw[key.removeprefix("lan.").replace(".", "_")] = json.loads(row.value) if row else None
     from app.core.secret_box import decrypt_secret
 
+    scan_cidrs = sanitize_cidrs(raw.get("scan_cidrs"))
+    env_cidrs = sanitize_cidrs((settings.lan_scan_cidrs or "").split(","))
+    env_applied = False
+    if not scan_cidrs and env_cidrs:
+        scan_cidrs = env_cidrs
+        env_applied = True
+
     cfg = {
-        "scan_cidrs": [str(c) for c in (raw.get("scan_cidrs") or []) if isinstance(c, str)][:8],
+        "scan_cidrs": scan_cidrs,
+        "scan_cidrs_env": env_applied,
         "auto_scan": bool(raw.get("auto_scan")),
         "scan_interval_min": max(0, int(raw.get("scan_interval_min") or 30)),
         "dns_lookup": bool(raw.get("dns_lookup")),
         "concurrency": max(16, min(512, int(raw.get("concurrency") or 128))),
-        "extra_cidrs": [str(c) for c in (raw.get("extra_cidrs") or []) if isinstance(c, str)][:8],
+        "extra_cidrs": sanitize_cidrs(raw.get("extra_cidrs")),
+        "db_extra_ports": [
+            int(p) for p in (raw.get("db_extra_ports") or [])
+            if isinstance(p, (int, float)) and 1 <= int(p) <= 65535
+        ][:32],
         "snmp": {
             "enabled": bool(raw.get("snmp_enabled")),
             "community": decrypt_secret(str(raw.get("snmp_community") or "")),
@@ -196,6 +238,31 @@ def cidr_from_ip(ip: str) -> str | None:
     if addr.is_loopback or addr.version != 4 or not is_private_ip(ip):
         return None
     return str(ipaddress.ip_network(f"{ip}/24", strict=False))
+
+
+async def stored_hint_ips(session: AsyncSession) -> list[str]:
+    """从既有配置里收集局域网 IP 作为网段提示（访问地址派生不可用时的兜底）。
+
+    来源：已发现数据库服务 / 端口监控项 / 应用 LAN 入口。NAS 容器部署时这些
+    配置通常就是宿主机 LAN IP（如 192.168.5.88）。
+    """
+    from urllib.parse import urlsplit
+
+    from app.models.lan import LanDbService
+    from app.models.portal import AppUrl
+
+    ips: list[str] = []
+    for host in (await session.execute(select(LanDbService.host))).scalars():
+        ips.append(host)
+    rows = (
+        await session.execute(
+            select(AppUrl.url).where(AppUrl.access_type.in_(["lan", "custom"]))
+        )
+    ).scalars()
+    for url in rows:
+        host = (urlsplit(url if "//" in url else "//" + url).hostname or "")
+        ips.append(host)
+    return [ip for ip in ips if cidr_from_ip(ip)][:8]
 
 
 def auto_cidrs(hint_ips: list[str] | None = None) -> list[str]:

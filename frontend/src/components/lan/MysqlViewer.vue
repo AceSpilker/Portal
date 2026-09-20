@@ -26,12 +26,39 @@
             layout="total, prev, pager, next" small @current-change="loadSchemas" />
         </div>
         <el-table :data="schemas" size="small" v-loading="loadingSchemas" max-height="420">
-          <el-table-column prop="table_schema" :label="t('lan.mysql.schema')" min-width="130" />
+          <el-table-column prop="table_schema" :label="t('lan.mysql.schema')" min-width="130">
+            <template #default="{ row }">
+              <el-link size="small" @click="filterSchema(row.table_schema)">{{ row.table_schema }}</el-link>
+            </template>
+          </el-table-column>
           <el-table-column prop="table_name" :label="t('lan.mysql.table')" min-width="160" show-overflow-tooltip />
           <el-table-column prop="engine" label="Engine" width="90" />
           <el-table-column prop="table_rows" label="Rows" width="110" />
           <el-table-column prop="size_mb" label="Size (MB)" width="110" />
+          <el-table-column :label="t('lan.colOp')" width="90" align="center">
+            <template #default="{ row }">
+              <el-button size="small" link type="primary" @click="openRows(row)">{{ t('lan.mysql.data') }}</el-button>
+            </template>
+          </el-table-column>
         </el-table>
+
+        <!-- 表数据浏览（库 → 表 → 数据；服务端白名单 SELECT + 分页截断） -->
+        <el-dialog v-model="rowsVisible" :title="`${rowsTitle.schema}.${rowsTitle.table}`" width="82%" top="6vh" append-to-body>
+          <div class="tab-toolbar">
+            <span class="stat-chip">{{ t('lan.mysql.totalRows') }} <b>{{ rowsData?.total ?? 0 }}</b></span>
+            <span class="spacer" />
+            <el-pagination v-model:current-page="rowsPage" :page-size="rowsPageSize" :total="rowsData?.total ?? 0"
+              layout="total, prev, pager, next" small @current-change="loadRows" />
+          </div>
+          <el-table :data="rowsData?.items || []" size="small" v-loading="loadingRows" max-height="52vh">
+            <el-table-column v-for="col in rowsData?.columns || []" :key="col" :prop="col" :label="col"
+              min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span :class="{ 'cell-null': row[col] === null }">{{ row[col] === null ? 'NULL' : row[col] }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-dialog>
       </el-tab-pane>
       <el-tab-pane :label="t('lan.mysql.variables')" name="variables">
         <el-input v-model="varQuery" size="small" clearable style="width: 260px; margin-bottom: 8px"
@@ -77,10 +104,42 @@ const variables = ref<Array<{ Variable_name: string; Value: string }>>([])
 const varQuery = ref('')
 const processlist = ref<Array<Record<string, unknown>>>([])
 
+const rowsVisible = ref(false)
+const rowsTitle = ref({ schema: '', table: '' })
+const rowsData = ref<Awaited<ReturnType<typeof lanDbApi.mysqlRows>> | null>(null)
+const rowsPage = ref(1)
+const rowsPageSize = 100
+const loadingRows = ref(false)
+
 const loaded = new Set<string>()
 
 async function onTab(name: string | number) {
   await ensure(name.toString())
+}
+
+function filterSchema(schema: string) {
+  schemaFilter.value = schema
+  loadSchemas(1)
+}
+
+function openRows(row: MysqlSchemaRow) {
+  rowsTitle.value = { schema: row.table_schema, table: row.table_name }
+  rowsPage.value = 1
+  rowsVisible.value = true
+  loadRows(1)
+}
+
+async function loadRows(p = 1) {
+  loadingRows.value = true
+  try {
+    rowsPage.value = p
+    rowsData.value = await lanDbApi.mysqlRows(props.service.id, {
+      schema: rowsTitle.value.schema, table: rowsTitle.value.table,
+      page: p, page_size: rowsPageSize,
+    })
+  } finally {
+    loadingRows.value = false
+  }
 }
 
 async function ensure(name: string) {
@@ -176,7 +235,22 @@ onMounted(async () => {
   flex-wrap: wrap;
   flex-shrink: 0;
 }
+.stat-chip {
+  font-size: 12.5px;
+  color: var(--p-muted);
+  background: var(--p-soft);
+  border-radius: 8px;
+  padding: 3px 10px;
+}
+.stat-chip b {
+  color: var(--p-text);
+  margin-left: 2px;
+}
 .spacer {
   flex: 1;
+}
+.cell-null {
+  color: var(--p-muted);
+  font-style: italic;
 }
 </style>

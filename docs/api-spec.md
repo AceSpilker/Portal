@@ -173,7 +173,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）、`lan.*`（P26：scan_cidrs(JSON，空=自动识别)/auto_scan(默认 0)/scan_interval_min(默认 30，0=仅手动)/probe_ports(JSON 探测端口集)/dns_lookup(默认 1)/concurrency(默认 128)/extra_cidrs(JSON 追加允许网段)、`lan.snmp.*`（enabled/community 加密存储/timeout_s），SNMP community 由 /api/lan/settings 管理、回传脱敏）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）、`lan.*`（P26：scan_cidrs(JSON，空=自动识别)/auto_scan(默认 0)/scan_interval_min(默认 30，0=仅手动)/probe_ports(JSON 探测端口集)/dns_lookup(默认 1)/concurrency(默认 128)/extra_cidrs(JSON 追加允许网段)、`lan.snmp.*`（enabled/community 加密存储/timeout_s）、`lan.db_extra_ports`（P27 扩展：非默认端口自建数据库，扫描时协议嗅探识别），由 /api/lan/settings 管理、SNMP community 回传脱敏、网段保存时清洗（丢弃回环/公网/超限）。
 
 **sync_state**（M2，P23 落地）：id；table_name TEXT UNIQUE；last_push_at NULL；last_try_at NULL；rows_pushed INT 0；status TEXT（idle/running/ok/failed）；fail_count INT 0（失败退避：60s×2^n，上限 30min）；message TEXT ''。同步范围=业务表（categories/apps/app_urls/network_profiles/flows/settings/wol_targets/notify_channels/notify_rules），users/会话/Token/审计等敏感表排除；MySQL 端 DDL 由 ORM 元数据生成（TEXT 唯一键前缀 191、剥离 TEXT DEFAULT）。
 
@@ -467,6 +467,8 @@
 | GET | /api/lan/db/minio/{sid}/buckets | 桶清单（ListBuckets：名称/创建时间 + 每桶对象数与前 1000 对象累计大小估算） | M | P27 |
 | GET | /api/lan/db/minio/{sid}/objects?bucket=&prefix=&marker= | 对象浏览（ListObjectsV2 分页：key/大小/ETag/最后修改，max-keys≤100） | M | P27 |
 | GET | /api/lan/db/minio/{sid}/object-url?bucket=&key= | 对象预签名下载 URL（SigV4 手工签名，5 分钟时效，只读 GET；不暴露 secret） | M | P27 |
+| POST | /api/lan/db/services | **手动添加服务**（110 扩展）：body {host, port}（限私网 4006），立即协议嗅探识别类型/版本（greeting/PING/SSLRequest/HTTP 通用嗅探，支持非默认端口如 MySQL@3309）；识别失败也入库（down），可先配凭据 | M | P27 |
+| GET | /api/lan/db/mysql/{sid}/rows?schema=&table=&page= | **表数据分页浏览**（库→表→数据，110 扩展）：标识符白名单（`^[A-Za-z0-9_$]+$` ≤64）+ 反引号引用 + 固定 SELECT 模板，单元格截断 200 字符/bytes 转 hex 摘要，无任意 SQL 输入 | M | P27 |
 | POST | /api/lan/db/services/{sid}/monitor | 一键创建端口监控项（M18 联动） | M | P27 |
 | WS | /ws/notify（既有） | 新增 `{"type":"db_service","data":{service_id,service_type,state}}`（探活翻转推送） | — | P27 |
 
@@ -503,6 +505,7 @@
 | SYNC__MYSQL__HOST / PORT / USER / PASSWORD / DATABASE | — | MySQL 连接（也可在设置页配置，环境变量优先） |
 | REDIS__HOST / PORT / PASSWORD / DB | — | Redis 连接（也可在设置页配置，环境变量优先）；未配置时会话/缓存走进程内存 |
 | HOST_PROC / HOST_SYS | 空 | 宿主机只读挂载路径（如 /host/proc），为空则读容器自身 |
+| LAN_SCAN_CIDRS | 空 | 局域网扫描网段（逗号分隔 CIDR，110）：容器内 /proc/net 按网络命名空间生成读不到宿主路由表，用此变量显式声明 NAS 所在网段；为空则自动按 Portal 访问地址派生（Host 头/客户端 IP），再退容器网关 /24 |
 | DOCKER_SOCK_ENABLED | false | Docker 管理模块开关 |
 | LOG_LEVEL | info | 日志级别 |
 

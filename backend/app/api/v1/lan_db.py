@@ -61,10 +61,10 @@ async def post_db_scan(
     cidrs = [str(c)[:64] for c in (body.get("cidrs") or [])]
     try:
         from app.api.v1.lan import _hint_ips
+        from app.services import lan_scan
 
-        run = await db_fingerprint.start_db_scan(
-            session, cidrs or None, hint_ips=_hint_ips(request)
-        )
+        hints = _hint_ips(request) + await lan_scan.stored_hint_ips(session)
+        run = await db_fingerprint.start_db_scan(session, cidrs or None, hint_ips=hints)
     except LookupError as exc:
         raise BizError(CODE_SCAN_BUSY, t("err.lan_scan_busy"), 409) from exc
     except ValueError as exc:
@@ -102,6 +102,36 @@ async def list_services(
         })
     items.sort(key=lambda i: (i["service_type"] == "unknown", i["service_type"], i["host"]))
     return ok({"items": items, "total": len(items)})
+
+
+@router.post("/lan/db/services")
+async def add_service(
+    request: Request, body: dict,
+    _: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
+):
+    """手动添加服务（M20 扩展）：非默认端口的自建服务（如 MySQL@3309）。
+
+    立即协议嗅探识别（greeting/PING/SSLRequest/HTTP），失败也入库（down），
+    便于先配凭据、服务可达后由定时探活接续。
+    """
+    host = str(body.get("host") or "").strip()
+    try:
+        port = int(body.get("port") or 0)
+    except (TypeError, ValueError):
+        port = 0
+    if not host or not (1 <= port <= 65535):
+        raise BizError(CODE_VALIDATION, t("v.invalid", field="host:port"), 422)
+    _ensure_private(host)
+    svc, created = await db_fingerprint.probe_and_upsert(session, host, port)
+    await write_audit(
+        session, _.id, "lan_db_add", f"{host}:{port} created={created}", client_ip(request)
+    )
+    await session.commit()
+    return ok({
+        "id": svc.id, "host": svc.host, "port": svc.port,
+        "service_type": svc.service_type, "version": svc.version,
+        "state": svc.state, "created": created,
+    })
 
 
 @router.post("/lan/db/services/{sid}/monitor")
@@ -372,6 +402,23 @@ async def mysql_processlist(
     cred = await _viewer_cred(session, svc)
     try:
         data = await db_viewers.mysql_processlist(cred)
+    except ViewerError as exc:
+        raise _viewer_error(exc) from exc
+    return ok(data)
+
+
+@router.get("/lan/db/mysql/{sid}/rows")
+async def mysql_rows(
+    sid: int, request: Request, schema: str, table: str, page: int = 1, page_size: int = 50,
+    _: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
+):
+    """表数据分页浏览（库 → 表 → 数据；标识符白名单 + 固定查询模板，无任意 SQL）。"""
+    svc = await _viewer_service(session, sid)
+    cred = await _viewer_cred(session, svc)
+    try:
+        data = await db_viewers.mysql_table_rows(
+            cred, schema[:64], table[:64], max(1, page), max(1, min(200, page_size))
+        )
     except ViewerError as exc:
         raise _viewer_error(exc) from exc
     return ok(data)

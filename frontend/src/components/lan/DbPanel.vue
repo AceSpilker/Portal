@@ -11,6 +11,7 @@
       <el-button v-if="auth.isAdmin" size="small" type="primary" :loading="scanning" @click="startScan">
         {{ t('lan.db.scanNow') }}
       </el-button>
+      <el-button v-if="auth.isAdmin" size="small" @click="addServiceVisible = true">{{ t('lan.db.addService') }}</el-button>
       <el-button v-if="auth.isAdmin" size="small" @click="openCreds">{{ t('lan.db.creds') }}</el-button>
       <el-button size="small" :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
     </div>
@@ -57,72 +58,87 @@
     </el-table>
     </div>
 
-    <!-- 凭据管理抽屉 -->
-    <el-drawer v-model="credsVisible" :title="t('lan.db.credsTitle')" size="520px">
-      <div class="creds-toolbar">
-        <el-button size="small" type="primary" @click="openEdit(null)">{{ t('lan.db.credNew') }}</el-button>
-        <span class="spacer" />
-        <el-button size="small" :loading="credLoading" @click="loadCreds">{{ t('common.refresh') }}</el-button>
-      </div>
-      <el-table :data="creds" size="small" v-loading="credLoading">
-        <el-table-column :label="t('lan.db.colTarget')" min-width="150">
-          <template #default="{ row }">{{ row.service_type }} · {{ row.host }}:{{ row.port }}</template>
-        </el-table-column>
-        <el-table-column prop="username" label="用户" width="110" show-overflow-tooltip />
-        <el-table-column :label="t('lan.db.colTest')" width="86" align="center">
-          <template #default="{ row }">
-            <span v-if="row.last_test_ok != null" class="state-pill" :class="row.last_test_ok ? 'up' : 'down'">
-              {{ row.last_test_ok ? 'OK' : 'FAIL' }}
-            </span>
-            <span v-else>—</span>
-          </template>
-        </el-table-column>
-        <el-table-column :label="t('lan.colOp')" width="170" align="center">
-          <template #default="{ row }">
-            <el-button size="small" link type="primary" :loading="testingId === row.id" @click="testCred(row)">
-              {{ t('lan.db.test') }}
-            </el-button>
-            <el-divider direction="vertical" />
-            <el-button size="small" link @click="openEdit(row)">{{ t('common.edit') }}</el-button>
-            <el-button size="small" link type="danger" @click="removeCred(row)">{{ t('common.delete') }}</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 凭据编辑 -->
-      <el-dialog v-model="editVisible" :title="editId ? t('lan.db.credEdit') : t('lan.db.credNew')" width="460px" append-to-body>
-        <el-form label-width="110px" label-position="left">
+    <!-- 凭据管理：单层对话框内"列表/表单"双视图（避免抽屉嵌套对话框的层叠问题） -->
+    <el-dialog v-model="credsVisible" :title="t('lan.db.credsTitle')" width="760px" append-to-body destroy-on-close>
+      <template v-if="credView === 'list'">
+        <div class="creds-toolbar">
+          <el-button size="small" type="primary" @click="openEdit(null)">{{ t('lan.db.credNew') }}</el-button>
+          <span class="spacer" />
+          <el-button size="small" :loading="credLoading" @click="loadCreds">{{ t('common.refresh') }}</el-button>
+        </div>
+        <el-table :data="creds" size="small" v-loading="credLoading" max-height="400">
+          <el-table-column :label="t('lan.db.colTarget')" min-width="150">
+            <template #default="{ row }">{{ row.service_type }} · {{ row.host }}:{{ row.port }}</template>
+          </el-table-column>
+          <el-table-column prop="username" label="用户" width="110" show-overflow-tooltip />
+          <el-table-column :label="t('lan.db.colTest')" width="86" align="center">
+            <template #default="{ row }">
+              <span v-if="row.last_test_ok != null" class="state-pill" :class="row.last_test_ok ? 'up' : 'down'">
+                {{ row.last_test_ok ? 'OK' : 'FAIL' }}
+              </span>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('lan.colOp')" width="170" align="center">
+            <template #default="{ row }">
+              <el-button size="small" link type="primary" :loading="testingId === row.id" @click="testCred(row)">
+                {{ t('lan.db.test') }}
+              </el-button>
+              <el-divider direction="vertical" />
+              <el-button size="small" link @click="openEdit(row)">{{ t('common.edit') }}</el-button>
+              <el-button size="small" link type="danger" @click="removeCred(row)">{{ t('common.delete') }}</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+      <template v-else>
+        <el-form label-width="110px" label-position="left" class="cred-form">
           <el-form-item label="类型">
-            <el-select v-model="editForm.service_type" :disabled="!!editId" style="width: 160px">
+            <el-select v-model="editForm.service_type" :disabled="!!editId" style="width: 180px">
               <el-option value="mysql" label="MySQL" />
               <el-option value="redis" label="Redis" />
               <el-option value="minio" label="MinIO" />
             </el-select>
           </el-form-item>
           <el-form-item :label="t('lan.db.credHost')">
-            <el-input v-model="editForm.host" style="width: 200px" placeholder="192.168.1.10 / 127.0.0.1" />
-            <el-input-number v-model="editForm.port" :min="1" :max="65535" style="margin-left: 8px; width: 120px" />
+            <el-input v-model="editForm.host" style="width: 220px" placeholder="192.168.1.10 / 127.0.0.1" />
+            <el-input-number v-model="editForm.port" :min="1" :max="65535" style="margin-left: 8px; width: 130px" />
           </el-form-item>
           <el-form-item v-if="editForm.service_type !== 'redis'" label="用户名">
-            <el-input v-model="editForm.username" style="width: 240px" />
+            <el-input v-model="editForm.username" style="width: 260px" />
           </el-form-item>
           <el-form-item :label="t('lan.db.credPass')">
-            <el-input v-model="editForm.password" type="password" show-password style="width: 240px"
+            <el-input v-model="editForm.password" type="password" show-password style="width: 260px"
               :placeholder="editId && editPasswordSet ? t('lan.keepPlaceholder') : ''" />
           </el-form-item>
           <el-form-item v-if="editForm.service_type === 'mysql'" label="Database">
-            <el-input v-model="editForm.database" style="width: 240px" placeholder="mysql" />
+            <el-input v-model="editForm.database" style="width: 260px" placeholder="mysql" />
           </el-form-item>
           <el-form-item v-if="editForm.service_type === 'redis'" label="DB">
             <el-input-number v-model="editForm.db" :min="0" :max="15" />
           </el-form-item>
         </el-form>
-        <template #footer>
-          <el-button @click="editVisible = false">{{ t('common.cancel') }}</el-button>
+        <div class="cred-form-footer">
+          <el-button @click="credView = 'list'">{{ t('common.cancel') }}</el-button>
           <el-button type="primary" :loading="savingCred" @click="saveCred">{{ t('common.save') }}</el-button>
-        </template>
-      </el-dialog>
-    </el-drawer>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 手动添加服务 -->
+    <el-dialog v-model="addServiceVisible" :title="t('lan.db.addServiceTitle')" width="440px" append-to-body>
+      <el-form label-width="90px" label-position="left">
+        <el-form-item :label="t('lan.db.credHost')">
+          <el-input v-model="addForm.host" style="width: 200px" placeholder="192.168.5.88" />
+          <el-input-number v-model="addForm.port" :min="1" :max="65535" style="margin-left: 8px; width: 130px" />
+        </el-form-item>
+        <p class="form-hint">{{ t('lan.db.addServiceHint') }}</p>
+      </el-form>
+      <template #footer>
+        <el-button @click="addServiceVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="addingService" @click="submitAddService">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 查看器抽屉 -->
     <el-drawer v-model="viewerVisible" size="70%" :with-header="false" destroy-on-close>
@@ -194,11 +210,35 @@ async function addMonitor(row: DbServiceItem) {
   ElMessage.success(t('lan.monitorAdded'))
 }
 
-// ---- 凭据管理 ----
+// ---- 凭据管理（单对话框：list 列表 / edit 表单双视图）----
 const credsVisible = ref(false)
+const credView = ref<'list' | 'edit'>('list')
 const credLoading = ref(false)
 const creds = ref<DbCredentialItem[]>([])
 const testingId = ref<number | null>(null)
+
+// ---- 手动添加服务 ----
+const addServiceVisible = ref(false)
+const addingService = ref(false)
+const addForm = ref({ host: '', port: 3306 })
+
+async function submitAddService() {
+  addingService.value = true
+  try {
+    const result = await lanDbApi.addService({
+      host: addForm.value.host.trim(), port: addForm.value.port,
+    })
+    if (result.state === 'up') {
+      ElMessage.success(t('lan.db.addServiceOk', { type: result.service_type, version: result.version || '-' }))
+    } else {
+      ElMessage.warning(t('lan.db.addServiceDown'))
+    }
+    addServiceVisible.value = false
+    await load()
+  } finally {
+    addingService.value = false
+  }
+}
 
 async function loadCreds() {
   credLoading.value = true
@@ -210,6 +250,7 @@ async function loadCreds() {
 }
 
 async function openCreds() {
+  credView.value = 'list'
   credsVisible.value = true
   await loadCreds()
 }
@@ -242,7 +283,6 @@ async function removeCred(row: DbCredentialItem) {
 }
 
 // ---- 凭据编辑 ----
-const editVisible = ref(false)
 const editId = ref<number | null>(null)
 const editPasswordSet = ref(false)
 const savingCred = ref(false)
@@ -251,6 +291,7 @@ const editForm = ref({
 })
 
 function openEdit(row: DbCredentialItem | null) {
+  credView.value = 'edit'
   editId.value = row?.id ?? null
   editPasswordSet.value = row?.password_set ?? false
   editForm.value = {
@@ -262,7 +303,6 @@ function openEdit(row: DbCredentialItem | null) {
     database: String((row?.extra as Record<string, unknown>)?.database ?? ''),
     db: Number((row?.extra as Record<string, unknown>)?.db ?? 0),
   }
-  editVisible.value = true
 }
 
 async function saveCred() {
@@ -282,7 +322,7 @@ async function saveCred() {
       await lanDbApi.createCredential(body)
     }
     ElMessage.success(t('common.saved'))
-    editVisible.value = false
+    credView.value = 'list'
     await loadCreds()
     await load()
   } finally {
@@ -355,5 +395,15 @@ onMounted(load)
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+.cred-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.form-hint {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--p-muted);
 }
 </style>

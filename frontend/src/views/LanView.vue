@@ -145,6 +145,10 @@
         <el-form-item :label="t('lan.setConcurrency')">
           <el-input-number v-model="settings.concurrency" :min="16" :max="512" size="small" />
         </el-form-item>
+        <el-form-item :label="t('lan.setDbPorts')">
+          <el-input v-model="dbPortsText" :placeholder="t('lan.setDbPortsPh')" style="width: 260px" />
+          <span class="form-hint">{{ t('lan.setDbPortsHint') }}</span>
+        </el-form-item>
         <el-divider content-position="left">SNMP</el-divider>
         <el-form-item :label="t('lan.setSnmp')">
           <el-switch v-model="settings.snmp.enabled" />
@@ -276,10 +280,11 @@ function fmtTime(ts: string) {
 const settingsVisible = ref(false)
 const settings = ref<LanSettings>({
   scan_cidrs: [], auto_scan: false, scan_interval_min: 30, probe_ports: [],
-  dns_lookup: true, concurrency: 128, extra_cidrs: [],
+  dns_lookup: true, concurrency: 128, extra_cidrs: [], db_extra_ports: [],
   snmp: { enabled: false, community: '', timeout_s: 2 }, snmp_community_set: false,
 })
 const portsText = ref('')
+const dbPortsText = ref('')
 const segmentOptions = ref<LanSegment[]>([])
 const saving = ref(false)
 const snmpTesting = ref(false)
@@ -288,6 +293,7 @@ async function openSettings() {
   const [cfg, segs] = await Promise.all([lanApi.getSettings(), lanApi.segments()])
   settings.value = cfg
   portsText.value = cfg.probe_ports.join(', ')
+  dbPortsText.value = (cfg.db_extra_ports || []).join(', ')
   segmentOptions.value = segs
   // 未配置过网段时预填 Portal 访问地址派生网段（NAS 容器部署时的宿主网段来源）
   if (!cfg.scan_cidrs.length && segs.length) {
@@ -321,9 +327,11 @@ async function saveSettings() {
   saving.value = true
   try {
     const ports = portsText.value.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0)
+    const dbPorts = dbPortsText.value.split(/[,\s]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0)
     const body = {
       ...settings.value,
       probe_ports: ports,
+      db_extra_ports: dbPorts,
       snmp: { ...settings.value.snmp, community: settings.value.snmp.community || '' },
     }
     settings.value = await lanApi.saveSettings(body)

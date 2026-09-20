@@ -218,6 +218,63 @@ async def mysql_processlist(cred) -> dict:
     return {"items": rows}
 
 
+# ---- MySQL 数据浏览（M20-4 扩展：库 → 表 → 行；用户核心诉求） ----
+
+_IDENT_RE = re.compile(r"^[A-Za-z0-9_$]+$")  # 标识符白名单：拒绝引号/分号/注释等
+_VALUE_LIMIT = 200  # 单元格显示截断
+_VALUE_BYTES_LIMIT = 4000  # 单单元格读取字节上限（防大字段拖爆）
+
+
+def _quote_ident(name: str) -> str:
+    """表/库名白名单校验 + 反引号引用（只允许字母数字下划线 $，杜绝注入）。"""
+    name = (name or "").strip()
+    if not name or len(name) > 64 or not _IDENT_RE.match(name):
+        raise ViewerError(f"非法标识符：{name[:64]}")
+    return f"`{name}`"
+
+
+async def mysql_table_rows(
+    cred, schema: str, table: str, page: int = 1, page_size: int = 50
+) -> dict:
+    """表数据分页：SELECT *（白名单标识符 + 参数化分页；单元格截断防大字段）。
+
+    固定查询模板，用户仅能选择 库名/表名（标识符白名单），无任意 SQL 输入。
+    """
+    qschema = _quote_ident(schema)
+    qtable = _quote_ident(table)
+    page_size = max(1, min(200, page_size))
+    offset = max(0, (max(1, page) - 1) * page_size)
+    total_rows = await _mysql_fetch(
+        cred, f"SELECT COUNT(*) AS n FROM {qschema}.{qtable}"
+    )
+    rows = await _mysql_fetch(
+        cred,
+        f"SELECT * FROM {qschema}.{qtable} LIMIT {page_size} OFFSET {offset}",
+    )
+    items = []
+    for row in rows:
+        items.append({
+            k: _cell_preview(v) for k, v in row.items()
+        })
+    return {
+        "schema": schema, "table": table, "page": max(1, page), "page_size": page_size,
+        "total": int(total_rows[0]["n"]) if total_rows else 0,
+        "columns": [k for k in (items[0].keys() if items else [])],
+        "items": items,
+    }
+
+
+def _cell_preview(value) -> str:
+    """单元格预览：bytes → hex 摘要；其余 str() 截断 200 字符。"""
+    if value is None:
+        return None
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        raw = bytes(value)
+        return f"<binary {len(raw)}B> {raw[:48].hex()}{'…' if len(raw) > 48 else ''}"
+    text = str(value)
+    return text[:_VALUE_LIMIT] + ("…" if len(text) > _VALUE_LIMIT else "")
+
+
 # ===================== Redis 只读查看器（redis.asyncio） =====================
 
 REDIS_INFO_SECTIONS = ("server", "clients", "memory", "persistence", "stats", "replication")

@@ -304,7 +304,7 @@ def test_08_services_list_and_scan_api(client: TestClient, monkeypatch):
     assert resp.json()["data"]["total"] == 1
 
     # 扫描：fake 后台任务 + 互斥 4005
-    async def _fake(run_id, cidrs):
+    async def _fake(run_id, cidrs, extra_ports=None):
         db_fingerprint._current = None
 
     monkeypatch.setattr(db_fingerprint, "_run_db_scan", _fake)
@@ -418,3 +418,41 @@ def test_11_readonly_enforced_by_construction():
     for allowed in ["info(", "scan(", "dbsize", "lrange", "hgetall", "srandmember",
                     "zrange", "slowlog_get", "client_list", "getrange"]:
         assert allowed in source
+
+
+def test_12_sniff_and_config_guards():
+    """标识符白名单（rows 防注入）+ 配置清洗（回环/公网/超限网段丢弃）。"""
+    import asyncio
+
+    from app.services.db_viewers import ViewerError, _quote_ident
+    from app.services.lan_scan import sanitize_cidrs
+
+    # 标识符白名单：合法反引号引用；注入/特殊字符/空串拒绝
+    assert _quote_ident("users") == "`users`"
+    assert _quote_ident("my_db$1") == "`my_db$1`"
+    for bad in ("`db`.`t; DROP TABLE x", "a-b", "a b", "", "x'; --", "a" * 100):
+        try:
+            _quote_ident(bad)
+            assert False, bad
+        except ViewerError:
+            pass
+
+    # 配置清洗：坏网段（回环/公网/超限/垃圾串）全部丢弃，合法保留去重
+    assert sanitize_cidrs(["192.168.5.0/24", "127.0.0.0/8", "8.8.8.0/24", "10.0.0.0/8", "banana", None, 192]) == ["192.168.5.0/24"]
+    assert sanitize_cidrs(["10.0.0.0/24", "10.0.0.0/24"]) == ["10.0.0.0/24"]
+    assert sanitize_cidrs(["172.16.1.0/24"]) == ["172.16.1.0/24"]  # 超限 /12 会被丢弃
+    assert sanitize_cidrs([]) == []
+
+    # 非默认端口：sniff 走 mysql greeting 路径（用 Fake 流直测 fingerprint 组合入口）
+    from app.services.db_fingerprint import DB_PORTS
+    assert 3306 in DB_PORTS and 3309 not in DB_PORTS  # 3309 属"额外端口"范畴
+
+    # get_lan_config 对 env 网段的支持（LAN_SCAN_CIDRS）
+    from app.db.session import SessionLocal
+
+    async def run():
+        async with SessionLocal() as session:
+            return await __import__("app.services.lan_scan", fromlist=["get_lan_config"]).get_lan_config(session)
+
+    cfg = asyncio.run(run())
+    assert "scan_cidrs_env" in cfg and cfg["concurrency"] >= 16

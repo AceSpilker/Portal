@@ -116,26 +116,47 @@ async def get_settings_(
 async def put_settings_(
     body: dict, _: User = Depends(require_admin), session: AsyncSession = Depends(get_session)
 ):
-    """保存扫描设置；SNMP community 空=保持原值（加密存储）。"""
-    simple = {
-        "scan_cidrs": [str(c)[:64] for c in (body.get("scan_cidrs") or [])][:8],
-        "auto_scan": bool(body.get("auto_scan", False)),
-        "scan_interval_min": max(0, min(1440, int(body.get("scan_interval_min") or 30))),
-        "probe_ports": [
+    """保存扫描设置；SNMP community 空=保持原值（加密存储）。
+
+    只更新 body 中实际出现的键——修复实例：旧版全键覆盖曾把未提交的
+    probe_ports 清成空列表（设备探测端口从 11 个缩到 4 个兜底）。
+    值统一经 sanitize/校验清洗（丢弃回环/超限网段等坏配置）。
+    """
+    updates: dict[str, object] = {}
+    if "scan_cidrs" in body:
+        updates["scan_cidrs"] = lan_scan.sanitize_cidrs(
+            [str(c)[:64] for c in (body.get("scan_cidrs") or [])][:16]
+        )
+    if "auto_scan" in body:
+        updates["auto_scan"] = bool(body.get("auto_scan"))
+    if "scan_interval_min" in body:
+        updates["scan_interval_min"] = max(0, min(1440, int(body.get("scan_interval_min") or 30)))
+    if "probe_ports" in body:
+        updates["probe_ports"] = [
             int(p) for p in (body.get("probe_ports") or [])
-            if isinstance(p, int) and 1 <= p <= 65535
-        ][:32],
-        "dns_lookup": bool(body.get("dns_lookup", True)),
-        "concurrency": max(16, min(512, int(body.get("concurrency") or 128))),
-        "extra_cidrs": [str(c)[:64] for c in (body.get("extra_cidrs") or [])][:8],
-        "snmp.enabled": bool((body.get("snmp") or {}).get("enabled", False)),
-        "snmp.timeout_s": max(
-            0.5, min(10.0, float((body.get("snmp") or {}).get("timeout_s") or 2.0))
-        ),
-    }
-    for suffix, value in simple.items():
+            if isinstance(p, (int, float)) and 1 <= int(p) <= 65535
+        ][:32]
+    if "dns_lookup" in body:
+        updates["dns_lookup"] = bool(body.get("dns_lookup"))
+    if "concurrency" in body:
+        updates["concurrency"] = max(16, min(512, int(body.get("concurrency") or 128)))
+    if "extra_cidrs" in body:
+        updates["extra_cidrs"] = lan_scan.sanitize_cidrs(
+            [str(c)[:64] for c in (body.get("extra_cidrs") or [])][:16]
+        )
+    if "db_extra_ports" in body:
+        updates["db_extra_ports"] = [
+            int(p) for p in (body.get("db_extra_ports") or [])
+            if isinstance(p, (int, float)) and 1 <= int(p) <= 65535
+        ][:32]
+    snmp = body.get("snmp") or {}
+    if "snmp" in body:
+        updates["snmp.enabled"] = bool(snmp.get("enabled", False))
+    if "snmp" in body and snmp.get("timeout_s") is not None:
+        updates["snmp.timeout_s"] = max(0.5, min(10.0, float(snmp.get("timeout_s"))))
+    for suffix, value in updates.items():
         await session.merge(Setting(key=f"lan.{suffix}", value=json.dumps(value)))
-    community = str((body.get("snmp") or {}).get("community") or "")
+    community = str(snmp.get("community") or "")
     if community:
         await session.merge(
             Setting(key="lan.snmp.community", value=json.dumps(encrypt_secret(community)))
@@ -157,8 +178,9 @@ async def post_scan(
     """触发网段扫描（后台任务）；已有任务 4005，网段不合法/超私网 4006。"""
     body = body or {}
     cidrs = [str(c)[:64] for c in (body.get("cidrs") or [])]
+    hints = _hint_ips(request) + await lan_scan.stored_hint_ips(session)
     try:
-        run = await lan_scan.start_scan(session, cidrs or None, hint_ips=_hint_ips(request))
+        run = await lan_scan.start_scan(session, cidrs or None, hint_ips=hints)
     except LookupError as exc:
         raise BizError(CODE_SCAN_BUSY, t("err.lan_scan_busy"), 409) from exc
     except ValueError as exc:
