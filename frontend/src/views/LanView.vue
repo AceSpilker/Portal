@@ -1,5 +1,5 @@
 <template>
-  <div class="lan-view page-fill">
+  <div class="lan-page">
     <el-tabs v-model="tab" class="glass tabs-card">
       <!-- ======== 设备清单 ======== -->
       <el-tab-pane :label="t('lan.tabDevices')" name="devices">
@@ -334,16 +334,52 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.lan-view {
+/* 与 PortsView 同一套页面骨架样式（082 全局滚动规范化 / 100 撑满约定） */
+.lan-page {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+.tabs-card {
+  /* 主内容卡撑满右侧视口高度，各页签内部滚动（同 PortsView） */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 14px;
+  border-radius: 12px;
+}
+.tabs-card :deep(.el-tabs__header) {
+  flex-shrink: 0;
+}
+.tabs-card :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+}
+.tabs-card :deep(.el-tab-pane) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 .ov-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+.stat-chip {
+  font-size: 12.5px;
+  color: var(--p-muted);
+  background: var(--p-soft);
+  border-radius: 8px;
+  padding: 3px 10px;
+}
+.stat-chip b {
+  color: var(--p-text);
+  margin-left: 2px;
 }
 .spacer {
   flex: 1;
@@ -353,27 +389,39 @@ onBeforeUnmount(() => {
 }
 .table-fill {
   flex: 1;
-  min-height: 320px;
-  display: flex;
-  flex-direction: column;
-}
-.form-hint {
-  margin-left: 10px;
-  font-size: 12px;
-  color: var(--p-text-secondary, #909399);
+  min-height: 0;
 }
 .state-pill {
   display: inline-block;
-  padding: 1px 10px;
+  padding: 2px 10px;
   border-radius: 999px;
   font-size: 12px;
 }
-.state-pill.up {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
+.state-pill.up { background: var(--el-color-success-light-8); color: var(--el-color-success); }
+.state-pill.down { background: var(--el-color-danger-light-8); color: var(--el-color-danger); }
+.state-pill.unknown { background: rgba(127, 127, 127, 0.15); color: var(--p-muted); }
+.form-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--p-muted);
 }
-.state-pill.down {
-  background: var(--el-color-danger-light-9);
-  color: var(--el-color-danger);
+/* 设备详情抽屉（同 PortsView 端口画像弹窗的 info 结构） */
+.info-body {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.info-sec h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--p-text);
+}
+.info-well {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
 }
 </style>

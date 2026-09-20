@@ -29,8 +29,7 @@
               </el-button>
             </div>
           </div>
-          <el-empty v-if="!info.gateway_ip" :description="t('lan.rEmpty')" :image-size="60" />
-        </div>
+          <p v-if="!info.gateway_ip" class="empty">{{ t('lan.rEmpty') }}</p>        </div>
 
         <!-- WAN 状态 -->
         <div class="glass sub-card">
@@ -47,10 +46,9 @@
           <div class="kv" v-if="upnp?.uptime_seconds != null">
             <span>{{ t('lan.rUptime') }}</span><b>{{ fmtDuration(upnp.uptime_seconds) }}</b>
           </div>
-          <el-empty
-            v-if="!upnp || (!upnp.external_ip && !upnp.connection_status)"
-            :description="t('lan.rWanEmpty')" :image-size="60"
-          />
+          <p v-if="!upnp || (!upnp.external_ip && !upnp.connection_status)" class="empty">
+            {{ t('lan.rWanEmpty') }}
+          </p>
         </div>
 
         <!-- 接口流量（SNMP） -->
@@ -64,15 +62,14 @@
               <span class="total">{{ t('lan.rTotal') }} {{ fmtBytes(row.in_octets + row.out_octets) }}</span>
             </div>
           </template>
-          <el-empty
-            v-else :description="ifaceReason ? t(`lan.rReason.${ifaceReason}`) : t('lan.rReason.snmp_unreachable')"
-            :image-size="60"
-          />
+          <p v-else class="empty">
+            {{ ifaceReason ? t(`lan.rReason.${ifaceReason}`) : t('lan.rReason.snmp_unreachable') }}
+          </p>
         </div>
       </div>
 
       <!-- 连接设备 -->
-      <div class="glass sub-card">
+      <div class="glass clients-card">
         <div class="clients-head">
           <h4>{{ t('lan.rClients') }}</h4>
           <el-tag v-if="clientsSources.length" size="small" type="info">
@@ -91,7 +88,7 @@
         </el-table>
       </div>
     </template>
-    <el-empty v-else-if="!loading" :description="t('lan.rEmpty')" />
+    <p v-else-if="!loading" class="empty">{{ t('lan.rEmpty') }}</p>
   </div>
 </template>
 
@@ -158,7 +155,10 @@ onMounted(load)
 </script>
 
 <style scoped>
+/* 同 PortsView：glass 提供底/描边/圆角/阴影，子卡只补内边距与小圆角（lookup-card 范式） */
 .router-panel {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -169,23 +169,23 @@ onMounted(load)
   gap: 14px;
 }
 .sub-card {
-  border-radius: 10px;
-  border: 1px solid var(--p-line, #e4e7ed);
-  padding: 16px 18px;
+  padding: 12px 14px;
+  border-radius: 12px;
 }
 .sub-card h4 {
-  margin: 0 0 10px;
-  font-size: 14px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--p-text);
 }
 .kv {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 6px 0;
+  gap: 8px;
+  padding: 3px 0;
   font-size: 13px;
 }
 .kv > span {
-  color: var(--p-text-secondary, #909399);
+  color: var(--p-muted);
   min-width: 64px;
 }
 .ext-ip {
@@ -202,7 +202,7 @@ onMounted(load)
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  margin: 8px 0;
+  padding: 3px 0;
 }
 .iface-name {
   max-width: 90px;
@@ -219,16 +219,30 @@ onMounted(load)
   color: var(--el-color-success);
 }
 .total {
-  color: var(--p-text-secondary, #909399);
+  color: var(--p-muted);
   font-size: 12px;
+}
+.clients-card {
+  padding: 12px 14px;
+  border-radius: 12px;
 }
 .clients-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+.clients-head h4 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--p-text);
 }
 .spacer {
   flex: 1;
+}
+.empty {
+  color: var(--p-muted);
+  font-size: 13px;
+  padding: 8px 0;
 }
 </style>

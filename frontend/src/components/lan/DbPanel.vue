@@ -15,7 +15,8 @@
       <el-button size="small" :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
     </div>
 
-    <el-table :data="filtered" size="small" v-loading="loading">
+    <div class="table-fill">
+      <el-table :data="filtered" size="small" height="100%" v-loading="loading">
       <el-table-column :label="t('lan.colState')" width="84" align="center">
         <template #default="{ row }">
           <span class="state-pill" :class="row.state">{{ t(`ports.state.${row.state}`) }}</span>
@@ -54,6 +55,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
     <!-- 凭据管理抽屉 -->
     <el-drawer v-model="credsVisible" :title="t('lan.db.credsTitle')" size="520px">
@@ -301,46 +303,57 @@ onMounted(load)
 </script>
 
 <style scoped>
+/* 同 PortsView 页面骨架（工具栏/统计胶囊/表格撑满/状态胶囊） */
 .db-panel {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 .ov-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.stat-chip {
+  font-size: 12.5px;
+  color: var(--p-muted);
+  background: var(--p-soft);
+  border-radius: 8px;
+  padding: 3px 10px;
+}
+.stat-chip b {
+  color: var(--p-text);
+  margin-left: 2px;
 }
 .spacer {
   flex: 1;
 }
-.dev-note {
-  margin-left: 6px;
-  color: var(--p-text-secondary, #909399);
-  font-size: 12px;
+.table-fill {
+  flex: 1;
+  min-height: 0;
 }
 .state-pill {
   display: inline-block;
-  padding: 1px 10px;
+  padding: 2px 10px;
   border-radius: 999px;
   font-size: 12px;
 }
-.state-pill.up {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
-}
-.state-pill.down {
-  background: var(--el-color-danger-light-9);
-  color: var(--el-color-danger);
-}
-.state-pill.unknown {
-  background: var(--el-fill-color-light);
-  color: var(--p-text-secondary, #909399);
+.state-pill.up { background: var(--el-color-success-light-8); color: var(--el-color-success); }
+.state-pill.down { background: var(--el-color-danger-light-8); color: var(--el-color-danger); }
+.state-pill.unknown { background: rgba(127, 127, 127, 0.15); color: var(--p-muted); }
+.dev-note {
+  margin-left: 6px;
+  color: var(--p-muted);
+  font-size: 12px;
 }
 .creds-toolbar {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-bottom: 10px;
 }
 </style>

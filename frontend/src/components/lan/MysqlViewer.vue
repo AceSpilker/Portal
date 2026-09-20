@@ -152,9 +152,8 @@ onMounted(async () => {
   gap: 10px;
 }
 .stat-card {
-  border-radius: 10px;
-  border: 1px solid var(--p-line, #e4e7ed);
-  padding: 14px;
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -164,7 +163,7 @@ onMounted(async () => {
 }
 .stat-card span {
   font-size: 12px;
-  color: var(--p-text-secondary, #909399);
+  color: var(--p-muted);
 }
 .stat-card.wide {
   grid-column: span 2;
@@ -173,7 +172,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .spacer {
   flex: 1;

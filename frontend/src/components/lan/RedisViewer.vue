@@ -181,7 +181,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .spacer {
   flex: 1;
@@ -193,7 +195,7 @@ onMounted(async () => {
   font-size: 13px;
 }
 .info-grid .k {
-  color: var(--p-text-secondary, #909399);
+  color: var(--p-muted);
 }
 .kv {
   display: flex;
@@ -202,7 +204,7 @@ onMounted(async () => {
   font-size: 13px;
 }
 .kv span {
-  color: var(--p-text-secondary, #909399);
+  color: var(--p-muted);
   min-width: 60px;
 }
 .value-box {
