@@ -510,15 +510,28 @@ async def merge_scan_results(
     hostnames: dict[str, str],
     gateway_ip: str | None,
     gateway_hint: str | None = None,
+    cidrs: list[str] | None = None,
 ) -> dict:
     """扫描结果合并进 lan_devices；返回 {new, gone, events}（上下线翻转走通知）。
 
     gateway_hint：容器部署时默认网关是 Docker 网桥，不在被扫网段内——用
     提示网段的 .1（家用惯例）作为候选，仅在扫描确实发现该地址时标记。
+    cidrs：本次扫描网段——ARP 条目按此过滤（容器/多网卡机器的 ARP 表含
+    其他网段如 Docker 网桥，混入清单是噪音，110 实测修正）。
     """
     gateway_candidates = {ip for ip in (gateway_ip, gateway_hint) if ip}
+    nets = [ipaddress.ip_network(c) for c in (cidrs or [])]
+
+    def _in_scan(ip: str) -> bool:
+        if not nets:
+            return True
+        try:
+            return any(ipaddress.ip_address(ip) in n for n in nets)
+        except ValueError:
+            return False
+
     now = datetime.utcnow()
-    ips_seen = set(found) | {ip for ip in arp if is_private_ip(ip)}
+    ips_seen = set(found) | {ip for ip in arp if is_private_ip(ip) and _in_scan(ip)}
     existing = {
         d.ip: d for d in (await session.execute(select(LanDevice))).scalars().all()
     }
@@ -561,6 +574,9 @@ async def merge_scan_results(
             if ports:
                 was.open_ports = json.dumps(ports)
             was.is_gateway = 1 if _is_gw(ip) else (0 if gateway_candidates else was.is_gateway)
+            # 指纹重算：端口/网关归属变化时刷新类型（修复老数据类型滞留，110）
+            if ports or _is_gw(ip):
+                was.device_type = fingerprint_device(ports, was.vendor, _is_gw(ip))
             src = set(json.loads(was.source or "[]"))
             if ports:
                 src.add("tcp")
@@ -687,7 +703,7 @@ async def _run_scan(
             hostnames = await resolve_hostnames(list(found), bool(cfg.get("dns_lookup")))
             merged = await merge_scan_results(
                 session, found, arp, hostnames,
-                gw_ip, gateway_hint=gw_hint,
+                gw_ip, gateway_hint=gw_hint, cidrs=cidrs,
             )
             pending_events = merged["events"]
             run = await session.get(LanScanRun, run_id)
