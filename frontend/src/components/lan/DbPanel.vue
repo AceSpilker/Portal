@@ -142,6 +142,14 @@
 
     <!-- 查看器抽屉 -->
     <el-drawer v-model="viewerVisible" size="70%" :with-header="false" destroy-on-close>
+      <div v-if="viewerService && !viewerService.credential_id" class="cred-banner warn">
+        {{ t('lan.db.noCredBanner') }}
+        <el-button size="small" type="primary" style="margin-left: 12px" @click="fixCred">{{ t('lan.db.goCred') }}</el-button>
+      </div>
+      <div v-else-if="viewerService && credTestFailed" class="cred-banner">
+        {{ t('lan.db.badCredBanner') }}
+        <el-button size="small" type="primary" style="margin-left: 12px" @click="fixCred">{{ t('lan.db.goCred') }}</el-button>
+      </div>
       <MysqlViewer v-if="viewerService?.service_type === 'mysql'" :service="viewerService" />
       <RedisViewer v-else-if="viewerService?.service_type === 'redis'" :service="viewerService" />
       <MinioViewer v-else-if="viewerService?.service_type === 'minio'" :service="viewerService" />
@@ -333,10 +341,30 @@ async function saveCred() {
 // ---- 查看器 ----
 const viewerVisible = ref(false)
 const viewerService = ref<DbServiceItem | null>(null)
+const credTestFailed = computed(() =>
+  viewerService.value?.credential_id != null && creds.value.some(
+    (c) => c.id === viewerService.value?.credential_id && c.last_test_ok === false,
+  ),
+)
 
 function openViewer(row: DbServiceItem) {
   viewerService.value = row
   viewerVisible.value = true
+}
+
+async function fixCred() {
+  // 定位该服务的凭据进入编辑；没有则新建（预填 host/port/类型）
+  await loadCreds()
+  const existing = creds.value.find(
+    (c) => c.host === viewerService.value?.host && c.port === viewerService.value?.port,
+  )
+  credsVisible.value = true
+  openEdit(existing ?? null)
+  if (!existing && viewerService.value) {
+    editForm.value.service_type = (viewerService.value.service_type as DbCredentialItem['service_type']) || 'mysql'
+    editForm.value.host = viewerService.value.host
+    editForm.value.port = viewerService.value.port
+  }
 }
 
 onMounted(load)
@@ -395,6 +423,20 @@ onMounted(load)
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
+}
+.cred-banner {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2, #b45309);
+}
+.cred-banner.warn {
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
 }
 .cred-form-footer {
   display: flex;

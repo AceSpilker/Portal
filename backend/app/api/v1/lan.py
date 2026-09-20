@@ -175,12 +175,17 @@ async def post_scan(
     request: Request, body: dict | None = None,
     _: User = Depends(require_admin), session: AsyncSession = Depends(get_session),
 ):
-    """触发网段扫描（后台任务）；已有任务 4005，网段不合法/超私网 4006。"""
+    """触发网段扫描（后台任务）；已有任务 4005，网段不合法/超私网 4006。
+
+    mode="full" 为全端口深度扫描（存活主机 1-65535，耗时数分钟）；
+    扫描完成后对所有开放端口自动做数据库协议嗅探（MySQL@任意端口自动入库）。
+    """
     body = body or {}
     cidrs = [str(c)[:64] for c in (body.get("cidrs") or [])]
+    mode = "full" if str(body.get("mode") or "") == "full" else "quick"
     hints = _hint_ips(request) + await lan_scan.stored_hint_ips(session)
     try:
-        run = await lan_scan.start_scan(session, cidrs or None, hint_ips=hints)
+        run = await lan_scan.start_scan(session, cidrs or None, hint_ips=hints, mode=mode)
     except LookupError as exc:
         raise BizError(CODE_SCAN_BUSY, t("err.lan_scan_busy"), 409) from exc
     except ValueError as exc:
@@ -390,14 +395,39 @@ async def get_router(
 async def get_router_clients(
     _: User = Depends(get_current_user), session: AsyncSession = Depends(get_session),
 ):
-    """连接设备表：本机 ARP + 路由器 SNMP ipNetToMedia 双来源（api-spec §4.14）。"""
+    """连接设备表（路由器后台视角）：三源融合——
+
+    ① 设备清单 lan_devices（扫描发现，含主机名/类型/在线状态，最全）；
+    ② 本机 ARP（局域网二层视角）；③ 路由器 SNMP ipNetToMedia（配置后为
+    路由器自身在线表）。来源标记 sources 供前端明示。
+    """
     cfg = await lan_scan.get_lan_config(session)
+    from sqlalchemy import select as _select
+
+    from app.models.lan import LanDevice as _Dev
+
+    devices = {
+        d.ip: d for d in (await session.execute(_select(_Dev))).scalars().all()
+    }
     arp = lan_scan.read_arp_table()
     rows: dict[str, dict] = {}
+    for ip, dev in devices.items():
+        rows[ip] = {
+            "ip": ip, "mac": dev.mac, "hostname": dev.hostname, "vendor": dev.vendor,
+            "device_type": dev.device_type, "is_gateway": bool(dev.is_gateway),
+            "online": bool(dev.online), "source": "devices",
+        }
     for ip, mac in arp.items():
-        rows[ip] = {"ip": ip, "mac": mac, "source": "local-arp",
-                    "vendor": lan_scan.lookup_vendor(mac)}
-    sources = {"local-arp"}
+        row = rows.setdefault(ip, {"ip": ip, "mac": mac, "hostname": None,
+                                   "vendor": None, "device_type": "unknown",
+                                   "is_gateway": False, "online": True,
+                                   "source": "local-arp"})
+        if row.get("source") == "devices" and mac and not row.get("mac"):
+            row["mac"] = mac
+        if row.get("source") != "devices":
+            row["mac"] = row.get("mac") or mac
+            row["vendor"] = row["vendor"] or lan_scan.lookup_vendor(mac)
+    sources = {"devices", "local-arp"}
     gw = await _gateway_device(session)
     if cfg["snmp"].get("enabled") and gw:
         remote = await lan_snmp.router_arp(
@@ -407,12 +437,22 @@ async def get_router_clients(
         for item in remote:
             row = rows.get(item["ip"])
             if row:
-                row["source"] = "snmp+local-arp"
+                if "snmp" not in row["source"]:
+                    row["source"] = "snmp+" + row["source"]
+                row["mac"] = row.get("mac") or item["mac"]
             else:
-                rows[item["ip"]] = {"ip": item["ip"], "mac": item["mac"],
-                                    "source": "snmp", "vendor": lan_scan.lookup_vendor(item["mac"])}
+                rows[item["ip"]] = {
+                    "ip": item["ip"], "mac": item["mac"], "hostname": None,
+                    "vendor": lan_scan.lookup_vendor(item["mac"]),
+                    "device_type": "unknown", "is_gateway": False,
+                    "online": True, "source": "snmp",
+                }
             sources.add("snmp")
-    items = sorted(rows.values(), key=lambda r: tuple(int(p) for p in r["ip"].split(".")))
+    items = sorted(
+        rows.values(),
+        key=lambda r: (not r.get("online"), not r.get("is_gateway"),
+                       tuple(int(p) for p in r["ip"].split("."))),
+    )
     return ok({"items": items, "total": len(items), "sources": sorted(sources)})
 
 

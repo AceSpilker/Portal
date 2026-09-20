@@ -8,15 +8,21 @@
           <span class="stat-chip">{{ t('lan.statOnline') }} <b>{{ onlineCount }}</b></span>
           <span class="stat-chip">{{ t('lan.statRouter') }} <b>{{ routerCount }}</b></span>
           <span v-if="scanRunning" class="stat-chip scan-chip">
-            {{ t('lan.scanning') }} <b>{{ current?.progress ?? 0 }}%</b>
+            {{ current?.kind === 'devices_full' ? t('lan.fullScanning') : t('lan.scanning') }}
+            <b>{{ current?.progress ?? 0 }}%</b>
           </span>
           <span class="spacer" />
           <el-select v-model="typeFilter" size="small" clearable style="width: 130px" :placeholder="t('lan.allTypes')">
             <el-option v-for="tp in deviceTypes" :key="tp" :value="tp" :label="t(`lan.type.${tp}`)" />
           </el-select>
-          <el-button size="small" type="primary" :loading="scanStarting" :disabled="scanRunning" @click="startScan">
+          <el-button size="small" type="primary" :loading="scanStarting" :disabled="scanRunning" @click="startScan('quick')">
             {{ t('lan.scanNow') }}
           </el-button>
+          <el-tooltip :content="t('lan.fullScanTip')" placement="top">
+            <el-button size="small" :loading="scanStarting" :disabled="scanRunning" @click="confirmFullScan">
+              {{ t('lan.fullScan') }}
+            </el-button>
+          </el-tooltip>
           <el-button v-if="auth.isAdmin" size="small" @click="openSettings">{{ t('lan.settings') }}</el-button>
           <el-button size="small" :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
         </div>
@@ -179,7 +185,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { lanApi } from '../api/lan'
 import type { LanDeviceItem, LanSegment, LanSettings, ScanRun } from '../api/lan'
 import { useAuthStore } from '../stores/auth'
@@ -220,15 +226,22 @@ async function pollScan() {
   }
 }
 
-async function startScan() {
+async function startScan(mode: 'quick' | 'full') {
   scanStarting.value = true
   try {
-    await lanApi.startScan()
-    current.value = { status: 'running', progress: 0 } as ScanRun
-    ElMessage.success(t('lan.scanStarted'))
+    await lanApi.startScan(mode)
+    current.value = { status: 'running', progress: 0, kind: mode === 'full' ? 'devices_full' : 'devices' } as ScanRun
+    ElMessage.success(mode === 'full' ? t('lan.fullScanStarted') : t('lan.scanStarted'))
   } finally {
     scanStarting.value = false
   }
+}
+
+async function confirmFullScan() {
+  await ElMessageBox.confirm(t('lan.fullScanConfirm'), t('common.confirm'), {
+    type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'),
+  })
+  await startScan('full')
 }
 
 // ---- 设备清单 ----

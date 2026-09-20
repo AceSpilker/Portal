@@ -29,7 +29,7 @@ export interface LanSettings {
 
 export interface ScanRun {
   id: number
-  kind: string
+  kind: string  // devices / devices_full / db
   cidrs: string[]
   status: 'running' | 'done' | 'failed'
   progress: number
@@ -77,9 +77,13 @@ export interface RouterInfo {
 
 export interface RouterClient {
   ip: string
-  mac: string
-  source: string
+  mac: string | null
+  hostname: string | null
   vendor: string | null
+  device_type: string
+  is_gateway: boolean
+  online: boolean
+  source: string
 }
 
 export interface RouterInterface {
@@ -106,8 +110,10 @@ export const lanApi = {
   getSettings: () => request.get<never, LanSettings>('/lan/settings'),
   saveSettings: (body: Partial<LanSettings> & { snmp?: { enabled: boolean; community?: string; timeout_s?: number } }) =>
     request.put<never, LanSettings>('/lan/settings', body),
-  startScan: (cidrs?: string[]) =>
-    request.post<never, { run_id: number; cidrs: string[]; total: number }>('/lan/scan', cidrs?.length ? { cidrs } : {}),
+  startScan: (mode: 'quick' | 'full' = 'quick', cidrs?: string[]) =>
+    request.post<never, { run_id: number; cidrs: string[]; total: number }>(
+      '/lan/scan', { mode, ...(cidrs?.length ? { cidrs } : {}) },
+    ),
   scanStatus: () =>
     request.get<never, { current: ScanRun | null; recent: ScanRun[] }>('/lan/scan/status'),
   devices: (params?: { type?: string; online?: string }) =>

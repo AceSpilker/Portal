@@ -173,7 +173,7 @@
 
 ### 3.11 系统与同步
 
-**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）、`lan.*`（P26：scan_cidrs(JSON，空=自动识别)/auto_scan(默认 0)/scan_interval_min(默认 30，0=仅手动)/probe_ports(JSON 探测端口集)/dns_lookup(默认 1)/concurrency(默认 128)/extra_cidrs(JSON 追加允许网段)、`lan.snmp.*`（enabled/community 加密存储/timeout_s）、`lan.db_extra_ports`（P27 扩展：非默认端口自建数据库，扫描时协议嗅探识别），由 /api/lan/settings 管理、SNMP community 回传脱敏、网段保存时清洗（丢弃回环/公网/超限）。
+**settings**（M1）：key TEXT PK；value TEXT(JSON)；updated_at。约定键名分组：`general.*`、`appearance.*`、`apps.*`、`ai.*`、`notify.*`、`security.*`、`backup.*`、`sync.*`、`monitor.*`（P5：retention_days/sample_interval/push_interval）、`home.*`（P15：weather_city/search_shortcuts）、`files.roots`（P16：[{name,path}] 白名单）、`downloads.*`（P16：enabled/qb_url/qb_user/qb_pass）、`redis.*`（P25：host/port/password/db/key_prefix/enabled，密码加密，专由 /api/settings/redis 管理）、`media.*`（P16：jellyfin_url/jellyfin_key）、`security.*`（P17：allow_register/password_min_length/force_totp）、`backup.*`（P17：enabled/keep）、`update.*`（P17：repo 默认 AceSpilker/Portal/channel/auto_check/auto_apply）、`appearance.custom_css`（P17：前端动态注入）、`update.*`（update.repo/update.channel/update.auto_check）、`mysql.*`（P23：host/port/user/password/database/interval_min/enabled，密码加密存储）、`redis.*`（P25：host/port/password/db/key_prefix/enabled）、`lan.*`（P26：scan_cidrs(JSON，空=自动识别)/auto_scan(默认 0)/scan_interval_min(默认 30，0=仅手动)/probe_ports(JSON 探测端口集)/dns_lookup(默认 1)/concurrency(默认 128)/extra_cidrs(JSON 追加允许网段)、`lan.snmp.*`（enabled/community 加密存储/timeout_s）、`lan.db_extra_ports`（P27 扩展：非默认端口自建数据库，扫描时协议嗅探识别）；默认 probe_ports 含 28 端口（111 扩充 alt DB 端口 3307-3309/13306/23306/33060 等），由 /api/lan/settings 管理、SNMP community 回传脱敏、网段保存时清洗（丢弃回环/公网/超限）。
 
 **sync_state**（M2，P23 落地）：id；table_name TEXT UNIQUE；last_push_at NULL；last_try_at NULL；rows_pushed INT 0；status TEXT（idle/running/ok/failed）；fail_count INT 0（失败退避：60s×2^n，上限 30min）；message TEXT ''。同步范围=业务表（categories/apps/app_urls/network_profiles/flows/settings/wol_targets/notify_channels/notify_rules），users/会话/Token/审计等敏感表排除；MySQL 端 DDL 由 ORM 元数据生成（TEXT 唯一键前缀 191、剥离 TEXT DEFAULT）。
 
@@ -431,12 +431,12 @@
 |---|---|---|---|---|
 | GET | /api/lan/segments | 自动识别网段：本机网卡/默认网关（source=nic）+ **Portal 访问地址派生**（Host 头/客户端 IP → 私网 /24，source=portal，排最前）——容器部署时 /proc/net 按网络命名空间生成、宿主网络表不可见，访问地址派生是宿主网段的自动识别来源 | A | P26 |
 | GET/PUT | /api/lan/settings | 扫描设置读写（`lan.*` 键组：scan_cidrs/auto_scan/scan_interval_min/probe_ports/dns_lookup/concurrency/extra_cidrs + `lan.snmp.*`；community 回传脱敏，空提交=保持原值） | M | P26 |
-| POST | /api/lan/scan | 触发网段扫描（body 可带 cidrs 覆盖；后台任务，已有任务进行中 4005；目标网段校验 4006）；**网段缺省优先级：显式 cidrs → `lan.scan_cidrs` 设置 → Portal 访问地址派生网段 → 容器网关 /24**；默认网关不在被扫网段时以提示网段 .1 为路由器候选（扫到才标记） | M | P26 |
+| POST | /api/lan/scan | 触发网段扫描（body {cidrs?, mode?}；已有任务 4005；网段校验 4006）；mode=quick（默认端口集）/**full**（存活主机 1-65535 全端口，数分钟）；**扫描完成后对所有开放端口自动做数据库协议嗅探**（MySQL@任意端口自动入服务清单）；网段缺省优先级：显式 cidrs → `lan.scan_cidrs` → Portal 访问地址派生 → 容器网关 /24 | M | P26 |
 | GET | /api/lan/scan/status | 当前扫描进度/最近一次结果 {run, progress}（前端轮询进度条） | A | P26 |
 | GET | /api/lan/devices?type=&online= | 设备清单（指纹/开放端口/在线状态；路由器置顶），分页 | A | P26 |
 | GET | /api/lan/devices/{id} | 设备详情：完整指纹、开放端口、发现来源、事件历史 | A | P26 |
 | GET | /api/lan/router | 路由器识别聚合视图：基础（IP/MAC/厂商/主机名）、UPnP 型号/固件、WAN 外网 IP 与连接状态/运行时长、管理后台候选地址[] | A | P26 |
-| GET | /api/lan/router/clients | 路由器连接设备表：本机 ARP + 路由器 SNMP ipNetToMedia 双来源（无 SNMP 凭据时仅本机视角，响应注明 sources） | A | P26 |
+| GET | /api/lan/router/clients | 连接设备表（路由器后台视角，111 扩展）：**三源融合**——设备清单 lan_devices（主机名/类型/在线）+ 本机 ARP + 路由器 SNMP ipNetToMedia（配置后），sources 注明来源，在线置顶 | A | P26 |
 | GET | /api/lan/router/interfaces | SNMP ifTable 接口流量：双采样（间隔 ≥2s）计算上下行速率 + 累计字节数；未配置 SNMP 返回空数组并提示 | A | P26 |
 | POST | /api/lan/router/snmp/test | SNMP v2c 连通测试（community 即测即用，不落库） | M | P26 |
 | GET | /api/lan/scans?limit= | 扫描历史与设备上下线事件流水 | A | P26 |

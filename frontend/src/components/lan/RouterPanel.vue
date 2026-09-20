@@ -72,20 +72,38 @@
       <div class="glass clients-card">
         <div class="clients-head">
           <h4>{{ t('lan.rClients') }}</h4>
+          <span class="stat-chip">{{ t('lan.rClientsOnline') }} <b>{{ onlineClients }}</b></span>
+          <span class="stat-chip">{{ t('lan.statTotal') }} <b>{{ clients.length }}</b></span>
           <el-tag v-if="clientsSources.length" size="small" type="info">
             {{ t('lan.rSource') }}: {{ clientsSources.join(' + ') }}
           </el-tag>
           <span class="spacer" />
           <el-button size="small" :loading="loading" @click="load">{{ t('common.refresh') }}</el-button>
         </div>
-        <el-table :data="clients" size="small" max-height="360">
-          <el-table-column prop="ip" label="IP" width="140" sortable />
-          <el-table-column prop="mac" label="MAC" width="160" />
-          <el-table-column prop="vendor" :label="t('lan.colVendor')" min-width="120">
+        <el-table :data="clients" size="small" max-height="420">
+          <el-table-column :label="t('lan.colState')" width="80" align="center">
+            <template #default="{ row }">
+              <span class="state-pill" :class="row.online ? 'up' : 'down'">
+                {{ row.online ? t('lan.state.on') : t('lan.state.off') }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="ip" label="IP" width="130" sortable />
+          <el-table-column :label="t('lan.colHostname')" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.hostname || '—' }}</template>
+          </el-table-column>
+          <el-table-column :label="t('lan.colType')" width="90">
+            <template #default="{ row }">{{ t(`lan.type.${row.device_type || 'unknown'}`) }}</template>
+          </el-table-column>
+          <el-table-column prop="mac" label="MAC" width="150">
+            <template #default="{ row }">{{ row.mac || '—' }}</template>
+          </el-table-column>
+          <el-table-column prop="vendor" :label="t('lan.colVendor')" min-width="110" show-overflow-tooltip>
             <template #default="{ row }">{{ row.vendor || '—' }}</template>
           </el-table-column>
-          <el-table-column prop="source" :label="t('lan.colSource')" width="150" />
+          <el-table-column prop="source" :label="t('lan.colSource')" width="140" />
         </el-table>
+        <p class="empty clients-hint">{{ t('lan.rClientsHint') }}</p>
       </div>
     </template>
     <p v-else-if="!loading" class="empty">{{ t('lan.rEmpty') }}</p>
@@ -107,6 +125,7 @@ const interfaces = ref<RouterInterface[]>([])
 const ifaceReason = ref<string | null>(null)
 
 const upnp = computed(() => info.value?.upnp)
+const onlineClients = computed(() => clients.value.filter((c) => c.online).length)
 const adminCandidates = computed(() => info.value?.admin_candidates || [])
 
 async function load() {
@@ -244,5 +263,27 @@ onMounted(load)
   color: var(--p-muted);
   font-size: 13px;
   padding: 8px 0;
+}
+.state-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.state-pill.up { background: var(--el-color-success-light-8); color: var(--el-color-success); }
+.state-pill.down { background: var(--el-color-danger-light-8); color: var(--el-color-danger); }
+.stat-chip {
+  font-size: 12.5px;
+  color: var(--p-muted);
+  background: var(--p-soft);
+  border-radius: 8px;
+  padding: 3px 10px;
+}
+.stat-chip b {
+  color: var(--p-text);
+  margin-left: 2px;
+}
+.clients-hint {
+  margin-top: 8px;
 }
 </style>

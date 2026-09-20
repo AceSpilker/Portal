@@ -34,6 +34,16 @@ GONE_THRESHOLD = 3  # 连续未命中次数 ≥ 此值判离线
 # 第一梯队端口：任何命中即判存活（覆盖绝大多数设备），未命中再看第二梯队
 _STAGE1_PORTS = (80, 445, 22, 443)
 
+# 常见数据库/服务的非默认端口（111 扩展：与 DB_PORTS 字典互补，默认探测集包含）
+ALT_DB_PORTS = (
+    3307, 3308, 3309, 13306, 23306, 33060, 5433, 6380, 2380, 27018, 27019, 9201, 9002, 8124, 11212,
+)
+
+# 全端口扫描（111）：发现存活的设备逐台扫 1-65535
+FULL_PORT_CONCURRENCY = 1000  # 全端口阶段并发 socket 数
+FULL_PORT_TIMEOUT = 0.8  # 局域网内 closed 端口 RST 极快，超时只影响被防火墙丢包的地址
+FULL_SCAN_PORT_LIMIT = 120  # 单设备开放端口清单上限（JSON 字段防膨胀）
+
 # 内置私网白名单（api-spec §4.14：扫描与数据库连接共用）
 _PRIVATE_CIDRS = ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16")
 PRIVATE_NETS = [ipaddress.ip_network(n) for n in _PRIVATE_CIDRS]
@@ -495,6 +505,39 @@ async def scan_hosts(
     return {h: ports for h, ports in rows if ports}
 
 
+async def scan_host_full_ports(host: str, concurrency: int = FULL_PORT_CONCURRENCY) -> list[int]:
+    """单主机 1-65535 全端口 TCP 扫描（111：深度模式）。
+
+    局域网内 closed 端口立即回 RST，实际吞吐远高于超时上限；
+    防火墙静默丢包的地址按 FULL_PORT_TIMEOUT 超时处理。
+    """
+    sem = asyncio.Semaphore(concurrency)
+
+    async def _probe(port: int) -> int | None:
+        async with sem:
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port), FULL_PORT_TIMEOUT
+                )
+            except (OSError, TimeoutError):
+                return None
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except (OSError, TimeoutError):
+                pass
+            return port
+
+    open_ports: list[int] = []
+    batch = concurrency * 4
+    ports = list(range(1, 65536))
+    for i in range(0, len(ports), batch):
+        chunk = ports[i:i + batch]
+        results = await asyncio.gather(*(_probe(p) for p in chunk))
+        open_ports.extend(p for p in results if p)
+    return sorted(open_ports[:FULL_SCAN_PORT_LIMIT])
+
+
 def _hosts_of(cidr: str) -> list[str]:
     net = ipaddress.ip_network(cidr, strict=False)
     it = net.hosts() if net.num_addresses > 2 else iter([str(net.network_address)])
@@ -644,8 +687,14 @@ def scan_status() -> dict | None:
 
 async def _run_scan(
     run_id: int, cidrs: list[str], cfg: dict, hint_ips: list[str] | None = None,
+    mode: str = "quick",
 ) -> None:
-    """后台扫描主体：独立会话；异常写 failed 不抛出。"""
+    """后台扫描主体：独立会话；异常写 failed 不抛出。
+
+    mode="quick"：默认端口集两阶段扫描；mode="full"：先快速发现存活主机，
+    再对每台存活主机做 1-65535 全端口扫描（深度模式，耗时数分钟）。
+    扫描完成后对所有发现的开放端口做协议嗅探，数据库服务自动入库（111）。
+    """
     global _current
     from app.services import lan_upnp
 
@@ -688,7 +737,7 @@ async def _run_scan(
                 found.update(part)
                 scanned += len(chunk)
                 run = await session.get(LanScanRun, run_id)
-                run.progress = min(99, int(scanned * 100 / total))
+                run.progress = min(99, int(scanned * 100 / total * (0.15 if mode == "full" else 1)))
                 run.found = len(found)
                 await session.commit()
             # ARP 表内的网段成员（未被 TCP 命中的休眠设备）也并入清单
@@ -700,6 +749,23 @@ async def _run_scan(
                             found.setdefault(ip, [])
                     except ValueError:
                         continue
+            if mode == "full":
+                # 深度阶段：对存活主机逐台 1-65535 全端口扫描
+                alive = sorted(found)
+                sweep_total = max(len(alive), 1) * 65535
+                swept = 0
+                run = await session.get(LanScanRun, run_id)
+                run.message = f"full-scan {len(alive)} hosts"
+                await session.commit()
+                for host in alive:
+                    ports = await scan_host_full_ports(host)
+                    if ports:
+                        found[host] = ports
+                    swept += 65535
+                    run = await session.get(LanScanRun, run_id)
+                    run.progress = min(99, 15 + int(swept * 84 / sweep_total))
+                    run.found = len(found)
+                    await session.commit()
             hostnames = await resolve_hostnames(list(found), bool(cfg.get("dns_lookup")))
             merged = await merge_scan_results(
                 session, found, arp, hostnames,
@@ -721,9 +787,17 @@ async def _run_scan(
                 run.message = str(exc)[:300]
                 run.finished_at = datetime.utcnow()
                 await session.commit()
+            _current = None
+            return
         finally:
             _current = None
     await dispatch_device_events(pending_events)
+    # 扫描后数据库指纹自动识别（111）：对所有发现的开放端口做协议嗅探，
+    # MySQL/Redis/MinIO 等无论端口是什么都会自动进入服务清单。
+    try:
+        await fingerprint_discovered_ports(found)
+    except Exception:  # noqa: BLE001
+        pass
     # 路由器 UPnP 增强：对网关设备补型号/固件指纹（尽力而为，失败静默）
     if gw_ip:
         try:
@@ -733,14 +807,37 @@ async def _run_scan(
             pass
 
 
+async def fingerprint_discovered_ports(found: dict[str, list[int]], cap: int = 200) -> int:
+    """对扫描发现的开放端口做数据库协议嗅探并入库（失败静默，返回识别数）。"""
+    from app.services.db_fingerprint import probe_and_upsert, probe_service
+
+    identified = 0
+    probed = 0
+    async with SessionLocal() as session:
+        for host, ports in found.items():
+            for port in ports[:FULL_SCAN_PORT_LIMIT]:
+                if probed >= cap:
+                    return identified
+                probed += 1
+                try:
+                    fp = await probe_service(host, port, sniff_extra=True)
+                except Exception:  # noqa: BLE001
+                    continue
+                if fp:
+                    await probe_and_upsert(session, host, port)
+                    identified += 1
+        await session.commit()
+    return identified
+
+
 async def start_scan(
     session: AsyncSession, cidrs: list[str] | None = None, kind: str = "devices",
-    hint_ips: list[str] | None = None,
+    hint_ips: list[str] | None = None, mode: str = "quick",
 ) -> LanScanRun:
     """创建并启动扫描任务；已有任务进行中抛 LookupError（API 层转 4005）。
 
     网段缺省优先级：显式 cidrs → `lan.scan_cidrs` 设置 → Portal 访问地址
-    派生网段（hint_ips）→ 容器网关 /24。
+    派生网段（hint_ips）→ 容器网关 /24。mode="full" 为全端口深度扫描。
     """
     global _current
     if _current is not None:
@@ -749,11 +846,12 @@ async def start_scan(
     target = cidrs if cidrs else (cfg["scan_cidrs"] or auto_cidrs(hint_ips))
     target = validate_scan_cidrs(target, cfg["extra_cidrs"])
     total = len({h for c in target for h in _hosts_of(c)})
-    run = LanScanRun(kind=kind, cidrs=json.dumps(target), status="running", total=total)
+    run_kind = "devices_full" if mode == "full" else kind
+    run = LanScanRun(kind=run_kind, cidrs=json.dumps(target), status="running", total=total)
     session.add(run)
     await session.commit()
-    _current = {"run_id": run.id, "kind": kind}
-    asyncio.get_running_loop().create_task(_run_scan(run.id, target, cfg, hint_ips))
+    _current = {"run_id": run.id, "kind": run_kind}
+    asyncio.get_running_loop().create_task(_run_scan(run.id, target, cfg, hint_ips, mode))
     return run
 
 

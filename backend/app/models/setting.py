@@ -92,7 +92,11 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "lan.scan_cidrs": json.dumps([]),
     "lan.auto_scan": json.dumps(False),
     "lan.scan_interval_min": json.dumps(30),
-    "lan.probe_ports": json.dumps([80, 443, 22, 445, 3306, 5432, 6379, 8080, 9000, 9001, 27017]),
+    "lan.probe_ports": json.dumps(
+        [80, 443, 22, 445, 3306, 3307, 3308, 3309, 13306, 23306, 33060,
+         5432, 5433, 6379, 6380, 8080, 9000, 9001, 9002, 27017, 27018,
+         9200, 9201, 11211, 2379, 2380, 8123, 8124],
+    ),
     "lan.dns_lookup": json.dumps(True),
     "lan.concurrency": json.dumps(128),
     "lan.extra_cidrs": json.dumps([]),

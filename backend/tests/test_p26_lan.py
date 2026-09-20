@@ -303,7 +303,7 @@ def test_11_scan_mutex_and_cidr_guard(client: TestClient, monkeypatch):
 
     started: list = []
 
-    async def _fake_run(run_id, cidrs, cfg, hint_ips=None):
+    async def _fake_run(run_id, cidrs, cfg, hint_ips=None, mode="quick"):
         started.append((run_id, cidrs))
         # 模拟完成（互斥位在真实实现里由 finally 释放，这里手动）
         lan_scan._current = None
@@ -482,10 +482,11 @@ def test_17_scan_default_uses_hint(client: TestClient, monkeypatch):
 
     from app.services import lan_scan
 
-    async def _fake_run(run_id, cidrs, cfg, hint_ips=None):
+    async def _fake_run(run_id, cidrs, cfg, hint_ips=None, mode="quick"):
         lan_scan._current = None
 
     monkeypatch.setattr(lan_scan, "_run_scan", _fake_run)
+    lan_scan._current = None
     resp = client.post(
         "/api/lan/scan",
         headers={**_auth(), "Host": "192.168.5.88:8080"},
@@ -521,3 +522,41 @@ def test_18_gateway_hint_in_merge():
             assert rows["192.168.5.99"].is_gateway == 0
 
     asyncio.run(run())
+
+
+def test_19_full_scan_mode_and_clients_merge(client: TestClient, monkeypatch):
+    """全端口模式：run.kind=devices_full；连接设备表三源融合。"""
+    from app.services import lan_scan
+
+    async def _fake_run(run_id, cidrs, cfg, hint_ips=None, mode="quick"):
+        lan_scan._current = None
+
+    monkeypatch.setattr(lan_scan, "_run_scan", _fake_run)
+    lan_scan._current = None
+    resp = client.post(
+        "/api/lan/scan",
+        headers=_auth(),
+        json={"mode": "full", "cidrs": ["192.168.88.0/24"]},
+    )
+    assert resp.status_code == 200, resp.text
+    lan_scan._current = None
+    # kind 持久化为 devices_full（历史记录可区分快速/深度）
+    import sqlite3
+    from pathlib import Path
+
+    conn = sqlite3.connect(Path(settings.data_dir) / "portal.db")
+    row = conn.execute(
+        "SELECT kind FROM lan_scan_runs ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    assert row[0] == "devices_full"
+    lan_scan._current = None
+
+    # clients：设备清单源带主机名/类型/在线
+    resp = client.get("/api/lan/router/clients", headers=_auth())
+    assert resp.status_code == 200
+    body = resp.json()["data"]
+    assert "devices" in body["sources"]
+    assert body["items"], "merged clients should not be empty"
+    sample = body["items"][0]
+    assert {"ip", "mac", "hostname", "device_type", "online", "source"} <= set(sample)

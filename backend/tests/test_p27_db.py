@@ -277,6 +277,10 @@ def _clear_db_services() -> None:
 
 def test_08_services_list_and_scan_api(client: TestClient, monkeypatch):
     _clear_db_services()
+    from app.services import db_fingerprint, lan_scan
+
+    db_fingerprint._current = None
+    lan_scan._current = None
 
     from app.db.session import SessionLocal
     from app.models.lan import LanDbService, LanDevice
