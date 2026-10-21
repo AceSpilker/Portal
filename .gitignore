@@ -66,3 +66,6 @@ desktop.ini
 *.bak
 *~
 check_port.ps1/
+
+# ===== 安全扫描工具本地状态 =====
+.mimosa/

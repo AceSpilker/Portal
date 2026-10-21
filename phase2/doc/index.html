@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · 文档中心</title>
+<style>
+  :root{
+    --primary:#4f6ef7;
+    --ink:#1f2937;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f7fb;
+    --side:#0b1530;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;overflow:hidden;
+  }
+  /* ===== 顶栏 ===== */
+  header{
+    height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;
+    background:#ffffff;color:var(--ink);border-bottom:1px solid var(--line);position:relative;z-index:20;
+  }
+  header .logo{font-weight:700;font-size:16px;letter-spacing:.5px;white-space:nowrap}
+  header .logo em{color:var(--primary);font-style:normal}
+  header .cur{
+    flex:1;min-width:0;color:var(--muted);font-size:12.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  header .cur b{color:var(--ink)}
+  header button{
+    background:#ffffff;border:1px solid #cbd5e1;color:#334155;
+    font-size:12.5px;padding:5px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;
+  }
+  header button:hover{background:#f1f5f9;border-color:#94a3b8}
+  #menuBtn{display:none}
+  /* ===== 布局 ===== */
+  .layout{display:flex;height:calc(100% - 52px)}
+  aside{
+    width:284px;min-width:284px;background:#ffffff;color:var(--ink);
+    display:flex;flex-direction:column;border-right:1px solid var(--line);
+  }
+  .search-box{padding:12px 12px 8px}
+  .search-box input{
+    width:100%;background:#f8fafc;border:1px solid #d3dce9;color:var(--ink);
+    border-radius:8px;padding:7px 10px;font-size:13px;outline:none;
+  }
+  .search-box input:focus{border-color:var(--primary);background:#ffffff}
+  .search-box input::placeholder{color:#94a3b8}
+  nav{flex:1;overflow-y:auto;padding:0 0 24px 14px}
+  nav::-webkit-scrollbar{width:6px}
+  nav::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+  .group-label{
+    font-size:11.5px;font-weight:700;color:var(--primary);letter-spacing:1px;
+    margin:16px 0 6px 2px;
+  }
+  /* 分组分割线：一期 / 二期之间明显分隔 */
+  .group + .group .group-label{
+    border-top:1px solid #94a3b8;padding-top:18px;margin-top:18px;
+  }
+  .doc{
+    border-radius:8px;margin:2px 0;overflow:hidden;
+  }
+  .doc-head{
+    display:flex;align-items:center;gap:7px;padding:7px 8px 7px 4px;cursor:pointer;
+    color:#334155;border-radius:8px;user-select:none;
+  }
+  .doc-head:hover{background:#f1f5f9;color:#0f172a}
+  .doc.open .doc-head{color:#0f172a}
+  .doc.active .doc-head{background:#e8edfe;color:#1e3a8a;font-weight:700}
+  .doc-head .arrow{
+    font-size:10px;color:#94a3b8;transition:transform .15s;width:12px;text-align:center;flex:none;
+  }
+  .doc.open .doc-head .arrow{transform:rotate(90deg)}
+  .doc-head .name{flex:1;font-size:13px;font-weight:600;line-height:1.35}
+  .doc-head .cnt{
+    font-size:10.5px;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;
+    border-radius:999px;padding:0 7px;flex:none;
+  }
+  .doc.active .doc-head .cnt{background:#dde4ff;border-color:#c7d2fe;color:#4338ca}
+  .doc-head .dead{
+    font-size:10px;color:#b45309;border:1px solid #fcd34d;
+    background:#fffbeb;border-radius:4px;padding:0 4px;flex:none;
+  }
+  .doc-body{display:none;margin:1px 0 4px 17px;border-left:2px solid #e2e8f0}
+  .doc.open .doc-body{display:block}
+  .doc.active .doc-body{border-left-color:#a5b4fc}
+  .doc-body a{
+    display:block;color:#475569;text-decoration:none;font-size:12.5px;
+    padding:4px 8px 4px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .doc-body a:hover{color:#0f172a;background:#f8fafc}
+  .doc-body a.active{color:#3730a3;background:#e8edfe;font-weight:600}
+  .doc.hidden, .group.hidden{display:none}
+  .no-hit{color:var(--muted);font-size:12px;padding:18px 6px;display:none}
+  /* ===== 内容区 ===== */
+  main{flex:1;min-width:0;position:relative;background:#fff}
+  iframe{position:absolute;inset:0;width:100%;height:100%;border:none;background:#fff}
+  @media (max-width:900px){
+    #menuBtn{display:inline-block}
+    aside{
+      position:fixed;left:0;top:52px;bottom:0;z-index:30;width:284px;
+      transform:translateX(-100%);transition:transform .2s;box-shadow:4px 0 24px rgba(15,23,42,.16);
+    }
+    aside.show{transform:translateX(0)}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button id="menuBtn">☰ 目录</button>
+  <div class="logo">Portal · <em>文档中心</em></div>
+  <div class="cur" id="curLabel">加载中…</div>
+  <button id="openBtn" title="在独立标签页打开当前文档">↗ 新标签打开</button>
+</header>
+
+<div class="layout">
+  <aside id="side">
+    <div class="search-box"><input id="filter" type="search" placeholder="筛选文档或章节…（⌘K / Ctrl+K）" autocomplete="off"></div>
+    <nav id="nav"></nav>
+    <div class="no-hit" id="noHit">没有匹配的文档或章节</div>
+  </aside>
+  <main><iframe id="frame" title="doc"></iframe></main>
+</div>
+
+<script>
+/**
+ * 文档目录数据：一级 = 文档文件，二级 = 该文档自己的章节锚点（id 与各文档源码一致）。
+ * 新增文档：往 DOCS 里加一项即可；章节锚点从文档内的 <section id> / <h2 id> 取。
+ */
+const DOCS = [
+  {
+    group: '二期 · phase2/doc', items: [
+      {
+        file: 'dev-plan.html', name: '开发计划（Django × ADP · 171 步）', sections: [
+          ['s1', '1. 文档定位与使用约定'], ['s2', '2. 里程碑与依赖关系'], ['s3', '3. 测试策略总则'],
+          ['s4', '4. 阶段总览（进度看板）'], ['m1', 'M1 · 地基与认证（D0–D2/F0–F1）'],
+          ['m2', 'M2 · 功能全域（D3–D7/F2–F6）'], ['m3', 'M3 · 对齐验收切流（D8–D9/C0–C2）'],
+          ['s8', '5. 进度与日志约定'], ['s9', '6. 风险关联'],
+        ],
+      },
+      {
+        file: 'portal-v2-migration-plan.html', name: '迁移方案（总体 · 15 章）', sections: [
+          ['s1', '1. 目标、范围与路线变化'], ['s2', '2. 总体架构'], ['s3', '3. 技术选型总表'],
+          ['s4', '4. Django 工程结构设计'], ['s5', '5. API 契约（原生 ADP）'],
+          ['s6', '6. 数据模型与数据迁移'], ['s7', '7. 认证与安全子系统移植'],
+          ['s8', '8. WebSocket ×4 → Channels'], ['s9', '9. 后台任务（17 项）'],
+          ['s10', '10. 前端 v2（Art Design Pro）'], ['s11', '11. 部署与切流（双容器）'],
+          ['s12', '12. 测试策略'], ['s13', '13. 阶段计划 D0–D9+F0–F7'], ['s14', '14. 风险与回滚'],
+          ['s15', '15. 文档关系与决策记录'],
+        ],
+      },
+    ],
+  },
+  {
+    group: '二期输入 · docs', items: [
+      {
+        file: '../../docs/artdesign-analysis.html', name: 'Art Design Pro 框架分析', sections: [
+          ['s1', '1. 背景与结论速览'], ['s2', '2. 框架全景'], ['s3', '3. 一期前端功能基线（16 视图）'],
+          ['s4', '4. 能力映射：框架 → 需求'], ['s5', '5. 差距清单与风险'],
+          ['s6', '6. 迁移方案（阶段计划）'], ['s7', '7. 目录与代码对照表'], ['s8', '8. 待决策问题'],
+        ],
+      },
+      {
+        file: '../../docs/artdesign-migration-plan.html', name: '一期后端适配方案', dead: '作废', sections: [
+          ['s1', '1. 目标与总体策略'], ['s2', '2. 契约差异与决策总表（C1–C17）'],
+          ['s3', '3. 后端改造详单（B1–B10）'], ['s4', '4. 前端 v2 改造详单（F0–F7）'],
+          ['s5', '5. v1 并行兼容策略'], ['s6', '6. 阶段时间线与关卡'],
+          ['s7', '7. 联调验收清单'], ['s8', '8. 风险与回滚'], ['s9', '9. 与前次报告的差异记录'],
+        ],
+      },
+    ],
+  },
+  {
+    group: '一期 · docs', items: [
+      {
+        file: '../../docs/design-proposal.html', name: '设计方案 design-proposal', sections: [
+          ['s1', '01 项目概述'], ['s2', '02 总体架构'], ['s3', '03 功能模块设计'],
+          ['s3-1', '3.1 用户与认证'], ['s3-2', '3.2 首页仪表盘'], ['s3-3', '3.3 应用与分类管理'],
+          ['s3-4', '3.4 多访问方式'], ['s3-5', '3.5 AI 助手'], ['s3-6', '3.6 Flow 自动化'],
+          ['s3-7', '3.7 系统监控'], ['s3-8', '3.8 通知中心'], ['s3-9', '3.9 设置与通用能力'],
+          ['s3-10', '3.10 局域网设备与数据服务'],
+          ['s4', '04 数据模型设计'], ['s5', '05 API 设计'], ['s6', '06 前端设计'], ['s7', '07 目录结构'],
+          ['s8', '08 Docker 部署'], ['s9', '09 安全设计'], ['s10', '10 开发路线图'], ['s11', '11 前置问题决策表'],
+        ],
+      },
+      {
+        file: '../../docs/feature-spec.html', name: '功能详述 feature-spec（220 点）', sections: [
+          ['ov', '00 文档说明'], ['map', '01 功能全景'], ['m01', 'M01 认证与账户'], ['m02', 'M02 首页仪表盘'],
+          ['m03', 'M03 应用与书签'], ['m04', 'M04 多访问方式'], ['m05', 'M05 AI 助手'],
+          ['m06', 'M06 Flow 自动化'], ['m07', 'M07 应用探活'], ['m08', 'M08 Docker 管理'],
+          ['m09', 'M09 通知中心'], ['m10', 'M10 工具箱'], ['m11', 'M11 文件管理'], ['m12', 'M12 下载与媒体'],
+          ['m13', 'M13 日程与提醒'], ['m14', 'M14 开放 API'], ['m15', 'M15 系统设置'],
+          ['m16', 'M16 移动端与 PWA'], ['m17', 'M17 服务器性能监控'], ['m18', 'M18 端口监控'],
+          ['m19', 'M19 局域网设备与路由器'], ['m20', 'M20 局域网数据库服务'],
+          ['perm', '权限矩阵'], ['plan', '阶段规划汇总'], ['new', '新增功能清单'], ['next', '下一步'],
+        ],
+      },
+      {
+        file: '../../docs/api-spec.html', name: '接口与数据模型 api-spec', sections: [
+          ['intro', '01 通用约定'], ['errors', '02 错误码表'], ['dm', '03 数据模型'],
+          ['dm-acc', '3.1 账户与安全'], ['dm-core', '3.2 门户核心'], ['dm-env', '3.3 网络环境'],
+          ['dm-mon', '3.4 探活与监控'], ['dm-port', '3.5 端口监控'], ['dm-ssh', '3.6 SSH 凭据与隧道'],
+          ['dm-flow', '3.7 Flow'], ['dm-notify', '3.8 通知'], ['dm-ai', '3.9 AI'],
+          ['dm-eff', '3.10 效率模块'], ['dm-sys', '3.11 系统与同步'], ['dm-lan', '3.12 局域网发现'],
+          ['api', '04 API 端点明细'], ['api-auth', '4.1 认证与账户'], ['api-apps', '4.2 分类与应用'],
+          ['api-env', '4.3 网络环境与隧道'], ['api-mon', '4.4 服务器监控'], ['api-port', '4.5 端口监控'],
+          ['api-rest', '4.6~4.13 其余模块'], ['api-lan', '4.14 局域网设备与路由器'],
+          ['api-db', '4.15 局域网数据库服务'], ['rt', '05 实时协议（WS/SSE）'],
+          ['env', '06 环境与配置附录'], ['sec7', '07 传输加密协议'],
+        ],
+      },
+      {
+        file: '../../docs/dev-plan.html', name: '开发计划 dev-plan（P0–P27）', sections: [
+          ['intro', '00 文档说明'], ['tech', '01 技术与工具清单'], ['test', '02 测试策略总则'],
+          ['board', '03 阶段总览（进度看板）'], ['m1', 'M1 阶段明细（P0~P8）'],
+          ['m2', 'M2 阶段明细（P9~P18/P23~P27）'], ['m3', 'M3 阶段明细（P19~P22）'], ['rules', '05 执行约定'],
+        ],
+      },
+      {
+        file: '../../docs/test-report.html', name: '测试报告 test-report v1.0', sections: [
+          ['t1', '01 测试环境与方法'], ['t2', '02 自动化基线（全绿）'], ['t3', '03 分模块功能测试'],
+          ['t4', '04 UI 遍历结果'], ['t5', '05 交互深测 / 性能与安全冒烟'], ['t6', '06 问题清单'],
+          ['t7', '07 实机待办清单'], ['t8', '08 结论'],
+        ],
+      },
+    ],
+  },
+];
+
+const frame = document.getElementById('frame');
+const nav = document.getElementById('nav');
+const curLabel = document.getElementById('curLabel');
+const filter = document.getElementById('filter');
+const side = document.getElementById('side');
+const LAST_KEY = 'portal.docIndex.last';
+let activeFile = null;
+let activeAnchor = null;
+
+/* 同源(HTTP)时兜底精确滚动到锚点；file:// 跨源会抛异常，此时依赖浏览器原生 #hash 滚动 */
+frame.addEventListener('load', () => {
+  if (!activeAnchor) return;
+  try {
+    const el = frame.contentDocument && frame.contentDocument.getElementById(activeAnchor);
+    if (el) el.scrollIntoView({ block: 'start' });
+  } catch (e) { /* 跨源访问受限，忽略 */ }
+});
+
+function docTitle(g, d){ return `${d.name}`; }
+
+function render(){
+  nav.innerHTML = '';
+  DOCS.forEach(g => {
+    const gl = document.createElement('div');
+    gl.className = 'group';
+    gl.innerHTML = `<div class="group-label">${g.group}</div>`;
+    g.items.forEach(d => {
+      const doc = document.createElement('div');
+      doc.className = 'doc';
+      doc.dataset.file = d.file;
+      doc.dataset.name = d.name;
+      const dead = d.dead ? `<span class="dead">${d.dead}</span>` : '';
+      const head = document.createElement('div');
+      head.className = 'doc-head';
+      head.innerHTML = `<span class="arrow">▶</span><span class="name">${d.name}</span>${dead}<span class="cnt">${d.sections.length}</span>`;
+      head.addEventListener('click', () => {
+        if (doc.classList.contains('active')) doc.classList.toggle('open');
+        else openDoc(d.file, null);
+      });
+      const body = document.createElement('div');
+      body.className = 'doc-body';
+      d.sections.forEach(([id, title]) => {
+        const a = document.createElement('a');
+        a.href = 'javascript:void(0)';
+        a.textContent = title;
+        a.dataset.anchor = id;
+        a.dataset.search = (d.name + title).toLowerCase();
+        a.addEventListener('click', e => { e.stopPropagation(); openDoc(d.file, id); });
+        body.appendChild(a);
+      });
+      head.dataset.search = d.name.toLowerCase();
+      doc.append(head, body);
+      gl.appendChild(doc);
+    });
+    nav.appendChild(gl);
+  });
+}
+
+/* 高亮 activeFile 的某个章节（anchor 为空 = 清除）；侧栏联动滚动保持选中项可见 */
+function setSection(anchor){
+  const doc = [...document.querySelectorAll('.doc')].find(el => el.dataset.file === activeFile);
+  if (!doc) return;
+  const link = anchor ? [...doc.querySelectorAll('.doc-body a')].find(a => a.dataset.anchor === anchor) : null;
+  if (anchor && !link) return; /* 不在目录里的锚点不处理 */
+  activeAnchor = anchor || null;
+  /* 全局清除旧高亮——切换文档后前一文档的选中项不能残留 */
+  document.querySelectorAll('.doc-body a.active').forEach(a => a.classList.remove('active'));
+  if (link){
+    link.classList.add('active');
+    const navRect = nav.getBoundingClientRect(), r = link.getBoundingClientRect();
+    if (r.top < navRect.top + 6 || r.bottom > navRect.bottom - 6) link.scrollIntoView({ block: 'nearest' });
+  }
+  const nameEl = doc.querySelector('.name');
+  const sec = link ? link.textContent : (anchor ? '#' + anchor : '');
+  curLabel.innerHTML = `当前：<b>${nameEl ? nameEl.textContent : activeFile}</b>${sec ? ' · ' + sec : ''}`;
+  try{ localStorage.setItem(LAST_KEY, activeFile + (activeAnchor ? '#' + activeAnchor : '')); }catch(e){}
+}
+
+function openDoc(file, anchor){
+  activeFile = file;
+  document.querySelectorAll('.doc').forEach(el => {
+    const on = el.dataset.file === file;
+    el.classList.toggle('active', on);
+    if (on) el.classList.add('open');
+  });
+  frame.src = file + (anchor ? '#' + anchor : '');
+  setSection(anchor || null);
+  if (window.innerWidth <= 900) side.classList.remove('show');
+}
+
+/* 文档内滚动 → 二级目录联动高亮（各文档嵌入段的 docScroll 广播，file:// 跨源同样可用） */
+window.addEventListener('message', (e) => {
+  if (e && e.data && e.data.type === 'docScroll' && e.data.anchor) setSection(e.data.anchor);
+});
+
+/* 筛选：匹配文件名或章节标题，命中章节自动展开其所属文档 */
+filter.addEventListener('input', () => {
+  const q = filter.value.trim().toLowerCase();
+  let any = false;
+  document.querySelectorAll('.doc').forEach(doc => {
+    const fileHit = doc.querySelector('.doc-head').dataset.search.includes(q);
+    let secHit = false;
+    doc.querySelectorAll('.doc-body a').forEach(a => {
+      const hit = !q || a.dataset.search.includes(q);
+      a.style.display = hit ? '' : 'none';
+      if (hit && q) secHit = true;
+    });
+    const show = !q || fileHit || secHit;
+    doc.classList.toggle('hidden', !show);
+    if (show) any = true;
+    doc.classList.toggle('open', q ? (fileHit || secHit) : doc.classList.contains('active'));
+  });
+  document.querySelectorAll('.group').forEach(g => {
+    const n = g.querySelectorAll('.doc:not(.hidden)').length;
+    g.classList.toggle('hidden', n === 0);
+  });
+  document.getElementById('noHit').style.display = any ? 'none' : 'block';
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){
+    e.preventDefault(); filter.focus(); filter.select();
+  }
+});
+document.getElementById('menuBtn').addEventListener('click', () => side.classList.toggle('show'));
+document.getElementById('openBtn').addEventListener('click', () => {
+  if (frame.src) window.open(frame.src, '_blank');
+});
+
+render();
+/* 恢复上次阅读位置（默认二期开发计划） */
+let last = null;
+try{ last = localStorage.getItem(LAST_KEY); }catch(e){}
+let target = null;
+if (last){
+  const [f, a] = last.split('#');
+  const g = DOCS.find(g => g.items.some(d => d.file === f));
+  if (g) target = [f, a || null];
+}
+if (!target) target = [DOCS[0].items[0].file, null];
+openDoc(target[0], target[1]);
+</script>
+</body>
+</html>

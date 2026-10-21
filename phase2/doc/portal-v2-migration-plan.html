@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal 二期 · Django × Art Design Pro 迁移方案</title>
+<style>
+  :root{
+    --primary:#4f6ef7;
+    --primary-dark:#1e3a8a;
+    --ink:#1f2937;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --code-bg:#0d1526;
+    --code-ink:#dbe4f3;
+    --warn-bg:#fff7ed;
+    --warn-line:#fdba74;
+    --ok:#10b981;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px;
+  }
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:264px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:28px 0 28px 26px;z-index:10;
+  }
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px;margin-bottom:4px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin-bottom:24px}
+  .toc a{
+    display:block;color:#94a3b8;text-decoration:none;font-size:13px;
+    padding:5px 14px 5px 0;border-left:2px solid transparent;padding-left:12px;margin-left:-14px;
+    transition:all .15s;
+  }
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .lv2{padding-left:24px;font-size:12px}
+  .toc .toc-gap{margin-top:12px}
+  .main{margin-left:264px;padding:0 40px 80px}
+  .content{max-width:1020px;margin:0 auto}
+  .hero{
+    margin:0 -40px 40px;padding:64px 40px 56px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%);
+  }
+  .hero .inner{max-width:1020px;margin:0 auto}
+  .hero h1{font-size:33px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:16px;color:#c7d6ff;max-width:820px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{
+    font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff;
+  }
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:34px 38px;margin-bottom:28px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{
+    font-size:22px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  h2 .no{
+    font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px;
+  }
+  h3{font-size:16.5px;margin:26px 0 10px;color:#0f172a}
+  h3::before{content:"▍";color:var(--primary);margin-right:6px}
+  h4{font-size:14.5px;margin:18px 0 8px;color:#0f172a}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:5px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;vertical-align:2px}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.p1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.p2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.p3{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  .badge.keep{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+  code{
+    font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:12.5px;background:#f1f5f9;color:#0f172a;padding:2px 6px;border-radius:5px;
+  }
+  pre{
+    background:var(--code-bg);color:var(--code-ink);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font-size:12.5px;line-height:1.7;margin:12px 0;
+  }
+  pre code{background:none;color:inherit;padding:0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th{background:#f8fafc;text-align:left;font-weight:600;color:#0f172a}
+  th,td{border:1px solid var(--line);padding:8px 12px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  td.num{color:var(--muted);font-variant-numeric:tabular-nums}
+  .callout{
+    background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;
+    padding:12px 18px;margin:14px 0;font-size:14px;color:#7c2d12;
+  }
+  .callout.info{background:#eff6ff;border-color:#93c5fd;color:#1e3a8a}
+  .callout.ok{background:#ecfdf5;border-color:#6ee7b7;color:#065f46}
+  .tree{background:#0d1526;color:#c9d6ec;border-radius:10px;padding:16px 20px;
+    font-family:"SF Mono",SFMono-Regular,Consolas,Menlo,monospace;font-size:12.5px;line-height:1.8;
+    overflow-x:auto;margin:12px 0;white-space:pre}
+  .tree b{color:#8fb0ff;font-weight:600}
+  .tree i{color:#64748b;font-style:normal}
+  .kv{display:grid;grid-template-columns:180px 1fr;gap:6px 14px;margin:10px 0;font-size:14px}
+  .kv dt{color:var(--muted)}
+  .kv dd{color:#0f172a}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+  @media (max-width:1100px){
+    .sidebar{display:none}.main{margin-left:0;padding:0 20px 60px}
+    .hero{margin:0 -20px 30px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="brand">Portal 二期 · <em>迁移方案</em></div>
+  <div class="sub">Django × Art Design Pro · v1.0</div>
+  <div class="toc">
+    <a href="#s1">1. 目标、范围与路线变化</a>
+    <a href="#s2">2. 总体架构</a>
+    <a href="#s2" class="lv2">2.1 架构图与请求生命周期</a>
+    <a href="#s2" class="lv2">2.2 二期目录结构</a>
+    <a href="#s3">3. 技术选型总表（逐项理由）</a>
+    <a href="#s3" class="lv2">3.1 框架与 API 层</a>
+    <a href="#s3" class="lv2">3.2 数据层与异步策略</a>
+    <a href="#s3" class="lv2">3.3 依赖增删清单</a>
+    <a href="#s4">4. Django 工程结构设计</a>
+    <a href="#s5">5. API 契约（原生 ADP + 业务保持）</a>
+    <a href="#s6">6. 数据模型与数据迁移</a>
+    <a href="#s6" class="lv2">6.1 32 表 → Django 模型六步法</a>
+    <a href="#s6" class="lv2">6.2 密码哈希兼容</a>
+    <a href="#s6" class="lv2">6.3 数据资产沿用与切换</a>
+    <a href="#s7">7. 认证与安全子系统移植</a>
+    <a href="#s8">8. WebSocket ×4 → Channels</a>
+    <a href="#s9">9. 后台任务（17 项）</a>
+    <a href="#s10">10. 前端 v2（Art Design Pro）</a>
+    <a href="#s11">11. 部署与切流</a>
+    <a href="#s12">12. 测试策略</a>
+    <a href="#s13">13. 阶段计划 D0–D9 + F0–F7</a>
+    <a href="#s14">14. 风险与回滚</a>
+    <a href="#s15">15. 文档关系与决策记录</a>
+  </div>
+</nav>
+
+<div class="main">
+<div class="content">
+
+<header class="hero">
+  <div class="inner">
+    <h1>Portal 二期迁移方案<span class="dot"> · Django × Art Design Pro</span></h1>
+    <p class="tagline">在 <code>phase2/</code> 全新工程中重写后端（FastAPI → Django 5.2 LTS + Django Ninja + Channels）与前端（Art Design Pro v3.0.2），功能与一期 1:1 对齐（feature-spec 220 功能点基线不变）。一期（FastAPI + v1 前端）全程冻结运行、零改动，二期验收后切换为双容器部署——nginx 容器托管前端（<code>/portal/</code> 二级路径）+ Django 后端容器（端口不发布到宿主，仅容器网络通信），卷内数据直接沿用。本方案覆盖选型、工程结构、契约、数据迁移、认证、WebSocket、后台任务、前端、部署、测试与阶段计划全部细节。</p>
+    <div class="meta">
+      <span class="chip">方案版本 v1.0</span>
+      <span class="chip">2026-10-21</span>
+      <span class="chip">后端 Django 5.2 LTS + Ninja</span>
+      <span class="chip">前端 Art Design Pro v3.0.2</span>
+      <span class="chip">一期零改动 · 数据沿用</span>
+      <span class="chip">双容器：nginx 前端 /portal/ + 后端端口不暴露</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="s1">
+  <h2><span class="no">1</span>目标、范围与路线变化</h2>
+
+  <h3>1.1 二期定义</h3>
+  <ul>
+    <li><strong>新工程</strong>：项目根新建 <code>phase2/</code>（含 <code>doc/</code>、<code>backend/</code>、<code>frontend/</code>），与一期目录完全隔离，互不干扰。</li>
+    <li><strong>后端重写</strong>：FastAPI（Python 3.12）→ <strong>Django 5.2 LTS</strong>（同为 Python 3.12），API 层用 <strong>Django Ninja</strong>，WebSocket 用 <strong>Channels</strong>。</li>
+    <li><strong>前端建设</strong>：Art Design Pro v3.0.2（已拉取于 <code>frontend-artdesign/</code>，D0 阶段迁入 <code>phase2/frontend/</code>）。</li>
+    <li><strong>功能不变</strong>：285 个 API 端点、4 条 WebSocket、17 项后台任务、32 张表、220 个功能点（feature-spec v1.6 基线）、传输加密、i18n、PWA——全部 1:1 保留，只换实现载体。</li>
+    <li><strong>数据不变</strong>：SQLite 主库、<code>data/</code> 卷资产（RSA 密钥、图标、采样数据）直接沿用，切换日零数据迁移。</li>
+  </ul>
+
+  <h3>1.2 与前两份方案的关系（路线变化）</h3>
+  <table>
+    <thead><tr><th style="width:30%">文档</th><th style="width:26%">路线</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>docs/artdesign-analysis.html</td><td>框架分析 + "改前端适配一期后端"的迁移设想</td><td>分析部分仍有效（§2 框架全景 / §3 功能基线为二期输入）；迁移路线被本方案取代</td></tr>
+      <tr><td>docs/artdesign-migration-plan.html</td><td>改一期 FastAPI 后端适配 ADP（B1 信封 / B2 认证）</td><td><strong>作废</strong>——一期不再改动；ADP 契约改在 Django 侧<strong>原生实现</strong>，无需任何适配层</td></tr>
+      <tr><td><strong>本方案（phase2/doc）</strong></td><td>二期全新 Django 后端 + ADP 前端</td><td><strong>现行有效</strong></td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok">✅ <strong>这条路线的最大红利</strong>：一期 FastAPI 与 v1 前端零改动、零风险持续服务生产；新后端从第一行代码就原生说 ADP 的语言（<code>code=200/msg</code>、<code>userName</code>、<code>{token,refreshToken}</code>、<code>/api/user/info</code>），前端 v2 的认证与请求层与框架原生形态零偏差；此前方案里所有"v1 补丁 / 信封替换 / 42 测试文件回归"的成本全部消失。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s2">
+  <h2><span class="no">2</span>总体架构</h2>
+
+  <h3>2.1 架构图与请求生命周期</h3>
+<div class="tree">  宿主 8080 ──► <b>nginx 容器（唯一发布端口）</b>
+                   ├─ /portal/      → 前端 dist（二级路径 · SPA 回退 · 入口 no-cache）
+                   └─ /api /ws /icons /tunnel /files → 反代 backend:8000（WS 带 Upgrade 头）
+                        │ <i>docker bridge 内网——后端端口不发布到宿主</i>
+                      uvicorn（backend 容器，单进程，同一期）
+                        │ ASGI
+        ┌───────────────▼────────────────────────┐
+        │  TransportEncryptionMiddleware（<b>纯 ASGI，一期原样移植</b>）   │  /api 信封加解密、ENC 头、X-Session-Id
+        │  豁免：/api/health /api/crypto/* /api/public/* /api/hooks/* sig= 直链 │
+        └───────────────┬────────────────────────┘
+                        │
+        ┌───────────────▼────────────────────────┐
+        │  Django 5.2 ASGI（config.asgi）         │
+        │  ├ http → Django 处理链：               │
+        │  │   LocaleMiddleware(Accept-Language)  │
+        │  │   AuditMiddleware（<b>读已解密 Bearer，天然无一期缺陷</b>）     │
+        │  │   → URL 路由：/api/** → <b>Django Ninja</b> API（9 个 app 的 router 聚合）│
+        │  │             /icons /tunnel/{id} /files/raw → 静态/反代视图     │
+        │  │             / 与深链接 →（可选保留）本地直连 SPA 视图；<b>生产前端由 nginx 托管</b>│
+        │  └ websocket → Channels ProtocolTypeRouter             │
+        │        /ws/notify /ws/monitor /ws/ai-chat /ws/ssh-terminal（4 消费者）│
+        └───────────────┬────────────────────────┘
+                        │
+        ┌───────────────▼────────────────────────┐
+        │ Django ORM → SQLite（data/data.db，沿用一期库文件）│
+        │ APScheduler（17 任务，AppConfig.ready 启动）      │
+        │ services 层（30 个模块，一期原样移植）             │
+        │  psutil / asyncssh / ldap3 / dulwich / httpx /   │
+        │  aiomysql(外部 MySQL) / redis(可选) / SNM P…     │
+        └────────────────────────────────────────┘</div>
+  <p><strong>请求生命周期</strong>（以加密登录为例）：浏览器 → <strong>nginx</strong>（<code>/portal/</code> 静态命中，或 <code>/api</code> 反代进内网）→ 后端容器 uvicorn → 加密 ASGI 中间件（解密信封与 ENC Authorization）→ Django Locale（i18n）→ 审计（此时已可见明文 <code>Bearer &lt;jwt&gt;</code>，一期"加密下审计 user_id=None"的缺陷在新架构天然不存在）→ Ninja 端点（鉴权 Depends → 服务层 → ORM）→ ok() 信封 → 加密封包 → nginx → 浏览器。API 仍为同源根绝对路径 <code>/api/...</code>（仅页面本身位于 /portal/ 下），前端 v2 的 http 层（握手 + 信封 + 静默续期）与一期行为完全一致。</p>
+
+  <h3>2.2 二期目录结构</h3>
+<div class="tree">phase2/
+├── doc/                          <i>二期文档（本方案、后续设计/测试文档）</i>
+├── backend/                      <i>Django 工程（D0 创建）</i>
+│   ├── manage.py
+│   ├── requirements.txt          <i>Django 系依赖（§3.3）</i>
+│   ├── pytest.ini / ruff.toml
+│   ├── config/                   <i>Django 工程：settings.py / asgi.py / urls.py / api.py(Ninja 聚合)</i>
+│   ├── apps/
+│   │   ├── core/                 <i>信封 ok()/fail()、BizError、加密中间件、i18n、stores、secret_box、SPA 视图、审计、限流</i>
+│   │   ├── accounts/             <i>auth/tokens/enterprise(OIDC·LDAP)/users + User 模型</i>
+│   │   ├── portal/               <i>apps/categories/icons/probe/layouts(me·tabs)/env/network_profiles + public/apps</i>
+│   │   ├── monitor_hub/          <i>monitor/alerts/ports/system/logs/audit/agents/docker + /ws/monitor</i>
+│   │   ├── network_lan/          <i>lan/lan_db(三查看器)/tunnels/tools + 扫描服务</i>
+│   │   ├── automation/           <i>flows/hooks/ai + /ws/ai-chat</i>
+│   │   ├── content/              <i>knowledge/files/downloads/schedule(日历·待办)</i>
+│   │   ├── notify_center/        <i>notifications/notify-channels/notify-rules + /ws/notify</i>
+│   │   └── system_admin/         <i>settings/sync/redis/sync-logs/backup/update + /ws/ssh-terminal</i>
+│   └── tests/                    <i>pytest-django（一期 42 文件迁移 + 新增契约/schema 用例）</i>
+├── frontend/                     <i>Art Design Pro v3.0.2（D0 自 frontend-artdesign 迁入；构建 base=/portal/）</i>
+├── deploy/
+│   ├── Dockerfile.backend        <i>python:3.12-slim —— 纯后端镜像（不再构建/托管前端）</i>
+│   ├── Dockerfile.frontend       <i>node:22 构建 → nginx:alpine（dist 拷入 /portal/ + nginx.conf）</i>
+│   └── nginx/nginx.conf          <i>二级路径 /portal/ + /api 等反代 + WS Upgrade 头</i>
+└── docker-compose.yml            <i>backend（无 ports，仅内网）+ frontend/nginx（发布 8080）+ data 卷挂 backend</i></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s3">
+  <h2><span class="no">3</span>技术选型总表（逐项理由）</h2>
+
+  <h3>3.1 框架与 API 层</h3>
+  <table>
+    <thead><tr><th style="width:16%">关注点</th><th style="width:22%">一期（FastAPI）</th><th style="width:24%">二期选型</th><th>理由 / 迁移方式</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Web 框架</td><td>FastAPI ≥0.115</td>
+        <td><strong>Django 5.2 LTS</strong>（Python 3.12 不变）</td>
+        <td>用户指定换 Django。选 5.2 LTS（支持至 2028）而非 6.x：NAS 长周期部署取 LTS；成熟度与三方包兼容最稳</td>
+      </tr>
+      <tr>
+        <td>API 层</td><td>FastAPI 路由 + Pydantic v2</td>
+        <td><strong>Django Ninja</strong>（Pydantic v2 驱动）</td>
+        <td><strong>关键选型</strong>：Ninja 的装饰器风格、Schema 校验、<code>Depends</code> 依赖注入与 FastAPI 几乎 1:1——一期 35 个路由文件、<code>app/schemas/</code> 全套 Pydantic 模型<strong>机械迁移</strong>（改 import：<code>BaseModel</code>→<code>ninja.Schema</code> 或直接保留 pydantic 模型、<code>fastapi.Depends</code>→<code>ninja.Depends</code>、<code>Query()</code> 参数形态微调）。备选 DRF 弃选理由：Serializer/ViewSet 体系与一期代码形态差异大，285 端点重写成本数倍</td>
+      </tr>
+      <tr>
+        <td>API 文档</td><td>FastAPI 自带 /docs</td>
+        <td>Ninja 自带 <code>/api/docs</code>（Swagger）</td>
+        <td>开发期开启；生产环境 <code>settings.DEBUG=False</code> 时关闭（与一期生产行为对齐——一期生产也未暴露 docs）</td>
+      </tr>
+      <tr>
+        <td>WebSocket</td><td>Starlette 原生端点 ×4</td>
+        <td><strong>Channels 4</strong>（ASGI 消费者）</td>
+        <td>Django 生态 WS 标准方案；uvicorn 直接伺服（无需 Daphne）；消费者化后天然获得 group 广播（/ws/notify 需要）。详见 §8</td>
+      </tr>
+      <tr>
+        <td>服务器</td><td>uvicorn[standard]</td>
+        <td><strong>uvicorn[standard]（不变）</strong></td>
+        <td>Django ASGI 同由 uvicorn 伺服：<code>uvicorn config.asgi:application --port 8000</code>；一期部署命令形态保持</td>
+      </tr>
+      <tr>
+        <td>配置</td><td>pydantic-settings（config.py）</td>
+        <td>Django <code>settings.py</code> + <code>os.environ</code></td>
+        <td>Django 惯例；<strong>环境变量键名与一期保持一致</strong>（SECRET_KEY / DATA_DIR / DB_TYPE / HOST_PROC / HOST_SYS / DOCKER_SOCK_ENABLED / OFFICE_CONVERT_URL / SECURITY__ENCRYPT_ENABLED / TRANSPORT_RSA_BITS / LAN_SCAN_CIDRS / UPDATE_REPO …）；差异两处：<code>FRONTEND_DIST</code> <strong>废除</strong>（前端改由 nginx 容器托管，§11）、新增 <code>PORTAL_RUN_SCHEDULER</code>（§9 调度守卫）</td>
+      </tr>
+      <tr>
+        <td>后台任务</td><td>APScheduler 3.x（lifespan 启动 17 任务）</td>
+        <td><strong>APScheduler 3.x（不变）</strong></td>
+        <td>单容器场景 Celery 过重；启动点从 FastAPI lifespan 改到 Django <code>AppConfig.ready()</code>（§9）。Django-Q2 弃选：多一层 worker 进程模型，收益为零</td>
+      </tr>
+      <tr>
+        <td>模板/后台</td><td>—</td>
+        <td>Django Admin <strong>禁用</strong>（不注册任何模型）</td>
+        <td>Portal 已有完整管理界面；Admin 面暴露反而成攻击面。INSTALLED_APPS 不含 admin，urls 不挂后台路由</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 数据层与异步策略</h3>
+  <table>
+    <thead><tr><th style="width:16%">关注点</th><th style="width:22%">一期</th><th style="width:24%">二期</th><th>理由 / 迁移方式</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>ORM / 主库</td><td>SQLAlchemy 2 + aiosqlite → SQLite</td>
+        <td><strong>Django ORM → 同一 SQLite 文件</strong></td>
+        <td>32 表用 <code>inspectdb</code> 对齐既有库（表名/列名原样），<code>migrate --fake-initial</code> 接管既有数据，<strong>零数据迁移</strong>（六步法见 §6.1）</td>
+      </tr>
+      <tr>
+        <td>MySQL 镜像同步</td><td>aiomysql（客户端推送到 NAS MySQL）</td>
+        <td><strong>aiomysql 保留</strong>（外部客户端，不经 Django ORM）</td>
+        <td>同步引擎是"读 SQLite → 写外部 MySQL"的客户端行为；源侧读改 Django ORM，目标侧 aiomysql 原样</td>
+      </tr>
+      <tr>
+        <td>异步策略</td><td>全异步（async 端点 + aiosqlite）</td>
+        <td><strong>混合</strong>：DB 型端点 = 同步 def（Ninja 自动线程池，语义同 FastAPI 的 sync 路由）；网络型端点 = async def</td>
+        <td>Django 的 SQLite 引擎是同步 sqlite3；把 DB 访问统一收敛到同步端点避免 <code>SynchronousOnlyOperation</code> 包裹地狱。保留 async 的场景：MySQL 同步/测试、SSH 隧道与 WebSSH（asyncssh）、SNMP/UPnP 探测、AI 流式、docker sock 调用——这些服务本身网络 IO 密集，一期就是 async，直搬</td>
+      </tr>
+      <tr>
+        <td>缓存/共享态</td><td>stores（内存 dict + 可选 Redis：rl:/bl:/cs:/wsbus）</td>
+        <td><strong>stores 模块原样移植</strong></td>
+        <td>限流计数、jti 黑名单、加密会话、WS 广播总线均为框架无关实现；Redis 可用时照旧启用</td>
+      </tr>
+      <tr>
+        <td>密钥加密</td><td>cryptography（RSA-OAEP + AES-GCM + Fernet secret_box）</td>
+        <td><strong>不变，版本约束照搬 <code>&gt;=42.0,&lt;45</code></strong></td>
+        <td>一期 requirements 有实测注释：部分 Apple Silicon 虚拟化环境 ≥45 的 aarch64 wheel 加载 _rust 即 SIGILL——<strong>该 pin 连注释一并带入二期 requirements</strong>，避免踩同一坑</td>
+      </tr>
+      <tr>
+        <td>认证库</td><td>PyJWT + bcrypt + 手写 TOTP</td>
+        <td><strong>全部不变</strong>（PyJWT / bcrypt / totp.py 直搬）</td>
+        <td>JWT HS256、token_version、jti 黑名单、plt_ API Token、TOTP 均为自研纯 Python，框架无关；密码哈希兼容见 §6.2</td>
+      </tr>
+      <tr>
+        <td>领域服务</td><td>30 个 services 模块（monitor/probe/flow/lan_*/knowledge_*/ai/notify/mysql_sync/qbittorrent/…）</td>
+        <td><strong>原样移植，仅替换 DB 访问点</strong></td>
+        <td>psutil/docker(sock HTTP)/asyncssh/ldap3/dulwich/httpx/Pillow 等依赖全部保留；唯一改写点 = SQLAlchemy session 调用 → Django ORM（逐模块清单在 D3–D7 阶段核对）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.3 依赖增删清单（requirements.txt）</h3>
+  <table>
+    <thead><tr><th style="width:20%">动作</th><th>包</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge p1">新增</span></td><td><code>django&gt;=5.2,&lt;5.3</code>、<code>django-ninja</code>、<code>channels&gt;=4</code>、<code>channels-redis</code>（可选，Redis 启用时）、<code>pytest-django</code>（dev）</td></tr>
+      <tr><td><span class="badge keep">保留</span></td><td><code>uvicorn[standard]</code>、<code>pydantic&gt;=2.7</code>（Ninja 依赖）、<code>bcrypt</code>、<code>PyJWT</code>、<code>cryptography&gt;=42.0,&lt;45</code>（含 SIGILL 注释）、<code>python-multipart</code>（Ninja 文件上传同需要）、<code>httpx</code>、<code>Pillow</code>、<code>psutil</code>、<code>APScheduler&gt;=3.10,&lt;4</code>、<code>aiomysql</code>、<code>redis</code>、<code>asyncssh</code>、<code>ldap3</code>、<code>dulwich</code>；dev：<code>pytest</code>、<code>pytest-asyncio</code>、<code>ruff</code></td></tr>
+      <tr><td><span class="badge p3">移除</span></td><td><code>fastapi</code>、<code>sqlalchemy</code>、<code>aiosqlite</code>、<code>greenlet</code>、<code>pydantic-settings</code>（配置改 Django settings.py）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s4">
+  <h2><span class="no">4</span>Django 工程结构设计</h2>
+  <p>一期 35 个路由文件按业务域收敛为 <strong>9 个 app</strong>（每个 app 内含 <code>models.py / api.py（Ninja router）/ services.py / tests/</code>），路由前缀与端点路径<strong>逐字保持</strong>：</p>
+  <table>
+    <thead><tr><th style="width:15%">app</th><th style="width:34%">承接一期路由文件（router.py L42-76 聚合序）</th><th>端点群 / 备注</th></tr></thead>
+    <tbody>
+      <tr><td><code>core</code></td><td>health.py、crypto.py + main.py 顶层（icons/tunnel 反代/files/raw）</td><td>/api/health、/api/crypto/*、tunnel 反代视图、加密中间件、审计、限流、i18n、stores、secret_box、ok()/fail() 信封、BizError；SPA 视图仅本地直连调试可选保留（生产前端在 nginx，§11）</td></tr>
+      <tr><td><code>accounts</code></td><td>auth.py、enterprise.py、tokens.py、users.py</td><td>登录全家桶（init/login/refresh/logout/me/<strong>user/info</strong>/password/TOTP/sessions）+ OIDC/LDAP + API Token + 用户管理；User 模型（自定义 AUTH_USER_MODEL）</td></tr>
+      <tr><td><code>portal</code></td><td>apps.py、categories.py、icons.py、probe.py、layouts.py、me.py、network_profiles.py</td><td>应用/入口/分组/图标/探活/收藏/回收站/模板/导入导出、/me/layouts·tabs·env、网络档案与连通矩阵、/api/public/apps</td></tr>
+      <tr><td><code>monitor_hub</code></td><td>monitor.py、ports.py、system.py、logs.py、audit.py、agents.py、docker.py</td><td>监控/历史/进程/证书/告警规则与事件/天气与汇总、端口四体系、系统体检/备份/恢复出厂/在线更新、双日志、Agent 纳管、容器管理 + /ws/monitor 消费者</td></tr>
+      <tr><td><code>network_lan</code></td><td>lan.py、lan_db.py、tunnels.py、tools.py</td><td>网段/扫描/设备/路由器/SNMP/UPnP、数据库服务与三查看器（MySQL/Redis/MinIO）与凭据、SSH 凭据与隧道、工具箱（WoL/端口测试/DNS）</td></tr>
+      <tr><td><code>automation</code></td><td>flows.py、ai.py</td><td>Flow CRUD/运行/试运行/画布/webhook hooks/模板、AI Provider/会话/草稿 + /ws/ai-chat 消费者</td></tr>
+      <tr><td><code>content</code></td><td>knowledge.py、files.py、downloads.py、schedule.py</td><td>知识源/目录树/读取/签名直链/zip/写回、文件管理、qBittorrent/Jellyfin、日历/待办/ICS/节假日（含农历）</td></tr>
+      <tr><td><code>notify_center</code></td><td>notify.py</td><td>站内通知、8 类渠道 CRUD/测试、事件×渠道路由矩阵、阈值规则 + /ws/notify 消费者</td></tr>
+      <tr><td><code>system_admin</code></td><td>settings.py、sync.py、redis.py、sync_log.py</td><td>设置读写、MySQL 同步配置/推送/恢复、Redis 存储模式、同步日志 + /ws/ssh-terminal 消费者</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Ninja 聚合</strong>：<code>config/api.py</code> 创建 <code>NinjaAPI(openapi_url=None 生产)</code>，按上表 include 各 app 的 router，最后 <code>config/urls.py</code> 挂 <code>path("api/", api.urls)</code>——对外路径与一期 <code>/api/...</code> 完全一致。一期路由文件中的"无前缀、路径全写在装饰器"风格在 Ninja 中保持（<code>@router.get("/apps")</code> 等）。</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s5">
+  <h2><span class="no">5</span>API 契约（原生 ADP + 业务保持）</h2>
+
+  <h3>5.1 ADP 四契约——Django 原生实现（无适配层）</h3>
+  <table>
+    <thead><tr><th style="width:26%">契约点</th><th style="width:38%">Django/Ninja 实现</th><th>框架侧（零改动直用）</th></tr></thead>
+    <tbody>
+      <tr><td>信封 <code>{code:200, msg, data}</code></td><td><code>core/response.py</code>：<code>ok(data)</code> → <code>{"code":200,"msg":"ok","data":…}</code>；<code>BizError</code> 经 Ninja 异常处理器输出 <code>{"code":业务码,"msg":…,"data":null}</code> + 真实 HTTP 状态（双轨制同一期）</td><td>ADP 拦截器原生判定 <code>code===200</code>、读 <code>msg</code></td></tr>
+      <tr><td>登录 <code>POST /api/auth/login</code></td><td>入参 <code>{userName, password, totp_code?}</code>（userName 为一等字段名）；响应 <code>{token, refreshToken, token_type, user:{id,username,role,totp_enabled}}</code>——camelCase 为主，不再需要 snake_case 旧字段（v2 不消费）；init/OIDC/LDAP 同形</td><td>ADP <code>fetchLogin</code> 直用；登录页解构 <code>{token, refreshToken}</code> 直用</td></tr>
+      <tr><td>用户信息 <code>GET /api/user/info</code></td><td>原生端点：<code>{userId, userName, email:"", avatar:"", roles:["R_ADMIN"|"R_USER"], buttons:[]}</code>（role 字符串 → ADP 菜单常量映射）；<code>/api/auth/me</code> 并存（v2 安全面板 TOTP 状态用）</td><td>ADP 路由守卫首跳直拉，MenuProcessor 按 roles 过滤菜单</td></tr>
+      <tr><td>Authorization 头</td><td>鉴权 Depends 同时接受 <code>&lt;jwt&gt;</code> 裸值与 <code>Bearer &lt;jwt&gt;</code>（加密层解密 ENC 后回填的内层格式也兼容）；WS 仍 query <code>?token=</code></td><td>ADP 拦截器原样发 token，零处理</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 一期业务契约——逐项保持（v2 页面代码直搬的依据）</h3>
+  <ul>
+    <li><strong>285 端点</strong>：方法 + 路径 + 权限（公开 17 / 登录 107 / 管理员 161）逐字对齐一期盘点表；D8 阶段以脚本自动 diff 一期 OpenAPI 与二期 Ninja Schema 做全量核对。</li>
+    <li><strong>错误码 1001–5006</strong> 全部保持（含 1006 限流、1007 TOTP、1100/1101/1102 加密层、2001 校验、3001 越权、4001–4006 资源、5001/5002 兜底）——v2 页面的 <code>withCode</code> 分支逻辑不变。</li>
+    <li><strong>分页</strong> <code>?page=&amp;page_size=</code> → <code>{items,total,page,page_size}</code>；<strong>i18n</strong> Accept-Language（zh-CN/en，MESSAGES 字典直搬）；<strong>限流</strong> 同 IP 60s×5。</li>
+    <li><strong>传输加密协议</strong>：RSA-3072 OAEP(SPKI b64 公钥下发)、AES-256-GCM 信封 <code>{enc:1,n,p}</code>、<code>Authorization: ENC &lt;nonce&gt;:&lt;payload&gt;</code>、X-Session-Id、nonce LRU 防重放、会话 TTL 7 天、豁免清单——中间件纯 ASGI <strong>一行不改直接包裹 Django</strong>；<code>data/keys/transport_rsa.pem</code> 沿用（老会话跨切换日仍有效）。</li>
+    <li><strong>4 条 WS 帧</strong>：notify(app_status/notification 广播)、monitor(2s 帧)、ai-chat(delta/done/error+navigate_app_id)、ssh-terminal(裸文本)——§8。</li>
+    <li><strong>顶层路由</strong>：<code>/icons</code> 静态、<code>/tunnel/{id}/{path}</code> 反代（t/cookie 签名）、<code>/files/raw?token=</code> 直链——生产由 nginx 反代到后端容器；SPA 深链接回退与入口 no-cache 改由 nginx 承担（§11.2），后端 SPA 视图仅本地直连调试可选保留。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s6">
+  <h2><span class="no">6</span>数据模型与数据迁移</h2>
+
+  <h3>6.1 32 表 → Django 模型六步法（零数据迁移）</h3>
+  <p>一期 23 个模型文件（app/models/：user/portal/probe/monitor/port/lan/network/flow/ai/knowledge/notify/audit/setting/sync/tools/tunnel/schedule/layout/api_token/agent/system_log/base）对应 SQLite <code>data.db</code> 约 32 张表。策略：<strong>Django 模型对齐既有库，库不动模型动</strong>。</p>
+  <ol>
+    <li><strong>快照</strong>：复制生产 <code>data.db</code> 为开发基线（并行期二期只连快照副本，见 6.3）。</li>
+    <li><strong>inspectdb</strong>：<code>python manage.py inspectdb &gt; apps/_snapshot_models.py</code> 生成全部表的模型草案（自动带 <code>db_table</code>/<code>db_column</code>/managed=False）。</li>
+    <li><strong>清洗归位</strong>：按 §4 的 app 划分拆进各 <code>models.py</code>；<code>managed=False</code> 改 <code>True</code>（获得后续迁移能力）；修正类型（TEXT JSON 字段按一期用法选 <code>JSONField</code>/<code>TextField</code>）；User 表接入 <code>AUTH_USER_MODEL</code>（AbstractBaseUser，username 主键语义不变，password 字段存 bcrypt 串）。</li>
+    <li><strong>生成迁移</strong>：<code>makemigrations</code> 生成 0001_initial——此时迁移 DDL 应与既有表结构一致。</li>
+    <li><strong>fake 接管</strong>：对快照库 <code>migrate --fake-initial</code>（Django 检测到表已存在则只记录迁移记录，不动数据）。</li>
+    <li><strong>schema diff 校验</strong>：写脚本对一期 SQLAlchemy metadata 与二期 Django migration 状态做逐表逐列 diff（名/类型/nullable/索引/唯一约束），D1 关卡要求 diff 为空；32 表逐表 <code>count(*)</code> 与抽样行比对。</li>
+  </ol>
+  <div class="callout">⚠️ SQLite 注意：一期若建了 <code>WITHOUT ROWID</code>/部分索引等 Django 迁移不还原的细节，diff 脚本会暴露；此类差异保持 <code>managed=False</code> 单表豁免（Django 完全可用非托管表），不追求 100% 托管。</div>
+
+  <h3>6.2 密码哈希兼容（登录无缝）</h3>
+  <p>一期用 bcrypt（passlib 风格裸串 <code>$2b$12$...</code> 直接存列），Django 内置 bcrypt hasher 期望 <code>bcrypt$&lt;hash&gt;</code> 前缀格式。<strong>方案</strong>：写一个自定义 hasher 挂 <code>PASSWORD_HASHERS</code> 首位：</p>
+  <pre><code># apps/accounts/hashers.py —— 识别一期裸 bcrypt 串，登录验证直通
+class PortalLegacyBcryptHasher(BasePasswordHasher):
+    algorithm = "portal_bcrypt"          # identify(): 串以 $2b$/$2a$/$2y$ 开头即认领
+    def verify(self, password, encoded): return bcrypt.checkpw(...)
+    def encode(...) / needs_update(...)   # 验证通过后标记升级为 Django bcrypt$ 格式（可选）</code></pre>
+  <p>登录端点不依赖 Django authenticate 也可（沿用一期 security.py 的 bcrypt 直查——<strong>更省事，推荐</strong>，hasher 仅作为未来用 Django 密码体系的兼容垫片备着）。<strong>效果</strong>：既有用户密码零重置、切换日无感。</p>
+
+  <h3>6.3 数据资产沿用与切换窗口</h3>
+  <table>
+    <thead><tr><th style="width:30%">资产</th><th>处理</th></tr></thead>
+    <tbody>
+      <tr><td><code>data/data.db</code>（32 表）</td><td>同一文件，二期 Django ORM 直连（6.1 六步法）；切流日卷不动</td></tr>
+      <tr><td><code>data/keys/transport_rsa.pem</code></td><td>沿用——前端加密握手 kid 不变，切换日浏览器无需重新握手（会话密钥内存态会重建，属正常）</td></tr>
+      <tr><td><code>data/icons/</code>、监控采样表、审计/日志表</td><td>随库与卷沿用；/icons 静态挂载路径不变</td></tr>
+      <tr><td>Fernet secret_box 密钥（settings 机密加密）</td><td>secret_box.py 直搬 + 密钥文件沿用 → 通知渠道/API Key 等机密设置无缝解密</td></tr>
+      <tr><td><strong>并行期数据一致</strong></td><td>开发/验收期二期连 <code>data.db</code> <strong>快照副本</strong>（绝不双写生产卷）；上线切流 = 停一期容器 → 备份卷 → 起新容器挂同一卷（预期停机 &lt;5 分钟）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s7">
+  <h2><span class="no">7</span>认证与安全子系统移植</h2>
+  <table>
+    <thead><tr><th style="width:22%">子系统</th><th style="width:26%">一期落点</th><th>二期落点与方式</th></tr></thead>
+    <tbody>
+      <tr><td>JWT 体系</td><td>core/security.py（HS256；access 30min / refresh 7d；token_version 踢全端；jti 黑名单）</td><td><strong>security.py 直搬</strong>（PyJWT + bcrypt 纯 Python）；<code>get_auth_context</code>/<code>require_admin</code> 改写为 Ninja <code>Depends</code>（逻辑不变：Bearer 可选前缀 + plt_ API Token 双通道 + ro scope 拒写 + 黑名单 + token_version）</td></tr>
+      <tr><td>登录限流</td><td>core/ratelimit.py + stores（rl:{ip}，60s×5，1006）</td><td>直搬；stores 见 §3.2</td></tr>
+      <tr><td>TOTP</td><td>services/totp.py（手写 RFC6238 + otpauth URI + 恢复码）</td><td>直搬；setup/enable/disable 端点路径不变；1007 分支不变</td></tr>
+      <tr><td>OIDC</td><td>enterprise.py（authorize state 签名 + callback 自动开通 user）</td><td>httpx 调用直搬；state 签名复用 create_signed_token</td></tr>
+      <tr><td>LDAP</td><td>enterprise.py（ldap3，DN 模板绑定）</td><td>ldap3 直搬</td></tr>
+      <tr><td>会话管理</td><td>UserSession 表 + sessions CRUD/吊销</td><td>模型接管 + 端点不变；登出 jti 黑名单 TTL 逻辑直搬</td></tr>
+      <tr><td>API Token</td><td>plt_ + SHA-256 落库 + ro/rw scope</td><td>模型接管（api_token 表）+ deps 逻辑直搬</td></tr>
+      <tr><td>审计</td><td>audit_middleware.py（写方法落库；豁免 login/refresh/hooks）</td><td>改写为 <strong>Django middleware</strong>；置于加密 ASGI 中间件内侧 → 天然读到解密后的 Bearer（一期"加密下 user_id=None"缺陷不复现）；错误响应取 msg 字段落 error_msg</td></tr>
+      <tr><td>传输加密</td><td>core/crypto.py + middleware.py（纯 ASGI）</td><td><strong>一行不改</strong>包裹 <code>config.asgi:application</code>；豁免清单/1100/1101/1102/nonce LRU 全保持</td></tr>
+      <tr><td>CORS</td><td>无（同源托管 + Vite 代理）</td><td>保持无；v2 dev 代理 /api /ws /icons /tunnel → <strong>127.0.0.1:8001</strong>（二期后端开发端口，避让一期 8000）</td></tr>
+      <tr><td>访客面</td><td>/api/public/apps（guest.enabled 控制，404 兜底）</td><td>端点不变，挂公开依赖</td></tr>
+      <tr><td>Webhook/Agent 面</td><td>/api/hooks/flow/{token}、/api/monitor/agents/report（自鉴权 + 免加密）</td><td>路径与豁免不变</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s8">
+  <h2><span class="no">8</span>WebSocket ×4 → Channels</h2>
+  <p><code>config/asgi.py</code> 采用 Channels 标准结构，HTTP 与 WS 分流：</p>
+<pre><code>application = ProtocolTypeRouter({
+    "http": TransportEncryptionMiddleware(django_asgi_app),   # 加密只包 HTTP 面
+    "websocket": AuthTokenMiddleware(                         # query ?token= 校验（4401）
+        URLRouter([
+            re_path(r"^ws/notify$", NotifyConsumer.as_asgi()),
+            re_path(r"^ws/monitor$", MonitorConsumer.as_asgi()),
+            re_path(r"^ws/ai-chat$", AiChatConsumer.as_asgi()),
+            re_path(r"^ws/ssh-terminal$", SshTerminalConsumer.as_asgi()),
+        ])
+    ),
+})</code></pre>
+  <table>
+    <thead><tr><th style="width:18%">消费者</th><th style="width:34%">一期行为（保持不变）</th><th>Channels 实现</th></tr></thead>
+    <tbody>
+      <tr><td>NotifyConsumer</td><td>/ws/notify：服务端单向广播 app_status / notification 帧；客户端文本仅保活</td><td>登录后 <code>group_add("notify")</code>；一期 wsbus 服务改为向 channel layer <code>group_send</code>（InMemory 层；Redis 启用时切 channels-redis，接口一致）；token 失效 close 4401</td></tr>
+      <tr><td>MonitorConsumer</td><td>/ws/monitor：每 <code>monitor.push_interval</code>（默认 2s）推 <code>{type:"monitor",data:{ts,system,cpu,mem,disks,nets,io,gpu,temps}}</code></td><td>AsyncConsumer + asyncio 循环取 monitor 服务快照；帧结构与降级（前端断连 5s 轮询）不变</td></tr>
+      <tr><td>AiChatConsumer</td><td>/ws/ai-chat：收 <code>{conversation_id,content}</code>；发 delta/done（含 navigate_app_id）/error</td><td>ai.py 流式服务直搬；逐 delta <code>send_json</code></td></tr>
+      <tr><td>SshTerminalConsumer</td><td>/ws/ssh-terminal：?token=+?cred=；<code>security.webssh_enabled</code> 关闭时 close <strong>4403</strong>；API Token 禁入；<strong>非 JSON 裸文本</strong>双向透传（asyncssh 通道桥接）</td><td>AsyncConsumer + asyncssh 直搬；xterm 帧协议字节级不变</td></tr>
+    </tbody>
+  </table>
+  <p><strong>channel layer 选型</strong>：默认 <code>InMemoryChannelLayer</code>（单进程部署与一期 wsbus 等价能力）；设置启用 Redis 时切 <code>ChannelRedisLayer</code>——为未来多 worker 留口，当前单进程两者行为一致。</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s9">
+  <h2><span class="no">9</span>后台任务（17 项，APScheduler 原样保留）</h2>
+  <ul>
+    <li><strong>任务清单不变</strong>（一期 main.py lifespan L201-308 注册）：监控采样、应用探活、告警评估、证书检查、日程提醒、下载轮询、MySQL 定时同步、隧道巡检、端口监听快照、局域网自动扫描、DB 服务探活、Redis 回切检测、定时备份、版本检查、Flow cron 恢复、系统日志刷盘等。</li>
+    <li><strong>启动点迁移</strong>：FastAPI lifespan → Django <code>apps/core/apps.py::CoreConfig.ready()</code> 中启动调度器。守卫条件：<code>PORTAL_RUN_SCHEDULER</code> 环境变量（默认 true）+ 排除 management 命令进程（<code>sys.argv</code> 检查 migrate/collectstatic/test 等不启动）——uvicorn 单 worker 下语义与一期一致（单实例任务，SCAN_BUSY 等互斥锁沿用）。</li>
+    <li><strong>采样/探活等服务模块</strong>（services/monitor.py、probe.py…）DB 访问点改 Django ORM，调度参数（间隔/保留天数，读 settings 表）逻辑不变。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s10">
+  <h2><span class="no">10</span>前端 v2（Art Design Pro）</h2>
+  <p>前端建设内容与 <code>docs/artdesign-analysis.html §4–§6</code> 的 F0–F7 规划一致（能力映射、差距清单、视图迁移顺序全部适用），本节只列<strong>因后端换 Django 而变化的差异点</strong>：</p>
+  <table>
+    <thead><tr><th style="width:30%">事项</th><th>差异说明</th></tr></thead>
+    <tbody>
+      <tr><td>位置</td><td>D0 阶段 <code>frontend-artdesign/ → phase2/frontend/</code>（删除上游 .git 并入主仓库，README 记上游版本 f3aaf58 / v3.0.2）</td></tr>
+      <tr><td>dev 代理目标</td><td><code>VITE_API_PROXY_URL=http://127.0.0.1:8001</code>（二期 Django 开发端口；四条代理 /api /ws(ws) /icons /tunnel）；生产 <code>VITE_API_URL=/</code> 同源</td></tr>
+      <tr><td>请求层（F1）</td><td>仍重写 <code>utils/http</code> + 移植一期 secure.ts，但<strong>判定代码用框架原生形态</strong>（code===200/msg 原生匹配）；静默续期（POST /api/auth/refresh，Authorization 带 refresh）与 1007/1100 分支移植不变</td></tr>
+      <tr><td>登录页（F1）</td><td>后端自检（/api/health 的 initialized）、init 向导、TOTP 1007、LDAP/OIDC、限流 1006 提示——全部照一期 LoginView 逻辑重写到 ADP 登录壳上；发送 <code>{userName,password,totp_code?}</code> 与 Django 原生契约匹配</td></tr>
+      <tr><td>菜单权限</td><td><code>/api/user/info</code> 原生可用；路由 modules 的 <code>meta.roles</code> 用 R_ADMIN/R_USER；docker 导航按 /api/docker/status 动态显隐</td></tr>
+      <tr><td>业务 API 层</td><td>26 个 api 模块从一期直搬改写（端点路径/分页形状/错误码与一期完全一致——§5.2 保证，<code>/api</code> 仍为同源根绝对路径，不受 /portal/ 前缀影响）；vitest 13 个纯函数测试直搬</td></tr>
+      <tr><td>二级路径 base</td><td>构建 <code>VITE_BASE_URL=/portal/</code>（Vite base → 资源/图标/manifest 全带前缀）；路由 <code>createWebHistory(import.meta.env.BASE_URL)</code>；dev 服务器同样以 /portal/ 前缀访问（http://localhost:5175/portal/），消除 dev/prod 的 base 差异</td></tr>
+      <tr><td>PWA 调整</td><td>SW 注册于 <code>/portal/sw.js</code> → scope=/portal/；navigateFallback 指 <code>/portal/index.html</code>；denylist 保持绝对路径 /api /ws /files /icons（受控页面发出的跨路径请求同样经过 SW）；4MB 预缓存上限沿用</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s11">
+  <h2><span class="no">11</span>部署与切流（双容器：nginx 前端 + Django 后端）</h2>
+
+  <h3>11.1 拓扑与分工</h3>
+  <ul>
+    <li><strong>backend 容器</strong>：python:3.12-slim <strong>纯后端镜像</strong>（不再构建/托管前端，<code>FRONTEND_DIST</code> 废除）；<code>EXPOSE 8000</code> 仅作文档声明，compose <strong>不写 ports</strong>——后端端口不发布到宿主，只在 docker 内网以服务名 <code>backend:8000</code> 通信；<code>data/</code> 卷只挂它（密钥/SQLite/图标）。</li>
+    <li><strong>frontend 容器（nginx）</strong>：多阶段构建——node:22-alpine + corepack pnpm 构建 phase2/frontend（vue-tsc 类型检查 + vite build，base=/portal/）→ 产物拷入 <code>nginx:alpine</code> 的 <code>/usr/share/nginx/html/portal/</code> 并附带 nginx.conf；<strong>唯一对外端口 8080:80</strong>。</li>
+    <li><strong>职责边界</strong>：SPA 静态托管、二级路径 <code>/portal/</code>、深链接回退、入口 no-cache（PWA autoUpdate）全部由 nginx 承担；后端保留 <code>/api</code>、<code>/ws</code> ×4、<code>/icons</code>（数据卷静态）、<code>/tunnel</code> 反代、<code>/files/raw</code> 直链，全部经 nginx 反代到达。</li>
+  </ul>
+
+  <h3>11.2 nginx 配置（deploy/nginx/nginx.conf 核心段）</h3>
+<pre><code>server {
+  listen 80;
+  client_max_body_size 8m;                      # 图标上传 ≤2MB + 文件上传余量
+
+  # —— 前端：二级路径 /portal/ ——
+  location /portal/ {
+    root  /usr/share/nginx/html;                # dist 已拷至 .../html/portal/
+    try_files $uri $uri/ /portal/index.html;    # SPA 深链接回退
+  }
+  location = / { return 302 /portal/; }         # 根路径跳转门户（可选）
+
+  # PWA：入口与 SW 禁缓存（autoUpdate 依赖）
+  location = /portal/index.html { add_header Cache-Control "no-cache"; }
+  location = /portal/sw.js      { add_header Cache-Control "no-cache"; }
+
+  # —— 后端反代（docker 内网 backend:8000，端口不暴露宿主）——
+  location /api/    { proxy_pass http://backend:8000; }
+  location /icons/  { proxy_pass http://backend:8000; }
+  location /tunnel/ { proxy_pass http://backend:8000; }   # SSH 隧道反代
+  location /files/  { proxy_pass http://backend:8000; }
+  location /ws/ {                                          # 4 条 WebSocket
+    proxy_pass http://backend:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;                  # ssh-terminal / ai-chat 长会话
+  }
+}</code></pre>
+  <div class="callout">⚠️ <strong>WS 反代三个必要件</strong>：<code>proxy_http_version 1.1</code> + <code>Upgrade/Connection</code> 头 + 足够长的 <code>proxy_read_timeout</code>——缺任一项都会造成 WebSSH 终端秒断或 AI 流式中止，是 D9 冒烟的必测项。</div>
+
+  <h3>11.3 docker-compose（phase2/docker-compose.yml）</h3>
+<pre><code>services:
+  backend:
+    build: { context: .., dockerfile: deploy/Dockerfile.backend }
+    env_file: .env                       # SECRET_KEY/DATA_DIR/LAN_SCAN_CIDRS/… 键名同一期
+    volumes: [ "../../data:/app/data" ]  # 沿用一期数据卷（只挂后端）
+    healthcheck: { test: ["CMD","curl","-f","http://127.0.0.1:8000/api/health"] }
+    networks: [ portal-net ]
+    # 注意：无 ports —— 端口不发布到宿主
+  frontend:
+    build: { context: .., dockerfile: deploy/Dockerfile.frontend }
+    ports: [ "8080:80" ]                  # 全站唯一入口
+    depends_on: { backend: { condition: service_healthy } }
+    networks: [ portal-net ]
+networks: { portal-net: { driver: bridge } }</code></pre>
+
+  <h3>11.4 与一期单容器的切流与回滚</h3>
+  <ol>
+    <li><strong>并行验收</strong>：二期栈以 <code>8081:80</code> 起并行实例（backend 挂 data 快照副本卷），与一期 8080 并存验收，互不影响。</li>
+    <li>验收通过：一期镜像打 tag 归档（portal:1.x-final）；<code>data/</code> 卷完整备份（data.db 文件拷贝）。</li>
+    <li><strong>切流（停机 &lt; 5 分钟）</strong>：一期 <code>docker compose down</code> → 二期栈改回 <code>8080:80</code> 并 <code>up -d</code>（data 卷挂正本，只挂 backend 服务）。</li>
+    <li>冒烟：<code>http://nas:8080/portal/</code> 打开 → 登录（老账号老密码）→ 首页磁贴 → 监控 WS 帧 → WebSSH；宿主直连 8000 应<strong>拒绝连接</strong>（验证后端端口未暴露）。</li>
+    <li><strong>回滚</strong>：二期栈 down → 一期 compose up（8080、同卷），分钟级恢复，数据无损。</li>
+    <li><code>scripts/deploy-nas.sh</code> 二期版：同步 phase2/ → <code>docker compose build &amp;&amp; up -d</code>；镜像 tag 区分 portal-backend:2.x / portal-frontend:2.x 与一期 portal:1.x。</li>
+  </ol>
+  <div class="callout info">💡 <strong>本地开发不受影响</strong>：前端 Vite dev（5175，代理 → 127.0.0.1:8001）与后端 uvicorn 直连，均不经过 nginx；nginx 仅生产形态。后端可选保留的 SPA 视图仅供无 Vite 环境的直连调试。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s12">
+  <h2><span class="no">12</span>测试策略</h2>
+  <table>
+    <thead><tr><th style="width:22%">层</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>后端框架</td><td><code>pytest-django</code>（保留 pytest/pytest-asyncio/ruff 工作流）；conftest 沿用一期三件套：DATA_DIR=临时目录、<code>SECURITY__ENCRYPT_ENABLED=false</code> 明文跑全量、每用例重置限流；Client 用 Ninja/Django TestClient（API 调用形态与一期 TestClient 几乎同形）</td></tr>
+      <tr><td>一期 42 文件迁移</td><td>逐文件映射（test_auth/test_crypto/test_p2_apps/…/test_static_spa）；test_crypto 的 FakeSession（Python cryptography 模拟前端 WebCrypto 信封）<strong>原样复用</strong>；断言从 code=0/message 直接按二期原生契约写 <code>code==200/msg</code>（无历史包袱）</td></tr>
+      <tr><td>新增用例</td><td>① ADP 四契约（login userName/token/refreshToken、/api/user/info roles 映射、msg 信封、裸 Authorization）；② 32 表 schema diff + 数据计数；③ bcrypt 旧哈希登录直通；④ Channels 四消费者（token 4401/4403、notify 组广播、monitor 帧间隔、ssh 裸文本回环）；⑤ 审计中间件在<strong>加密开启</strong>下 user_id 正确（一期缺陷的防回归）；⑥ 调度器 ready() 守卫（manage.py 命令不启动）；⑦ <strong>部署冒烟（compose 栈）</strong>：/portal/ 深链接回退 index.html、未知 /api 路径返回 JSON 404、/ws Upgrade 握手成功、入口/SW no-cache 响应头、宿主访问 8000 端口被拒（后端未暴露验证）</td></tr>
+      <tr><td>端点对齐</td><td>D8 自动化：导出一期 FastAPI openapi.json 与二期 Ninja openapi.json → 脚本 diff（方法/路径/参数/响应码）→ 差异清零才过关</td></tr>
+      <tr><td>前端</td><td>vitest 13 文件直搬 + 新增 http 层用例；四关基线沿用一期：ruff/lint、vue-tsc、vitest、pnpm build</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s13">
+  <h2><span class="no">13</span>阶段计划 D0–D9 + F0–F7</h2>
+  <p>后端 D 阶段先行，前端 F1 在 D2 后即可并行（契约先行）。每阶段带可验证关卡：</p>
+  <table>
+    <thead><tr><th style="width:8%">阶段</th><th style="width:14%">内容</th><th style="width:40%">要点</th><th>关卡</th></tr></thead>
+    <tbody>
+      <tr><td>D0</td><td>脚手架</td><td>phase2/backend Django 工程；Ninja 接入；uvicorn+ASGI；加密中间件包裹；（可选）本地直连 SPA 视图；/api/health + /api/crypto/*；前端迁入 phase2/frontend 并跑通（base=/portal/）；pytest-django 空跑</td><td>8001 起服：health 明文、crypto 握手成功、加密信封回环（FakeSession）；dev 前端 http://localhost:5175/portal/ 可开</td></tr>
+      <tr><td>D1</td><td>数据模型</td><td>§6.1 六步法 32 表接管；User 模型 + bcrypt 兼容；secret_box/stores/i18n 移植；settings 表读写</td><td>schema diff 清零；快照库上老账号 bcrypt 登录验证通过；设置项读写一致</td></tr>
+      <tr><td>D2</td><td>认证域</td><td>login/init/refresh/logout/me/<strong>user/info</strong>/password/TOTP/sessions + OIDC/LDAP + tokens + users + 限流 + 审计中间件（含加密开启用例）</td><td>ADP 四契约 curl 全通过；一期 test_auth 用例集全绿（改写断言后）</td></tr>
+      <tr><td>D3</td><td>门户核心域</td><td>apps/categories/icons/probe/layouts/me/env/network_profiles + public/apps（服务层 DB 访问改 ORM）</td><td>test_p2_apps/test_p15_apps/test_icons 等迁移全绿；快照库首页磁贴数据可读</td></tr>
+      <tr><td>D4</td><td>监控运维域</td><td>monitor/alerts/ports/system/logs/audit/agents/docker + MonitorConsumer + APScheduler ready() 启动 17 任务</td><td>WS 2s 帧实测；17 任务注册日志；test_p5/p11/p12/p21/p8 迁移全绿</td></tr>
+      <tr><td>D5</td><td>网络与数据库域</td><td>lan/lan_db（三查看器）/tunnels/tools + 扫描服务 + NotifyConsumer（wsbus→channel layer）</td><td>真机扫描 192.168.5.0/24 冒烟；MySQL@3309 查看器钻取；notify 广播帧</td></tr>
+      <tr><td>D6</td><td>自动化与内容域</td><td>flows/hooks/ai + AiChatConsumer + knowledge/files/downloads/schedule</td><td>AI 流式帧；Flow webhook 触发；知识库 git 源同步（dulwich 直搬）</td></tr>
+      <tr><td>D7</td><td>系统域</td><td>settings 全量/sync/redis/sync-logs/backup/factory-reset/update + SshTerminalConsumer</td><td>WebSSH 终端回环；MySQL 同步推送到 NAS 库实测；备份导出/导入</td></tr>
+      <tr><td>D8</td><td>全量对齐</td><td>285 端点 openapi diff 清零；错误码表核对；i18n 全键核对；一期 42 测试文件迁移完毕 + 新增用例</td><td>pytest 全绿（一期 288 基线等量+）；diff 报告归档 phase2/doc</td></tr>
+      <tr><td>D9</td><td>部署</td><td>deploy/ 双 Dockerfile（backend 纯 Python / frontend→nginx）+ nginx.conf + phase2/docker-compose.yml + deploy-nas.sh；本地 compose 栈起栈冒烟</td><td>8080/portal/ 全链路（登录/加密/WS/深链接/PWA）通过；宿主 8000 拒连；并行验收栈（8081+快照卷）就绪</td></tr>
+      <tr><td>F0–F7</td><td>前端 v2</td><td>F0 底座 → F1 http+登录 → F2 外壳/路由/i18n/store → F3 Home/Apps/Monitor → F4 Ports/Lan/Docker/Logs → F5 Ai/Flow/Knowledge/Tools → F6 Efficiency/Settings/404+PWA+vitest → F7 验收（细节按 docs/artdesign-analysis §6，差异按本方案 §10）</td><td>每阶段关卡同分析报告 §6；F7 = feature-spec 220 点对齐表</td></tr>
+      <tr><td>—</td><td>切流</td><td>§11.2 五步</td><td>冒烟通过 + 一周并行观察</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s14">
+  <h2><span class="no">14</span>风险与回滚</h2>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:28%">风险</th><th style="width:10%">等级</th><th>缓解 / 回滚</th></tr></thead>
+    <tbody>
+      <tr><td class="num">R1</td><td>Django/Ninja 学习成本（团队熟悉 FastAPI）</td><td><span class="badge p2">中</span></td><td>Ninja 与 FastAPI 形态 1:1（装饰器/Schema/Depends）；D0 脚手架阶段即建立对照样例（同一端点一期/二期并排注释）；Django 特性只用最小集（ORM/中间件/settings/ASGI），不引入 CBV/表单/Admin</td></tr>
+      <tr><td class="num">R2</td><td>SQLAlchemy → Django ORM 迁移遗漏（30 服务模块的 DB 访问点）</td><td><span class="badge p3">高</span></td><td>逐模块迁移清单（D3–D7 关卡）；schema diff + 数据计数双校验；每个域迁移完跑对应一期测试文件集；快照副本上开发，绝不触碰生产卷</td></tr>
+      <tr><td class="num">R3</td><td>异步策略改写引入行为差异（同步线程池 vs 一期全异步）</td><td><span class="badge p2">中</span></td><td>端点执行语义与 FastAPI sync 路由一致（线程池）；网络型服务保持 async；D4–D6 关卡含 WS/长任务实测（监控 2s 帧、AI 流式、SSH 透传）</td></tr>
+      <tr><td class="num">R4</td><td>Channels/InMemory 层与一期 wsbus 行为差异（广播时序/断连）</td><td><span class="badge p2">中</span></td><td>消费者逐条对照一期实现；四消费者专用测试；前端断线退避逻辑不变，端到端联调覆盖</td></tr>
+      <tr><td class="num">R5</td><td>32 表 inspectdb 差异（类型/索引/约束还原不全）</td><td><span class="badge p2">中</span></td><td>六步法含强制 schema diff 清零关卡；个别难还原表保持 managed=False 豁免；切流前卷备份兜底</td></tr>
+      <tr><td class="num">R6</td><td>依赖版本陷阱（cryptography ≥45 的 aarch64 SIGILL 等）</td><td><span class="badge p2">中</span></td><td>requirements 约束与注释整体照搬一期；Docker 镜像内冒烟（握手/加密回环）作为 D0/D9 关卡</td></tr>
+      <tr><td class="num">R7</td><td>切流日数据/行为不一致</td><td><span class="badge p2">中</span></td><td>停机窗口 + 卷备份 + 分钟级回滚到一期镜像（§11.2）；切流前用生产快照做全量验收（F7 在快照上执行）</td></tr>
+      <tr><td class="num">R8</td><td>工期（后端近乎重写 API 层 + 30 服务 DB 改写）</td><td><span class="badge p3">高</span></td><td>分域推进（D3–D7 每域可独立验收）；一期持续在线无交付压力；schemas/services 最大复用把重写面压缩到"路由声明 + ORM 调用"两层</td></tr>
+      <tr><td class="num">R9</td><td>二级路径 /portal/ 引发的路径问题（静态资源 404 / 路由 base / SW scope / 深链接）</td><td><span class="badge p2">中</span></td><td>Vite base 与 router base 同源配置（import.meta.env.BASE_URL）；dev 亦带前缀消除环境差异；API 走根绝对路径 /api 不受影响；D9 冒烟必测深链接刷新与 SW 更新</td></tr>
+      <tr><td class="num">R10</td><td>nginx WS 反代配置不当（缺 Upgrade 头 / 超时过短）致 WebSSH 与 AI 流式断连</td><td><span class="badge p2">中</span></td><td>§11.2 标准配置段（http 1.1 + Upgrade + read_timeout 3600s）；D5/D6/D9 关卡各含对应 WS 实测</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s15">
+  <h2><span class="no">15</span>文档关系与决策记录</h2>
+  <ul>
+    <li><strong>本文档</strong>（phase2/doc/portal-v2-migration-plan.html）：二期唯一现行方案——选型、结构、契约、数据、认证、WS、任务、部署、测试、阶段。</li>
+    <li><strong>docs/artdesign-analysis.html</strong>：前端侧输入仍有效（框架全景 §2、功能基线 §3、能力映射 §4、F 阶段 §6）；其"改前端适配一期后端"的迁移路线已废弃。</li>
+    <li><strong>docs/artdesign-migration-plan.html</strong>：整份作废（一期后端不再改动）；其中的后端契约分析（C1–C17 差异表）与审计缺陷发现仍作为二期设计输入被本方案吸收。</li>
+    <li><strong>决策记录</strong>：① 后端 Django 5.2 LTS + Django Ninja（弃 DRF：迁移面过大）+ Channels（弃裸 ASGI WS：Django 生态标准）+ APScheduler 保留（弃 Celery/Django-Q2：单容器无需）；② 数据零迁移（模型对齐既有库 + fake-initial）；③ ADP 契约原生实现（无适配层、v1 无补丁）；④ 一期全程冻结，切流回滚分钟级；⑤ 加密协议与密钥文件原样沿用；⑥ <strong>部署形态</strong>：nginx（前端 <code>/portal/</code> 二级路径 + /api·/ws·/icons·/tunnel·/files 全量反代）与 Django 后端<strong>双容器</strong>——后端端口不发布宿主、docker 内网服务名通信、data 卷独挂 backend；一期单容器形态在切流日整体退役。</li>
+  </ul>
+  <div class="callout info">📌 <strong>下一步</strong>：确认本方案后启动 D0（phase2/backend 脚手架 + 前端迁入），按 §13 时间线推进；每阶段完成在根 logs/ 记工作日志，阶段产物（schema diff 报告、openapi diff 报告、验收记录）归档 phase2/doc/。</div>
+</section>
+
+<footer>Portal 二期迁移方案 v1.0 · 2026-10-21 · Django 5.2 LTS × Django Ninja × Channels × Art Design Pro v3.0.2 · 输入：一期全量源码分析（35 路由/285 端点/30 服务/23 模型文件/17 任务/42 测试）+ 前两份方案 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => {
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    }
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+<!-- doc-embed: 被文档索引页(index.html) iframe 嵌入时自动收起自身侧栏；独立打开不受影响，可整段安全移除 -->
+<script>(function(){
+  if (window.parent === window) return;
+  document.documentElement.classList.add('doc-embedded');
+  /* 滚动广播：当前章节变化时通知索引页联动高亮（docScroll） */
+  var last = null, ticking = false;
+  function spy(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var y = window.scrollY + 130, cur = null;
+      document.querySelectorAll('section[id], h2[id], h3[id]').forEach(function(el){
+        if (el.getBoundingClientRect().top + window.scrollY <= y) cur = el.id;
+      });
+      if (cur && cur !== last){
+        last = cur;
+        try { window.parent.postMessage({ type: 'docScroll', anchor: cur }, '*'); } catch (e) {}
+      }
+    });
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('load', spy);
+  spy();
+})();</script>
+<style>
+  html.doc-embedded .sidebar{display:none}
+  html.doc-embedded .main{margin-left:0!important;padding:0!important}
+  html.doc-embedded .hero{margin:0 0 26px!important;padding:42px 28px 34px!important}
+  html.doc-embedded section{padding:26px 30px}
+</style>
+</body>
+</html>

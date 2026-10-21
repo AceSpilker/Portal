@@ -1,0 +1,27 @@
+# Portal 二期后端依赖（迁移方案 §3.3；键名与注释自一期 requirements.txt 移植）
+django>=5.2,<5.3
+django-ninja>=1.2
+channels>=4
+uvicorn[standard]>=0.30
+pydantic>=2.7
+bcrypt>=4.1
+PyJWT>=2.8
+# cryptography<45：49/50 的 manylinux aarch64 wheel 加载 _rust 扩展即 SIGILL
+#（部分 Apple Silicon 虚拟化环境，一期 P8 冒烟实测 50.0.1/49.x 崩、44.0.2 正常）
+cryptography>=42.0,<45
+python-multipart>=0.0.9
+httpx>=0.27
+Pillow>=10.2
+psutil>=5.9
+APScheduler>=3.10,<4
+aiomysql>=0.2
+redis>=5.0
+asyncssh>=2.14
+ldap3>=2.9
+# 知识库 git 同步（纯 Python 实现，容器内免装 git）
+dulwich>=0.21
+# ---- dev ----
+pytest>=8.2
+pytest-django>=4.8
+pytest-asyncio>=0.23
+ruff>=0.4

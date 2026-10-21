@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal 二期 · 开发计划（Dev Plan）</title>
+<style>
+  :root{
+    --primary:#4f6ef7;
+    --primary-dark:#1e3a8a;
+    --ink:#1f2937;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --code-bg:#0d1526;
+    --code-ink:#dbe4f3;
+    --warn-bg:#fff7ed;
+    --warn-line:#fdba74;
+    --ok:#10b981;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px;
+  }
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:268px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:28px 0 28px 26px;z-index:10;
+  }
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px;margin-bottom:4px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin-bottom:24px}
+  .toc a{
+    display:block;color:#94a3b8;text-decoration:none;font-size:13px;
+    padding:5px 14px 5px 0;border-left:2px solid transparent;padding-left:12px;margin-left:-14px;
+    transition:all .15s;
+  }
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .lv2{padding-left:24px;font-size:12px}
+  .toc .toc-gap{margin-top:12px}
+  .main{margin-left:268px;padding:0 40px 80px}
+  .content{max-width:1040px;margin:0 auto}
+  .hero{
+    margin:0 -40px 40px;padding:60px 40px 52px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%);
+  }
+  .hero .inner{max-width:1040px;margin:0 auto}
+  .hero h1{font-size:33px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:16px;color:#c7d6ff;max-width:840px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{
+    font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff;
+  }
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:32px 36px;margin-bottom:26px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{
+    font-size:21px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  h2 .no{
+    font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px;
+  }
+  h3{font-size:16.5px;margin:24px 0 10px;color:#0f172a}
+  h3::before{content:"▍";color:var(--primary);margin-right:6px}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:5px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;vertical-align:2px}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.p1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.p2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.p3{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  code{
+    font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:12.5px;background:#f1f5f9;color:#0f172a;padding:2px 6px;border-radius:5px;
+  }
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.2px}
+  th{background:#f8fafc;text-align:left;font-weight:600;color:#0f172a}
+  th,td{border:1px solid var(--line);padding:7px 11px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  td.num{color:var(--muted);font-variant-numeric:tabular-nums}
+  td.st{text-align:center;white-space:nowrap}
+  .callout{
+    background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;
+    padding:12px 18px;margin:14px 0;font-size:14px;color:#7c2d12;
+  }
+  .callout.info{background:#eff6ff;border-color:#93c5fd;color:#1e3a8a}
+  .callout.ok{background:#ecfdf5;border-color:#6ee7b7;color:#065f46}
+  .tree{background:#0d1526;color:#c9d6ec;border-radius:10px;padding:16px 20px;
+    font-family:"SF Mono",SFMono-Regular,Consolas,Menlo,monospace;font-size:12.5px;line-height:1.8;
+    overflow-x:auto;margin:12px 0;white-space:pre}
+  .tree b{color:#8fb0ff;font-weight:600}
+  .tree i{color:#64748b;font-style:normal}
+  .gate{
+    border-left:3px solid var(--ok);padding:8px 14px;margin:8px 0;background:#f6fef9;
+    border-radius:0 8px 8px 0;font-size:13.5px;
+  }
+  .gate b{color:#065f46}
+  .gate.a{border-left-color:#0891b2;background:#f0fdff}
+  .gate.a b{color:#0e7490}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+  @media (max-width:1100px){
+    .sidebar{display:none}.main{margin-left:0;padding:0 20px 60px}
+    .hero{margin:0 -20px 30px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="brand">Portal 二期 · <em>开发计划</em></div>
+  <div class="sub">Dev Plan v1.0 · 20 阶段 171 步</div>
+  <div class="toc">
+    <a href="#s1">1. 文档定位与使用约定</a>
+    <a href="#s2">2. 里程碑与依赖关系</a>
+    <a href="#s3">3. 测试策略总则</a>
+    <a href="#s4">4. 阶段总览（进度看板）</a>
+    <div class="toc-gap"></div>
+    <a href="#m1">M1 · 地基与认证</a>
+    <a href="#m1" class="lv2">D0 后端脚手架（10 步）</a>
+    <a href="#m1" class="lv2">D1 数据模型接管（7 步）</a>
+    <a href="#m1" class="lv2">D2 认证域（12 步）</a>
+    <a href="#m1" class="lv2">F0 前端底座（7 步）</a>
+    <a href="#m1" class="lv2">F1 请求层与认证（9 步）</a>
+    <a href="#m2">M2 · 功能全域</a>
+    <a href="#m2" class="lv2">D3 门户核心域（10 步）</a>
+    <a href="#m2" class="lv2">D4 监控运维域（11 步）</a>
+    <a href="#m2" class="lv2">D5 网络与数据库域（10 步）</a>
+    <a href="#m2" class="lv2">D6 自动化与内容域（10 步）</a>
+    <a href="#m2" class="lv2">D7 系统域（8 步）</a>
+    <a href="#m2" class="lv2">F2 外壳与全局（10 步）</a>
+    <a href="#m2" class="lv2">F3 核心三页（12 步）</a>
+    <a href="#m2" class="lv2">F4 运维四页（10 步）</a>
+    <a href="#m2" class="lv2">F5 增强四页（9 步）</a>
+    <a href="#m2" class="lv2">F6 收尾三页与质量（9 步）</a>
+    <a href="#m3">M3 · 对齐验收切流</a>
+    <a href="#m3" class="lv2">D8 全量契约对齐（6 步）</a>
+    <a href="#m3" class="lv2">D9 部署（7 步）</a>
+    <a href="#m3" class="lv2">C0 集成联调（5 步）</a>
+    <a href="#m3" class="lv2">C1 验收（4 步）</a>
+    <a href="#m3" class="lv2">C2 切流与观察（5 步）</a>
+    <div class="toc-gap"></div>
+    <a href="#s8">5. 进度与日志约定</a>
+    <a href="#s9">6. 风险关联</a>
+  </div>
+</nav>
+
+<div class="main">
+<div class="content">
+
+<header class="hero">
+  <div class="inner">
+    <h1>Portal 二期开发计划<span class="dot"> · Django × Art Design Pro</span></h1>
+    <p class="tagline">二期执行的唯一依据：把《二期迁移方案》（Django 5.2 + Django Ninja + Channels 后端、Art Design Pro v3.0.2 前端、nginx+backend 双容器部署）拆解为「里程碑 → 阶段 → 步骤」的执行清单。<strong>20 个阶段 · 171 个步骤 · 3 个里程碑 · 每阶段双测试关卡</strong>。功能基线为一期 feature-spec v1.6 的 220 功能点，1:1 对齐不增不减。</p>
+    <div class="meta">
+      <span class="chip">版本 v1.0</span>
+      <span class="chip">2026-10-21</span>
+      <span class="chip">后端 91 步 · 前端 66 步 · 联调切流 14 步</span>
+      <span class="chip">关联：phase2/doc/portal-v2-migration-plan.html</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="s1">
+  <h2><span class="no">1</span>文档定位与使用约定</h2>
+  <ul>
+    <li><strong>文档分工</strong>：《迁移方案》回答"做什么、为什么这样选"；本计划回答"按什么顺序做、每步做到什么程度、怎么验收"。端点/表/任务等底层数据以迁移方案 §4–§9 与一期盘点为依据，不在本文重复展开。</li>
+    <li><strong>状态图例</strong>：⬜ 未开始 ｜ 🔄 进行中 ｜ ✅ 已完成（须通过该阶段两道关卡）｜ ⛔ 阻塞（注明原因）。</li>
+    <li><strong>双测试关卡</strong>（沿用一期约定，每阶段关闭条件）：
+      <ul>
+        <li><span class="badge core">关卡A</span> <strong>单元/接口测试</strong>：pytest-django（后端）与 vitest（前端）对应用例集全绿，覆盖率不低于一期同域基线；</li>
+        <li><span class="badge p1">关卡B</span> <strong>业务功能测试</strong>：按该阶段清单手工/脚本执行通过，涉及真机项（NAS/路由器/外网渠道）标注执行环境。</li>
+      </ul>
+    </li>
+    <li><strong>状态更新</strong>：完成一步 → 状态 ⬜→✅ 并在根 <code>logs/</code> 记一笔（需求/完成/决策/遗留）；阶段内步骤全 ✅ 且双关卡通过 → 阶段 ✅。</li>
+    <li><strong>一期冻结</strong>：二期全程不改动 <code>backend/</code> 与 <code>frontend/</code>；所有二期代码位于 <code>phase2/</code>。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s2">
+  <h2><span class="no">2</span>里程碑与依赖关系</h2>
+  <table>
+    <thead><tr><th style="width:12%">里程碑</th><th style="width:34%">目标</th><th>包含阶段</th><th style="width:22%">出口标准</th></tr></thead>
+    <tbody>
+      <tr><td><b>M1 地基与认证</b></td><td>双端骨架立起、32 表接管、认证全家桶 + 前端请求层跑通——<strong>能登录进空壳站</strong></td><td>D0–D2、F0–F1（5 阶段 45 步）</td><td>D2/F1 双关卡通过，加密开/关两档登录演示</td></tr>
+      <tr><td><b>M2 功能全域</b></td><td>285 端点、4 条 WS、17 任务、16 视图全量迁移——<strong>功能与一期对等</strong></td><td>D3–D7、F2–F6（12 阶段 109 步）</td><td>各域 pytest 迁移全绿 + 对应视图关卡 B 通过</td></tr>
+      <tr><td><b>M3 对齐验收切流</b></td><td>契约全量 diff 清零、双容器部署成型、验收切流——<strong>二期上线</strong></td><td>D8–D9、C0–C2（5 阶段 27 步）</td><td>220 点对齐 100% + 切流冒烟通过</td></tr>
+    </tbody>
+  </table>
+  <h3>依赖关系（决定可并行度）</h3>
+<div class="tree">D0 脚手架 ──► D1 数据模型 ──► D2 认证域 ─┬─► D3 门户核心 ─► D4 监控运维 ─► D5 网络数据库 ─► D6 自动化内容 ─► D7 系统域 ─► D8 对齐 ─► D9 部署
+                                            │                <i>（D3–D7 也可按域双人并行，D8 前会合）</i>
+F0 前端底座（<i>与 D0 同步即可开始，仅依赖框架本身</i>）
+      └────► F1 请求层与认证（<b>依赖 D2</b>）──► F2 外壳全局（依赖 D3）──► F3 核心三页（D3/D4）──► F4 运维四页（D4/D5）──► F5 增强四页（D5/D6）──► F6 收尾与质量（D6/D7）
+D8+D9+F6 ──► C0 集成联调 ──► C1 验收 ──► C2 切流与观察</div>
+  <div class="callout info">💡 <strong>并行策略</strong>：后端与前端两条线可全程并行——前端 F0 不依赖后端；F1 只等 D2（认证契约）；之后每有一个后端域完成，对应前端页即可开工。单人推进则按 D0→D1→D2→F0→F1→D3→F2…交错执行。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s3">
+  <h2><span class="no">3</span>测试策略总则</h2>
+  <ol>
+    <li><strong>单元/接口测试</strong>：后端 pytest-django 连临时 SQLite + <code>SECURITY__ENCRYPT_ENABLED=false</code>（同一期 conftest 三件套），FakeSession（模拟前端 WebCrypto 信封）自 D0 起可用；前端 Vitest 覆盖纯函数与 http 层分支。</li>
+    <li><strong>一期用例迁移</strong>：一期 42 个测试文件按域映射到 D2–D7 各阶段（阶段表内注明），断言按二期原生契约（code==200 / msg）改写，<strong>等量迁移是硬要求</strong>——D8 收口核对总数不少于一期基线（288）。</li>
+    <li><strong>契约自动化</strong>：D8 用一期 OpenAPI 与二期 Ninja Schema 的自动 diff 代替人工核对 285 端点。</li>
+    <li><strong>真机项</strong>：扫描（192.168.5.0/24）、SNMP/路由器、MySQL@3309 查看器、通知渠道真发、NAS 部署——标注「真机」，在 NAS 环境执行并记录。</li>
+    <li><strong>覆盖率门禁</strong>：后端全局 ≥70%、core/services ≥80%（同一期）；前端 build + vue-tsc 零错误为 F 系关卡 A 组成部分。</li>
+  </ol>
+</section>
+
+<!-- ============================================================ -->
+<section id="s4">
+  <h2><span class="no">4</span>阶段总览（进度看板）</h2>
+  <table>
+    <thead><tr><th style="width:8%">阶段</th><th>名称</th><th style="width:9%">里程碑</th><th style="width:8%">步骤</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D0</td><td>后端脚手架与骨架（Django+Ninja+加密+ASGI）</td><td>M1</td><td class="num">10</td><td class="st">✅</td></tr>
+      <tr><td>D1</td><td>数据模型接管（32 表 inspectdb + fake-initial）</td><td>M1</td><td class="num">7</td><td class="st">⬜</td></tr>
+      <tr><td>D2</td><td>认证域（登录全家桶 + ADP 契约 + 审计）</td><td>M1</td><td class="num">12</td><td class="st">🔄</td></tr>
+      <tr><td>F0</td><td>前端底座（pnpm/环境/清 demo/依赖/品牌）</td><td>M1</td><td class="num">7</td><td class="st">⬜</td></tr>
+      <tr><td>F1</td><td>请求层与认证（secure/http/登录页/user store）</td><td>M1</td><td class="num">9</td><td class="st">⬜</td></tr>
+      <tr><td>D3</td><td>门户核心域（应用/入口/分组/图标/探活/布局/环境）</td><td>M2</td><td class="num">10</td><td class="st">⬜</td></tr>
+      <tr><td>D4</td><td>监控运维域（监控/告警/端口/系统/日志/Agent/容器）</td><td>M2</td><td class="num">11</td><td class="st">⬜</td></tr>
+      <tr><td>D5</td><td>网络与数据库域（扫描/路由器/三查看器/隧道/工具）</td><td>M2</td><td class="num">10</td><td class="st">⬜</td></tr>
+      <tr><td>D6</td><td>自动化与内容域（Flow/AI/知识库/文件/下载/日程）</td><td>M2</td><td class="num">10</td><td class="st">⬜</td></tr>
+      <tr><td>D7</td><td>系统域（设置/通知渠道/同步/Redis/用户/WebSSH）</td><td>M2</td><td class="num">8</td><td class="st">⬜</td></tr>
+      <tr><td>F2</td><td>外壳与全局（路由/权限/i18n/5 store/顶栏三件/外观）</td><td>M2</td><td class="num">10</td><td class="st">⬜</td></tr>
+      <tr><td>F3</td><td>核心三页（Home/AppsManage/Monitor）</td><td>M2</td><td class="num">12</td><td class="st">⬜</td></tr>
+      <tr><td>F4</td><td>运维四页（Ports/Lan/Docker/Logs）</td><td>M2</td><td class="num">10</td><td class="st">⬜</td></tr>
+      <tr><td>F5</td><td>增强四页（Ai/Flow/Knowledge/Tools）</td><td>M2</td><td class="num">9</td><td class="st">⬜</td></tr>
+      <tr><td>F6</td><td>收尾三页与质量（Efficiency/Settings/404 + PWA + 构建）</td><td>M2</td><td class="num">9</td><td class="st">⬜</td></tr>
+      <tr><td>D8</td><td>全量契约对齐（openapi diff/错误码/i18n/测试收口）</td><td>M3</td><td class="num">6</td><td class="st">⬜</td></tr>
+      <tr><td>D9</td><td>部署（双镜像/nginx/compose/NAS 脚本/并行栈）</td><td>M3</td><td class="num">7</td><td class="st">⬜</td></tr>
+      <tr><td>C0</td><td>集成联调（加密两档/WS×4/权限/性能基线）</td><td>M3</td><td class="num">5</td><td class="st">⬜</td></tr>
+      <tr><td>C1</td><td>验收（220 点对齐/compose 栈验收/文档收口）</td><td>M3</td><td class="num">4</td><td class="st">⬜</td></tr>
+      <tr><td>C2</td><td>切流与观察（备份/切换/回滚演练/一周观察/归档）</td><td>M3</td><td class="num">5</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <p><strong>规模合计</strong>：20 阶段 · 171 步骤（后端 91 / 前端 66 / 集成切流 14）· 40 道测试关卡。当前进度：<strong>19 / 171</strong>（D0 完成；D2 进行中 9/12——余 plt_ CRUD/OIDC·LDAP/审计，日志 112/113）。</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="m1">
+  <h2><span class="no">M1</span>地基与认证（D0–D2 · F0–F1 · 45 步）</h2>
+  <div class="callout ok">✅ 里程碑出口：加密开/关两档下，浏览器打开 <code>http://localhost:5175/portal/</code> → 自检 → init/登录（老账号老密码）→ user/info → 空壳菜单按角色显示 → 登出。</div>
+
+  <h3>D0 · 后端脚手架与骨架 <span class="badge core">10 步</span></h3>
+  <p><strong>前置</strong>：迁移方案已确认；Python 3.12 + pnpm 环境就绪。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D0.1</td><td>phase2/backend Django 5.2 工程初始化：config/settings.py（环境变量键名同一期、禁用 admin、SQLite 指向 DATA_DIR）/ asgi.py / urls.py / manage.py</td><td class="st">✅</td></tr>
+      <tr><td>D0.2</td><td>Django Ninja 接入：config/api.py 聚合器骨架 + <code>core/response.py</code>（ok/fail 信封 code=200/msg）+ BizError + Ninja 异常处理器（2001 校验包装，中文拼接文案同一期）</td><td class="st">✅</td></tr>
+      <tr><td>D0.3</td><td>加密中间件移植：一期 TransportEncryptionMiddleware（纯 ASGI）一行不改包裹 Django + <code>/api/crypto/public-key</code>、<code>/api/crypto/handshake</code> + <code>data/keys/transport_rsa.pem</code> 沿用逻辑 + nonce LRU/会话 TTL</td><td class="st">✅</td></tr>
+      <tr><td>D0.4</td><td><code>GET /api/health</code>（status/version/initialized）</td><td class="st">✅</td></tr>
+      <tr><td>D0.5</td><td>i18n：LocaleMiddleware（Accept-Language）+ MESSAGES 字典单文件移植（zh-CN/en）</td><td class="st">✅</td></tr>
+      <tr><td>D0.6</td><td>stores（内存 + 可选 Redis：rl:/bl:/cs:/广播）与 secret_box（Fernet）移植</td><td class="st">✅</td></tr>
+      <tr><td>D0.7</td><td>顶层骨架：<code>/icons</code> 静态挂载、<code>/tunnel/{id}</code> 反代视图占位、<code>/files/raw</code> 直链占位、（可选）本地直连 SPA 视图</td><td class="st">✅</td></tr>
+      <tr><td>D0.8</td><td>pytest-django 脚手架：conftest 三件套（DATA_DIR 临时/ENCRYPT=false/限流重置）+ FakeSession 移植 + health/crypto 首批用例</td><td class="st">✅</td></tr>
+      <tr><td>D0.9</td><td>前端迁入 phase2/frontend：删上游 .git、README 记上游 f3aaf58/v3.0.2、pnpm install、端口 5175（5174 被本机其它项目占用，日志 112）、代理 → 127.0.0.1:8001</td><td class="st">✅</td></tr>
+      <tr><td>D0.10</td><td>品牌替换（系统名/logo/页签标题）+ 双端空壳联调（登录页可达、代理连通 /api/health）</td><td class="st">✅</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：pytest 全绿（health 明文豁免、握手、信封加解密回环、1100/1101/1102 三分支）。</div>
+  <div class="gate"><b>关卡B</b>：curl 演示加密握手→加密请求回环；浏览器 5175/portal/ 打开无控制台报错。</div>
+
+  <h3>D1 · 数据模型接管 <span class="badge core">7 步</span></h3>
+  <p><strong>前置</strong>：D0。策略：模型对齐既有库（六步法），零数据迁移。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D1.1</td><td>建立 data.db 快照副本为开发基线；<code>inspectdb</code> 生成 32 表模型草案</td><td class="st">⬜</td></tr>
+      <tr><td>D1.2</td><td>模型清洗并归位 9 个 app（db_table/db_column 保持、JSON/TEXT 定型、索引与唯一约束核对、managed=True）</td><td class="st">⬜</td></tr>
+      <tr><td>D1.3</td><td>自定义 User 模型（AUTH_USER_MODEL：username/role/totp/token_version）+ bcrypt 兼容 hasher（识别一期裸 $2b$ 串）</td><td class="st">⬜</td></tr>
+      <tr><td>D1.4</td><td><code>makemigrations</code> + 对快照库 <code>migrate --fake-initial</code> 接管</td><td class="st">⬜</td></tr>
+      <tr><td>D1.5</td><td>schema diff 脚本：一期 SQLAlchemy metadata vs 二期迁移状态，逐表逐列/索引/约束比对</td><td class="st">⬜</td></tr>
+      <tr><td>D1.6</td><td>数据校验：32 表 count(*) 对齐 + 每表抽样行字段比对</td><td class="st">⬜</td></tr>
+      <tr><td>D1.7</td><td>settings 表读写服务（只更新传入键语义）+ Fernet 机密解密回归（通知渠道密钥可解）</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：schema diff 报告清零（个别难还原表 managed=False 豁免须列白名单）；模型用例绿。</div>
+  <div class="gate"><b>关卡B</b>：快照库老账号 bcrypt 密码校验直通；设置项读出值与一期一致。</div>
+
+  <h3>D2 · 认证域 <span class="badge core">12 步</span></h3>
+  <p><strong>前置</strong>：D1。产出：ADP 四契约全通 + 一期 test_auth/test_crypto 等量迁移。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D2.1</td><td>security.py 移植（JWT HS256/access 30min/refresh 7d/token_version/jti）+ Depends 化 <code>get_auth_context</code>/<code>require_admin</code>（Bearer 可选前缀 + plt_ 双通道 + ro 拒写 + 黑名单 + ver 校验）</td><td class="st">✅</td></tr>
+      <tr><td>D2.2</td><td>登录限流（rl:{ip} 60s×5 → 1006）</td><td class="st">✅</td></tr>
+      <tr><td>D2.3</td><td><code>POST /api/auth/login</code>：userName 别名 + totp_code + 1007 分支 + 响应 {token, refreshToken, token_type, user}</td><td class="st">✅</td></tr>
+      <tr><td>D2.4</td><td><code>POST /api/auth/init</code>（零用户首初始化）+ <code>GET /api/auth/config</code>（allow_register/oidc/ldap 探测）</td><td class="st">✅</td></tr>
+      <tr><td>D2.5</td><td><code>register</code>（开关控制）+ <code>refresh</code>（Authorization 带 refresh，仅返新 access）+ <code>logout</code>（jti 黑名单 TTL）</td><td class="st">✅</td></tr>
+      <tr><td>D2.6</td><td><code>GET /api/user/info</code>（ADP 契约：userId/userName/roles→R_ADMIN·R_USER/buttons）+ <code>GET /api/auth/me</code></td><td class="st">✅</td></tr>
+      <tr><td>D2.7</td><td><code>PUT /api/auth/password</code>（改密 → token_version+1 全端下线）</td><td class="st">✅</td></tr>
+      <tr><td>D2.8</td><td>TOTP 三端点（setup/enable/disable + otpauth + 一次性恢复码）</td><td class="st">✅</td></tr>
+      <tr><td>D2.9</td><td>会话管理（UserSession 登记 + GET/DELETE /api/auth/sessions）</td><td class="st">✅</td></tr>
+      <tr><td>D2.10</td><td>API Token（plt_ + SHA-256 落库 + CRUD + ro/rw）</td><td class="st">⬜</td></tr>
+      <tr><td>D2.11</td><td>OIDC（authorize state 签名 + callback 自动开通 user）与 LDAP（ldap3 DN 模板绑定）</td><td class="st">⬜</td></tr>
+      <tr><td>D2.12</td><td>审计中间件 Django 化（写方法落库/豁免 login·refresh·hooks/错误取 msg）+ <strong>加密开启下 user_id 正确</strong>用例 + 一期 test_auth/test_p7_users 迁移</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：迁移用例全绿（1001/1002/1003/1006/1007/refresh/改密踢线/限流/TOTP/会话/Token）。</div>
+  <div class="gate"><b>关卡B</b>：ADP 契约 curl 全通：userName 登录 → token/refreshToken → user/info roles 正确 → 裸 Authorization 可用。</div>
+
+  <h3>F0 · 前端底座 <span class="badge core">7 步</span></h3>
+  <p><strong>前置</strong>：无（可与 D0 同日开工）。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F0.1</td><td>pnpm install + dev 跑通 + <code>VITE_PORT=5175</code></td><td class="st">⬜</td></tr>
+      <tr><td>F0.2</td><td>环境三件套：dev 代理 → 8001（/api /ws(ws) /icons /tunnel 四条）、prod <code>VITE_API_URL=/</code>、<code>VITE_BASE_URL=/portal/</code>、ACCESS_MODE=frontend、LOCK_ENCRYPT_KEY 换随机值</td><td class="st">⬜</td></tr>
+      <tr><td>F0.3</td><td>路由改 history 并接 BASE_URL（createWebHistory(import.meta.env.BASE_URL)）</td><td class="st">⬜</td></tr>
+      <tr><td>F0.4</td><td><code>pnpm clean:dev</code> + 手工删 demo 模块（<strong>保留 system/user 范式页至 F6.9</strong>）+ 路由 modules/语言包 menus 段同步删</td><td class="st">⬜</td></tr>
+      <tr><td>F0.5</td><td>补装依赖：@vue-flow×4、@xterm×2、docx-preview、pptx-preview、marked、dompurify、qrcode、dayjs；dev：vitest、jsdom、vite-plugin-pwa</td><td class="st">⬜</td></tr>
+      <tr><td>F0.6</td><td>品牌替换（config/index.ts + index.html + logo）</td><td class="st">⬜</td></tr>
+      <tr><td>F0.7</td><td>vitest 接入（test 段配置）+ 一期 13 个纯函数测试文件直搬并全绿</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：vitest 全绿 + vue-tsc 零错误。</div>
+  <div class="gate"><b>关卡B</b>：http://localhost:5175/portal/ 前缀下空壳站正常（资源 404 为零）；代理连通 /api/health。</div>
+
+  <h3>F1 · 请求层与认证 <span class="badge core">9 步</span> <span class="badge p3">M1 核心攻坚</span></h3>
+  <p><strong>前置</strong>：F0 + D2。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F1.1</td><td>secure.ts 整体移植（RSA-OAEP 握手/AES-GCM 信封/X-Session-Id/密钥仅内存/明文降级三路径判定）</td><td class="st">⬜</td></tr>
+      <tr><td>F1.2</td><td>utils/http 重写：ADP 外壳（showErrorMessage/重试配置）+ Portal 内核（code===200/msg 解包、ENC 头组装、Accept-Language、1007 透传、1100 重握手重试、401 静默续期并发去重、withCode）</td><td class="st">⬜</td></tr>
+      <tr><td>F1.3</td><td>App.vue 明文降级一次性警告（非安全上下文 / enabled=false / 握手异常）</td><td class="st">⬜</td></tr>
+      <tr><td>F1.4</td><td>api/auth 模块（login/init/config/register/refresh/logout/me/user-info/password/totp×3/sessions）+ Api 类型命名空间（Portal 形状）</td><td class="st">⬜</td></tr>
+      <tr><td>F1.5</td><td>user store 适配：setToken(token, refreshToken)、info.roles 驱动守卫、登出先调后端再清理 + worktab 清理策略</td><td class="st">⬜</td></tr>
+      <tr><td>F1.6</td><td>登录页重写：后端自检（initialized 决定登录/初始化向导；宕机禁提交）、1007 TOTP 展开、OIDC/LDAP 入口探测、1006 提示、密码管理器回填兜底、删演示角色切换器</td><td class="st">⬜</td></tr>
+      <tr><td>F1.7</td><td>注册页对接 allow_register；忘记密码页隐藏（走管理员重置）</td><td class="st">⬜</td></tr>
+      <tr><td>F1.8</td><td>/guest 访客页：staticRoutes 公开路由 + fetch /api/public/apps（免加密）+ 未开启提示</td><td class="st">⬜</td></tr>
+      <tr><td>F1.9</td><td>404 页（Aurora 风格移植）+ 守卫 redirect 语义联调</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：http 层 vitest 用例（信封/1100 重试/401 续期/1007 透传四分支）。</div>
+  <div class="gate"><b>关卡B</b>：加密开/关两档完整跑：自检→init→登录→user/info→菜单→登出；access 过期静默续期实测不打断操作。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="m2">
+  <h2><span class="no">M2</span>功能全域（D3–D7 · F2–F6 · 109 步）</h2>
+  <div class="callout ok">✅ 里程碑出口：16 视图全部可用，285 端点 + 4 WS + 17 任务等价运行；各域一期测试等量迁移全绿。</div>
+
+  <h3>D3 · 门户核心域 <span class="badge core">10 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D3.1</td><td>应用 CRUD + 软删 + 回收站（restore/purge）+ batch</td><td class="st">⬜</td></tr>
+      <tr><td>D3.2</td><td>多入口体系：apps/{id}/urls + app-urls/{id} CRUD + resolve（环境优先解析）+ precheck + url-latency</td><td class="st">⬜</td></tr>
+      <tr><td>D3.3</td><td>favorite / opened / recent / templates / from-template</td><td class="st">⬜</td></tr>
+      <tr><td>D3.4</td><td>import / export / sort / upload-icon / favicon 抓取</td><td class="st">⬜</td></tr>
+      <tr><td>D3.5</td><td>分组 categories CRUD + sort + 应用计数</td><td class="st">⬜</td></tr>
+      <tr><td>D3.6</td><td>图标库 icons CRUD + seed 幂等播种 + /icons 静态回归</td><td class="st">⬜</td></tr>
+      <tr><td>D3.7</td><td>探活 probe（check/status/availability + 服务 DB 改 ORM）+ <code>GET /api/public/apps</code>（guest.enabled，404 兜底）</td><td class="st">⬜</td></tr>
+      <tr><td>D3.8</td><td>布局：/me/layouts GET/PUT + /me/tabs CRUD（多标签独立布局契约）</td><td class="st">⬜</td></tr>
+      <tr><td>D3.9</td><td>/me/env GET/PUT + network-profiles CRUD/sort/detect + connectivity/matrix</td><td class="st">⬜</td></tr>
+      <tr><td>D3.10</td><td>一期 test_p2_apps / test_p15_apps / test_icons / test_p4_dashboard 迁移改写</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：上述迁移用例全绿。</div>
+  <div class="gate"><b>关卡B</b>：快照数据下应用列表/入口解析/磁贴布局/探活状态与一期输出一致。</div>
+
+  <h3>D4 · 监控运维域 <span class="badge core">11 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D4.1</td><td>monitor 服务移植（psutil 指向 HOST_PROC/HOST_SYS + CPU 预热 + 采样存储改 ORM）</td><td class="st">⬜</td></tr>
+      <tr><td>D4.2</td><td>GET /api/monitor/system + history（指标×范围×多序列 lttb 降采样）</td><td class="st">⬜</td></tr>
+      <tr><td>D4.3</td><td>processes / docker-stats / certs + certs/hosts 配置</td><td class="st">⬜</td></tr>
+      <tr><td>D4.4</td><td>告警规则 CRUD + test + events（状态机移植）</td><td class="st">⬜</td></tr>
+      <tr><td>D4.5</td><td>widgets weather / summary</td><td class="st">⬜</td></tr>
+      <tr><td>D4.6</td><td>APScheduler ready() 启动（PORTAL_RUN_SCHEDULER 守卫 + manage 命令排除）+ 17 任务全量注册（采样/探活/告警/证书/日程提醒/下载轮询/MySQL 同步/隧道巡检/端口快照/局域网扫描/DB 探活/Redis 回切/备份/版本检查/Flow cron 恢复/日志刷盘）</td><td class="st">⬜</td></tr>
+      <tr><td>D4.7</td><td>端口：listen / {port}/info / lookup + listen-history / exposed / public-reach</td><td class="st">⬜</td></tr>
+      <tr><td>D4.8</td><td>监控项 CRUD + import（host:port 批量）+ events + latency + check</td><td class="st">⬜</td></tr>
+      <tr><td>D4.9</td><td>system 体检×2 + backup export/import + factory-reset（密码二次确认）+ update check/apply/status</td><td class="st">⬜</td></tr>
+      <tr><td>D4.10</td><td>双日志：system-logs 分页筛选 + audit-logs 分页/行展开/CSV 导出</td><td class="st">⬜</td></tr>
+      <tr><td>D4.11</td><td>Agent 纳管（report 自鉴权/list/register/script）+ SNMP test + <strong>/ws/monitor 消费者</strong>（2s 帧可配间隔）</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：test_p5 / test_p10 / test_p11 / test_p20 / test_p21 / test_p8 迁移全绿。</div>
+  <div class="gate"><b>关卡B</b>：本机起服 WS 2s 帧实测（含断连降级）；任一告警规则真触发一次并落事件。</div>
+
+  <h3>D5 · 网络与数据库域 <span class="badge core">10 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D5.1</td><td>lan segments 自动识别（Portal 派生优先链）+ settings GET/PUT（含 sanitize）</td><td class="st">⬜</td></tr>
+      <tr><td>D5.2</td><td>扫描引擎移植（quick/full 1-65535、1000 并发、SCAN_BUSY 互斥、进度轮询）+ devices 清单/详情/历史</td><td class="st">⬜</td></tr>
+      <tr><td>D5.3</td><td>设备操作（monitor / wol-target）+ 嗅探误报门控回归（PING 文本行）</td><td class="st">⬜</td></tr>
+      <tr><td>D5.4</td><td>路由器面板：router / clients / interfaces + UPnP IGD + SNMP 流量</td><td class="st">⬜</td></tr>
+      <tr><td>D5.5</td><td>db scan（9 类端口指纹）+ services 列表/monitor/手动添加</td><td class="st">⬜</td></tr>
+      <tr><td>D5.6</td><td>凭据管理（Fernet 加密 + CRUD + test 连通）</td><td class="st">⬜</td></tr>
+      <tr><td>D5.7</td><td>MySQL 查看器五端点（overview/variables/schemas/processlist/rows——标识符白名单 + 固定 SELECT + 分页截断）</td><td class="st">⬜</td></tr>
+      <tr><td>D5.8</td><td>Redis 查看器五端点（info/keys SCAN 游标/key/slowlog/clients）+ MinIO 四端点（SigV4 只读）</td><td class="st">⬜</td></tr>
+      <tr><td>D5.9</td><td>tunnels：ssh-credentials CRUD + tunnels CRUD/start/stop/open-url + /tunnel 反代视图完整移植（t/cookie 签名）</td><td class="st">⬜</td></tr>
+      <tr><td>D5.10</td><td>tools（wol/wol-targets/port-check/dns）+ <strong>/ws/notify 消费者</strong> + wsbus→channel layer（group 广播）改造</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：test_p3_network / test_p26 / test_p27 / test_z_port_info / test_p7_tools 迁移全绿。</div>
+  <div class="gate"><b>关卡B</b>（真机）：扫描 192.168.5.0/24（发现路由器+NAS）→ MySQL@3309 查看器库表数据钻取 → notify 广播帧到达。</div>
+
+  <h3>D6 · 自动化与内容域 <span class="badge core">10 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D6.1</td><td>Flow 模型接管 + CRUD + reset-token</td><td class="st">⬜</td></tr>
+      <tr><td>D6.2</td><td>运行引擎移植（run/dry-run/runs 详情；condition/http/notify 等动作 + 重试 + skipped/dry_run 标注）</td><td class="st">⬜</td></tr>
+      <tr><td>D6.3</td><td>webhook <code>/api/hooks/flow/{token}</code>（自鉴权+免加密）+ 模板/from-template + import/export + cron 恢复任务对接</td><td class="st">⬜</td></tr>
+      <tr><td>D6.4</td><td>画布契约回归（nodes/edges ↔ 线性互转与一期/后端同构，test_p19 用例）</td><td class="st">⬜</td></tr>
+      <tr><td>D6.5</td><td>AI providers CRUD/test/models（连通测试拉模型列表）+ conversations/messages CRUD</td><td class="st">⬜</td></tr>
+      <tr><td>D6.6</td><td>generate/app-draft + usage + <strong>/ws/ai-chat 消费者</strong>（delta/done+navigate_app_id/error + 停止）</td><td class="st">⬜</td></tr>
+      <tr><td>D6.7</td><td>知识源 CRUD + git 同步（dulwich）+ local-dirs 下钻 + tree 懒加载</td><td class="st">⬜</td></tr>
+      <tr><td>D6.8</td><td>读取链路：read（大文本分片）/ raw-url 签名 / zip-entry / office-pdf / raw(Range) / file 写回（sig= 免登录豁免核对）</td><td class="st">⬜</td></tr>
+      <tr><td>D6.9</td><td>files 全套（roots/list/upload/download/mkdir/rename/delete/move/raw-url/text/content/analyze）+ /files/raw 视图（签名 JWT + 白名单）</td><td class="st">⬜</td></tr>
+      <tr><td>D6.10</td><td>downloads（summary/tasks 下发/media recent）+ schedule（calendar month/events/todos/ics + 节假日农历）</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：test_p13 / test_p14 / test_p19 / test_p16 / test_p22 / test_z_knowledge / test_holidays / test_todos_range 迁移全绿。</div>
+  <div class="gate"><b>关卡B</b>（真机/真模型）：AI 流式对话 + 意图导航；画布保存后 webhook 触发运行；知识库 Office 预览与 zip 提取链路。</div>
+
+  <h3>D7 · 系统域 <span class="badge core">8 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D7.1</td><td>GET/PUT /api/settings（全键读 + 只更新传入键语义回归）</td><td class="st">⬜</td></tr>
+      <tr><td>D7.2</td><td>站内通知（notifications / unread-count / read / read-all / delete）</td><td class="st">⬜</td></tr>
+      <tr><td>D7.3</td><td>8 类通知渠道（bark/telegram/smtp/webhook/wecom/dingtalk/feishu/ntfy）CRUD + test + 事件×渠道路由矩阵 + 免打扰</td><td class="st">⬜</td></tr>
+      <tr><td>D7.4</td><td>notify-rules 读/整体替换</td><td class="st">⬜</td></tr>
+      <tr><td>D7.5</td><td>MySQL 同步（settings/sync + mysql/test + sync/push/status/restore + sync-logs；源读改 ORM、目标 aiomysql 保留）</td><td class="st">⬜</td></tr>
+      <tr><td>D7.6</td><td>Redis 存储（settings/redis + redis/test + redis/status + 回切任务联调 + 会话/缓存接入点切换）</td><td class="st">⬜</td></tr>
+      <tr><td>D7.7</td><td>用户管理（users CRUD/status/password 重置/kick 踢会话）</td><td class="st">⬜</td></tr>
+      <tr><td>D7.8</td><td><strong>/ws/ssh-terminal 消费者</strong>（webssh_enabled→4403、API Token 禁入、cred 参数、asyncssh 裸文本双向透传）</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：test_p9 / test_p17 / test_p23 / test_p25 / test_logs / test_z_sync_logs / test_settings 迁移全绿。</div>
+  <div class="gate"><b>关卡B</b>（真机）：WebSSH 终端实际操作；通知渠道真发一条；MySQL 推送至 NAS 库实测。</div>
+
+  <h3>F2 · 外壳与全局 <span class="badge core">10 步</span></h3>
+  <p><strong>前置</strong>：F1 + D3。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F2.1</td><td>16 视图路由 modules（component 字符串路径）+ meta.roles（R_ADMIN：settings/logs/docker；其余全员）</td><td class="st">⬜</td></tr>
+      <tr><td>F2.2</td><td>docker 导航动态显隐（/api/docker/status 运行时改 menuStore）</td><td class="st">⬜</td></tr>
+      <tr><td>F2.3</td><td>i18n 搬迁脚本（zh-CN.ts/en.ts → langs/zh.json/en.json，37 命名空间）+ 转换前后键集合 diff 校验 + menus 段并入框架结构 + Element locale 跟随</td><td class="st">⬜</td></tr>
+      <tr><td>F2.4</td><td>settings / env / iconLibrary store 移植（Pinia 3 语法核对）</td><td class="st">⬜</td></tr>
+      <tr><td>F2.5</td><td>notify + probe store 移植（/ws/notify 长连接 + 3s→60s 指数退避 + app_status/notification 帧分派）</td><td class="st">⬜</td></tr>
+      <tr><td>F2.6</td><td>框架通知中心组件对接（铃铛/未读角标/级别筛选/已读）</td><td class="st">⬜</td></tr>
+      <tr><td>F2.7</td><td>全局搜索 Ctrl+K：换一期 search.ts 子序列算法 + 应用跳转 + <code>kw 词</code>快捷语法 + 搜索历史</td><td class="st">⬜</td></tr>
+      <tr><td>F2.8</td><td>网络环境切换器（顶栏自建组件：自动识别+手动覆盖+绿点状态）</td><td class="st">⬜</td></tr>
+      <tr><td>F2.9</td><td>顶栏裁剪（headerBar.ts 关闭 chat/fastEnter/礼花）+ 锁屏密钥配置</td><td class="st">⬜</td></tr>
+      <tr><td>F2.10</td><td>外观体系：壁纸（纯色/渐变/图片+模糊遮罩）+ 主题色运行时色阶 + 自定义 CSS 注入 + 设置页 general/appearance 面板</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：路由守卫与 i18n 键集合 diff 用例绿。</div>
+  <div class="gate"><b>关卡B</b>：admin/user 两角色菜单显隐正确；语言切换后端错误文案跟随；通知推送 10 秒内到达铃铛。</div>
+
+  <h3>F3 · 核心三页 <span class="badge core">12 步</span></h3>
+  <p><strong>前置</strong>：F2 + D3/D4。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F3.1</td><td>14 个全局/业务组件直搬（EntryPopup/CommandPalette/AppIcon/IconPicker/ProtocolUrlInput/AuroraBackground/NasOverview/HomeWidgets/MonitorChart/ProcessTop/DockerStatsCard/AvailabilityCard/CertCard/WebSshTerminal 等）</td><td class="st">⬜</td></tr>
+      <tr><td>F3.2</td><td>useOpenApp 单例 + EntryPopup 联调（多入口弹窗/iframe 内嵌/ssh -L 命令视图/二维码/延迟趋势）</td><td class="st">⬜</td></tr>
+      <tr><td>F3.3</td><td>HomeView①：欢迎区（6 档问候+站点时区时钟）+ 最近使用 chips + NasOverview/HomeWidgets</td><td class="st">⬜</td></tr>
+      <tr><td>F3.4</td><td>HomeView②：/me/tabs 多标签（独立布局）+ 分组区块/磁贴（两级拖拽防抖持久化/收藏置顶/折叠/1x·2x/星标）+ 探活状态点 + 移动端断点</td><td class="st">⬜</td></tr>
+      <tr><td>F3.5</td><td>AppsManage①：工具栏（搜索/分组过滤）+ 表格（图标/入口标签/打开方式/可见性/启用）+ 批量操作条</td><td class="st">⬜</td></tr>
+      <tr><td>F3.6</td><td>AppsManage②：编辑抽屉（图标四态/favicon 抓取/多入口动态行/健康检查/标签/文档地址）</td><td class="st">⬜</td></tr>
+      <tr><td>F3.7</td><td>AppsManage③：分组管理（拖序/IconPicker）/回收站/模板库/导入导出</td><td class="st">⬜</td></tr>
+      <tr><td>F3.8</td><td>Monitor①：WS 帧（断连 5s 轮询降级）+ 7 数据块独立间隔 + 150 点窗口 + 系统信息卡</td><td class="st">⬜</td></tr>
+      <tr><td>F3.9</td><td>Monitor②：实时图表（每核 CPU/内存/网络/磁盘分区/IO/GPU/温度，replaceMerge 保序）</td><td class="st">⬜</td></tr>
+      <tr><td>F3.10</td><td>Monitor③：历史曲线（指标×24h/7d/30d×多序列）+ CSV 导出 + 7 日报表</td><td class="st">⬜</td></tr>
+      <tr><td>F3.11</td><td>Monitor④：大屏模式（HUD/Esc 退出/单屏限行）+ 进程榜 + Docker 统计 + 可用率 + 证书卡</td><td class="st">⬜</td></tr>
+      <tr><td>F3.12</td><td>Monitor⑤：多机 Agent 纳管面板（注册/列表/脚本）</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：layout（布局序列化契约）/theme/monitor utils 用例绿。</div>
+  <div class="gate"><b>关卡B</b>：快照数据下首页布局与一期逐像素等价核对；监控实时/历史/大屏三态演示。</div>
+
+  <h3>F4 · 运维四页 <span class="badge core">10 步</span></h3>
+  <p><strong>前置</strong>：F3 + D4/D5。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F4.1</td><td>Ports①：总览（TCP/UDP/进程统计 chips + 搜索 + 监听清单表）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.2</td><td>Ports②：端口画像弹窗（用途/容器来源/关联应用/连接统计）+ 一键入监控</td><td class="st">⬜</td></tr>
+      <tr><td>F4.3</td><td>Ports③：监控项表（down 置顶/延迟曲线弹窗/编辑/批量导入）+ 事件流水 + 10s 刷新</td><td class="st">⬜</td></tr>
+      <tr><td>F4.4</td><td>Ports④：进阶（监听变更历史/裸露端口/公网可达）+ TunnelsPanel（SSH 隧道页签：凭据/启停/直达链接）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.5</td><td>Lan①：设备清单（快扫/全扫确认/进度轮询/类型过滤/详情抽屉含上下线事件/WoL/入监控）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.6</td><td>Lan②：扫描设置弹窗（网段多选含 Portal 派生/自动扫描/探测端口/DNS/并发/DB 额外端口/SNMP+连通测试）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.7</td><td>Lan③：RouterPanel（网关信息/UPnP WAN/后台候选直开/SNMP 流量接口/客户端列表）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.8</td><td>Lan④：DbPanel（服务统计/过滤/DB 扫描/手动添加/凭据双层对话框）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.9</td><td>Lan⑤：三查看器（MySQL stat 卡+库表数据行 / Redis db 切换+SCAN 游标 / MinIO 桶对象+签名 URL）</td><td class="st">⬜</td></tr>
+      <tr><td>F4.10</td><td>DockerView（容器表/批量/日志 4s 轮询/详情脱敏/镜像/更新检测）+ LogsView（AuditPanel 筛选分页 CSV + SystemLogPanel 自动刷新）</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：protocolUrl / ssh / canvas utils 用例绿。</div>
+  <div class="gate"><b>关卡B</b>（真机）：扫描→设备→DB 查看器数据钻取全链路；隧道 open-url 直开成功。</div>
+
+  <h3>F5 · 增强四页 <span class="badge core">9 步</span></h3>
+  <p><strong>前置</strong>：F4 + D5/D6。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F5.1</td><td>Ai①：会话列表 CRUD + 消息区（marked + <strong>DOMPurify 补齐</strong> + 流式光标）</td><td class="st">⬜</td></tr>
+      <tr><td>F5.2</td><td>Ai②：WS 流式（delta/done 意图导航跳转/error）+ 停止生成保留半截 + 快捷指令 ×4</td><td class="st">⬜</td></tr>
+      <tr><td>F5.3</td><td>Ai③：Provider 设置（CRUD/连通测试拉模型/上下文轮数与感知开关）+ 应用草稿一键保存</td><td class="st">⬜</td></tr>
+      <tr><td>F5.4</td><td>Flow①：列表（触发器文案/动作 tags/启用）+ 表单编排（触发器四类/动作卡片/重试）</td><td class="st">⬜</td></tr>
+      <tr><td>F5.5</td><td>Flow②：FlowCanvas 画布（@vue-flow 拖拽连线/条件双出口/fan-out/侧栏编辑/minimap + canvas.ts 互转）</td><td class="st">⬜</td></tr>
+      <tr><td>F5.6</td><td>Flow③：运行历史（步骤明细标注）/试运行/模板/导入导出</td><td class="st">⬜</td></tr>
+      <tr><td>F5.7</td><td>Knowledge①：源管理（local 路径下钻/git 账密）+ 懒加载目录树 + 分发查看器（md/code/html/pdf/图/音视频/office 动态 import/zip/老格式转 PDF）</td><td class="st">⬜</td></tr>
+      <tr><td>F5.8</td><td>Knowledge②：大文本分片（首片 256KB/续读/全量后可编辑）+ 在线保存 + git 同步按钮</td><td class="st">⬜</td></tr>
+      <tr><td>F5.9</td><td>Tools：WebSSH（xterm+fit 动态 import/凭据下拉）+ Base64/URL + 时间戳 + 密码生成 + WoL 目标 + Ping/端口 + 二维码</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：canvas / aiWs / tools 用例绿。</div>
+  <div class="gate"><b>关卡B</b>：4 条 WS 端到端全通；SSH 终端可执行命令；画布保存后运行成功。</div>
+
+  <h3>F6 · 收尾三页与质量 <span class="badge core">9 步</span></h3>
+  <p><strong>前置</strong>：F5 + D6/D7。</p>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>F6.1</td><td>SchedulePanel（el-calendar 月视图+事件角标+待办+农历/重复规则/提醒）</td><td class="st">⬜</td></tr>
+      <tr><td>F6.2</td><td>FilesPanel（白名单根+面包屑+上传/移动/下载/媒体直链预览）+ DownloadsPanel（qBittorrent 任务+磁链下发+Jellyfin 海报墙）</td><td class="st">⬜</td></tr>
+      <tr><td>F6.3</td><td>Settings 骨架 + general（站点名/时区/访客开关/语言/天气预览）/apps 标签/icons 图标库/monitor 采样/efficiency 集成</td><td class="st">⬜</td></tr>
+      <tr><td>F6.4</td><td>AccessPanel 环境档案（CRUD+优先类型+连通矩阵）+ 外观面板接 F2.10</td><td class="st">⬜</td></tr>
+      <tr><td>F6.5</td><td>NotifyPanel（8 渠道 CRUD+测试+事件路由矩阵+免打扰 + 阈值告警规则+测试+事件历史 + 证书域名）</td><td class="st">⬜</td></tr>
+      <tr><td>F6.6</td><td>UsersPanel（分页/角色/禁用/重置密码/强制下线）+ SecurityPanel（TOTP 扫码/会话设备/API Token/恢复出厂）</td><td class="st">⬜</td></tr>
+      <tr><td>F6.7</td><td>SyncPanel（MySQL 配置/测试/立即推送/每表状态/从 MySQL 恢复+日志）+ RedisPanel + AboutPanel（版本+在线更新）</td><td class="st">⬜</td></tr>
+      <tr><td>F6.8</td><td>PWA：vite-plugin-pwa（autoUpdate/standalone/base 感知图标/navigateFallback=/portal/index.html/denylist /api /ws /files /icons/4MB 上限）+ 应用图标</td><td class="st">⬜</td></tr>
+      <tr><td>F6.9</td><td>删除 system/user demo 页与残余路由/文案 + <code>pnpm build</code>（vue-tsc + 构建）通过 + 产物体积对比一期</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：vitest 全绿 + build 零错误。</div>
+  <div class="gate"><b>关卡B</b>：PWA 安装/SW 更新/离线壳三步演示；设置页 13 菜单逐项走查。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="m3">
+  <h2><span class="no">M3</span>对齐验收切流（D8–D9 · C0–C2 · 27 步）</h2>
+  <div class="callout ok">✅ 里程碑出口：二期正式服务生产流量，一期归档。</div>
+
+  <h3>D8 · 全量契约对齐 <span class="badge core">6 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D8.1</td><td>导出一期 FastAPI openapi.json 与二期 Ninja openapi.json，写自动 diff 脚本（方法/路径/参数/响应码）</td><td class="st">⬜</td></tr>
+      <tr><td>D8.2</td><td>差异清零：预期差异白名单（信封 msg、user/info 新增、userName 别名、docs 路径）之外全部修正</td><td class="st">⬜</td></tr>
+      <tr><td>D8.3</td><td>错误码表逐项核对（1001–5006 各码触发路径 + HTTP 状态双轨一致）</td><td class="st">⬜</td></tr>
+      <tr><td>D8.4</td><td>后端 i18n 文案全键核对（zh-CN/en × 全部键，抽 20 键中文档化）</td><td class="st">⬜</td></tr>
+      <tr><td>D8.5</td><td>加密豁免面核对（health/crypto/public/hooks/sig 直链/非 /api 路径逐条验证）</td><td class="st">⬜</td></tr>
+      <tr><td>D8.6</td><td>测试收口：一期 42 文件全部迁移完毕，用例总数 ≥ 一期基线 288，全绿；diff 报告归档 phase2/doc</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：pytest 全绿 + openapi diff 白名单外清零。</div>
+  <div class="gate"><b>关卡B</b>：加密开/关两档全链路手工回归（登录→各域代表操作→WS→登出）。</div>
+
+  <h3>D9 · 部署 <span class="badge core">7 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>D9.1</td><td>deploy/Dockerfile.backend：python:3.12-slim 纯后端（pip 中科大源 + EXPOSE 8000 文档声明 + uvicorn CMD）</td><td class="st">⬜</td></tr>
+      <tr><td>D9.2</td><td>deploy/Dockerfile.frontend：node:22-alpine + corepack pnpm 构建（vue-tsc+vite build）→ nginx:alpine（dist → /portal/ + conf）</td><td class="st">⬜</td></tr>
+      <tr><td>D9.3</td><td>deploy/nginx/nginx.conf：/portal/ 二级路径 + try_files 回退 + index/sw no-cache + /api /icons /tunnel /files 反代 + /ws Upgrade（http1.1 + 3600s）</td><td class="st">⬜</td></tr>
+      <tr><td>D9.4</td><td>phase2/docker-compose.yml：backend（无 ports + data 卷 + healthcheck）+ frontend（8080:80 + depends_on healthy）+ portal-net</td><td class="st">⬜</td></tr>
+      <tr><td>D9.5</td><td>本地 compose 栈冒烟：深链接回退 / 未知 /api JSON 404 / WS Upgrade / PWA / <strong>宿主 8000 拒连</strong></td><td class="st">⬜</td></tr>
+      <tr><td>D9.6</td><td>deploy-nas.sh 二期版（同步 phase2/ → build+up）+ 镜像 tag 规范（portal-backend:2.x / portal-frontend:2.x）</td><td class="st">⬜</td></tr>
+      <tr><td>D9.7</td><td>并行验收栈：8081:80 起栈（backend 挂 data 快照副本卷）供 C1 验收</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：<code>docker compose config</code> 校验 + <code>nginx -t</code> 通过。</div>
+  <div class="gate"><b>关卡B</b>：本地栈全链路（登录/加密/4WS/深链接/PWA）通过。</div>
+
+  <h3>C0 · 集成联调 <span class="badge core">5 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>C0.1</td><td>集成环境固化：backend 8001 + frontend 5175 + 快照数据 + 真机依赖项清单执行</td><td class="st">⬜</td></tr>
+      <tr><td>C0.2</td><td>加密开/关两档 × 认证全家桶回归（init/login/TOTP/LDAP/OIDC/refresh/改密踢线/会话吊销/限流/登出/访客/注册开关）</td><td class="st">⬜</td></tr>
+      <tr><td>C0.3</td><td>4 条 WS × 断线重连/降级轮询/退避回归（notify/monitor/ai-chat/ssh-terminal）</td><td class="st">⬜</td></tr>
+      <tr><td>C0.4</td><td>权限矩阵 × i18n × API Token（ro/rw）× webhook × Agent 上报全量回归</td><td class="st">⬜</td></tr>
+      <tr><td>C0.5</td><td>性能基线：首屏/监控帧延迟/万级行分页/构建体积/内存占用对比一期并记录</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：回归清单脚本化部分全部通过。</div>
+  <div class="gate"><b>关卡B</b>：性能不低于一期基线（或差异已分析并被接受）。</div>
+
+  <h3>C1 · 验收 <span class="badge core">4 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>C1.1</td><td>feature-spec 220 功能点对齐表逐项走查（双端，真机项在 NAS 执行）</td><td class="st">⬜</td></tr>
+      <tr><td>C1.2</td><td>compose 栈（8081+快照卷）全链路验收（含 D9.5 部署冒烟五项）</td><td class="st">⬜</td></tr>
+      <tr><td>C1.3</td><td>问题修复与回归（P0/P1 清零，P2 列遗留）</td><td class="st">⬜</td></tr>
+      <tr><td>C1.4</td><td>文档收口：api-spec v2（二期契约）、根 README、phase2/doc 验收报告、logs 全程日志核对</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：全部测试资产（pytest/vitest/diff 报告）归档。</div>
+  <div class="gate"><b>关卡B</b>：220 点对齐表 100% + 验收报告签收。</div>
+
+  <h3>C2 · 切流与观察 <span class="badge core">5 步</span></h3>
+  <table>
+    <thead><tr><th style="width:7%">步骤</th><th>内容</th><th style="width:8%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>C2.1</td><td>切流准备：一期镜像 tag 归档（portal:1.x-final）+ data 卷完整备份 + 切流单（步骤/负责人/回滚触发条件）</td><td class="st">⬜</td></tr>
+      <tr><td>C2.2</td><td>切流执行（停机 &lt;5 分钟）：一期 down → 二期 8080 up（正本卷挂 backend）→ 冒烟五项（/portal/ 打开/登录/磁贴/监控帧/WebSSH + 宿主 8000 拒连）</td><td class="st">⬜</td></tr>
+      <tr><td>C2.3</td><td>回滚演练：并行栈上演练 down→up 流程并记录耗时（目标 ≤3 分钟）</td><td class="st">⬜</td></tr>
+      <tr><td>C2.4</td><td>一周观察：日志/监控/审计/性能每日巡检记录（对照一期同时段）</td><td class="st">⬜</td></tr>
+      <tr><td>C2.5</td><td>一期归档：frontend/、backend/ 保留一个版本周期；根 README/docs 更新目录说明</td><td class="st">⬜</td></tr>
+    </tbody>
+  </table>
+  <div class="gate a"><b>关卡A</b>：切流单与备份产物齐备。</div>
+  <div class="gate"><b>关卡B</b>：切流冒烟全过 + 观察期无 P1 缺陷 → 二期关闭。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s8">
+  <h2><span class="no">5</span>进度与日志约定</h2>
+  <ul>
+    <li>每步骤完成即更新本文状态列（⬜→✅），并在根 <code>logs/</code> 新增编号日志（需求/完成情况/决策/遗留四段式，同一期惯例）；真机项注明环境。</li>
+    <li>阶段关闭时在"阶段总览"表同步阶段状态；里程碑达成时在本文头部变更记录追加一行。</li>
+    <li>计划变更（新增/删除/重排步骤）须在头部变更记录登记版本号与理由，步骤总数随之更新。</li>
+    <li>阻塞（⛔）须注明外部依赖（如渠道真机、NAS 窗口期），并给出绕行方案。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s9">
+  <h2><span class="no">6</span>风险关联（影响哪些阶段）</h2>
+  <p>风险明细与缓解措施见《迁移方案》§14，此处只列对排期敏感的映射：</p>
+  <table>
+    <thead><tr><th style="width:8%">风险</th><th style="width:34%">内容</th><th>影响阶段</th><th style="width:12%">监控信号</th></tr></thead>
+    <tbody>
+      <tr><td>R2</td><td>SQLAlchemy→Django ORM 迁移遗漏</td><td>D3–D7</td><td>schema diff/数据计数关卡失败</td></tr>
+      <tr><td>R8</td><td>工期（API 层 + 30 服务 DB 改写）</td><td>全局</td><td>阶段实际步时 vs 计划</td></tr>
+      <tr><td>R1</td><td>Django/Ninja 学习成本</td><td>D0–D2</td><td>D2 完成时间</td></tr>
+      <tr><td>R3/R4</td><td>异步策略/Channels 行为差异</td><td>D4–D7</td><td>WS 关卡 B 实测</td></tr>
+      <tr><td>R9</td><td>/portal/ 二级路径问题</td><td>F0/F6.8/D9.5</td><td>资源 404/SW 更新失败</td></tr>
+      <tr><td>R10</td><td>nginx WS 反代配置</td><td>D9.3/D9.5</td><td>WebSSH/AI 流式断连</td></tr>
+      <tr><td>R7</td><td>切流日数据/行为不一致</td><td>C1–C2</td><td>验收对齐表/冒烟五项</td></tr>
+    </tbody>
+  </table>
+  <div class="callout info">📌 <strong>启动条件</strong>：本计划与《迁移方案》确认后，从 D0.1 与 F0.1 同时开工；第一条提交信息建议 <code>feat(P2-D0): 二期后端脚手架——Django 5.2 + Ninja + 加密中间件移植</code>。</div>
+</section>
+
+<footer>Portal 二期开发计划 v1.0 · 2026-10-21 · 20 阶段 / 171 步骤 / 3 里程碑 / 40 道测试关卡 · 依据《portal-v2-migration-plan》v1.0 与一期 dev-plan 规范 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => {
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    }
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+<!-- doc-embed: 被文档索引页(index.html) iframe 嵌入时自动收起自身侧栏；独立打开不受影响，可整段安全移除 -->
+<script>(function(){
+  if (window.parent === window) return;
+  document.documentElement.classList.add('doc-embedded');
+  /* 滚动广播：当前章节变化时通知索引页联动高亮（docScroll） */
+  var last = null, ticking = false;
+  function spy(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var y = window.scrollY + 130, cur = null;
+      document.querySelectorAll('section[id], h2[id], h3[id]').forEach(function(el){
+        if (el.getBoundingClientRect().top + window.scrollY <= y) cur = el.id;
+      });
+      if (cur && cur !== last){
+        last = cur;
+        try { window.parent.postMessage({ type: 'docScroll', anchor: cur }, '*'); } catch (e) {}
+      }
+    });
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('load', spy);
+  spy();
+})();</script>
+<style>
+  html.doc-embedded .sidebar{display:none}
+  html.doc-embedded .main{margin-left:0!important;padding:0!important}
+  html.doc-embedded .hero{margin:0 0 26px!important;padding:42px 28px 34px!important}
+  html.doc-embedded section{padding:26px 30px}
+</style>
+</body>
+</html>

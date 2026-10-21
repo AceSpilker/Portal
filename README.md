@@ -18,13 +18,16 @@
 
 ```
 Portal/
-├── frontend/   # Vue 3 + TypeScript + Vite + Element Plus（端口 5173）
-├── backend/    # Python 3.12 + FastAPI + SQLAlchemy（SQLite 主库，端口 8000）
-├── docs/       # 设计与契约文档（MD + HTML 双版本）
+├── frontend/   # 一期前端：Vue 3 + TypeScript + Vite + Element Plus（端口 5173，已冻结）
+├── backend/    # 一期后端：Python 3.12 + FastAPI + SQLAlchemy（SQLite 主库，端口 8000，已冻结）
+├── phase2/     # 二期工程（进行中）：Django 5.2 后端 + Art Design Pro 前端，见 phase2/README.md
+├── docs/       # 设计与契约文档（MD + HTML 双版本；含二期框架分析/迁移方案输入）
 └── logs/       # 工作日志（每次任务的需求/完成情况/决策/遗留）
 ```
 
-## 本地开发
+> **二期（phase2）**：后端换 **Django 5.2 LTS + Django Ninja + Channels**，前端换 **Art Design Pro v3.0.2**（Vue3），部署改 **nginx 前端（/portal/ 二级路径）+ backend 双容器**（后端端口不暴露）。功能与一期 1:1 对齐。方案见 [phase2/doc/portal-v2-migration-plan.html](phase2/doc/portal-v2-migration-plan.html)，执行进度见 [phase2/doc/dev-plan.html](phase2/doc/dev-plan.html)（20 阶段 / 171 步），文档一站式浏览 [phase2/doc/index.html](phase2/doc/index.html)。一期保持冻结运行，二期验收后切流。
+
+## 本地开发（一期）
 
 ```bash
 # 后端（端口 8000）
@@ -47,6 +50,25 @@ npm run build      # 类型检查 + 构建到 dist/
 # 后端测试
 cd backend && ../.venv/Scripts/python -m pytest -q
 ```
+
+## 本地开发（二期 phase2）
+
+```bash
+# 后端（Django，端口 8001；F1 完成前端加密层前以明文模式运行）
+cd phase2/backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+.venv/bin/python manage.py migrate
+ENCRYPT_ENABLED=false .venv/bin/uvicorn config.asgi:application --reload --port 8001
+.venv/bin/python -m pytest -q        # 26 用例（health/crypto/auth）
+
+# 前端（Art Design Pro，端口 5175；代理 /api /ws /icons /tunnel → 8001）
+cd phase2/frontend
+pnpm install
+pnpm dev
+```
+
+打开 http://127.0.0.1:5175/portal/ ，dev 管理员账号见 logs/113。
 
 ## 部署（NAS）
 
