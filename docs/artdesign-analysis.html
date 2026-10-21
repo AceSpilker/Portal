@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · Art Design Pro 前端重构分析报告</title>
+<style>
+  :root{
+    --primary:#4f6ef7;
+    --primary-dark:#1e3a8a;
+    --ink:#1f2937;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --code-bg:#0d1526;
+    --code-ink:#dbe4f3;
+    --warn-bg:#fff7ed;
+    --warn-line:#fdba74;
+    --ok:#10b981;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px;
+  }
+  /* ===== 侧边目录 ===== */
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:248px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:28px 0 28px 26px;z-index:10;
+  }
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px;margin-bottom:4px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin-bottom:24px}
+  .toc a{
+    display:block;color:#94a3b8;text-decoration:none;font-size:13px;
+    padding:6px 14px 6px 0;border-left:2px solid transparent;padding-left:12px;margin-left:-14px;
+    transition:all .15s;
+  }
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .lv2{padding-left:26px;font-size:12px}
+  .toc .toc-gap{margin-top:12px}
+  /* ===== 主内容 ===== */
+  .main{margin-left:248px;padding:0 40px 80px}
+  .content{max-width:960px;margin:0 auto}
+  .hero{
+    margin:0 -40px 40px;padding:64px 40px 56px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%);
+  }
+  .hero .inner{max-width:960px;margin:0 auto}
+  .hero h1{font-size:34px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:16px;color:#c7d6ff;max-width:720px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{
+    font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff;
+  }
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:34px 38px;margin-bottom:28px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{
+    font-size:22px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  h2 .no{
+    font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px;
+  }
+  h3{font-size:16.5px;margin:26px 0 10px;color:#0f172a}
+  h3::before{content:"▍";color:var(--primary);margin-right:6px}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:5px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;vertical-align:2px}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.p1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.p2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.p3{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  .badge.new{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+  .badge.old{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+  code{
+    font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:12.5px;background:#f1f5f9;color:#0f172a;padding:2px 6px;border-radius:5px;
+  }
+  pre{
+    background:var(--code-bg);color:var(--code-ink);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font-size:12.5px;line-height:1.7;margin:12px 0;
+  }
+  pre code{background:none;color:inherit;padding:0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th{background:#f8fafc;text-align:left;font-weight:600;color:#0f172a}
+  th,td{border:1px solid var(--line);padding:8px 12px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  td.num{color:var(--muted);font-variant-numeric:tabular-nums}
+  .callout{
+    background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;
+    padding:12px 18px;margin:14px 0;font-size:14px;color:#7c2d12;
+  }
+  .callout.info{background:#eff6ff;border-color:#93c5fd;color:#1e3a8a}
+  .callout.ok{background:#ecfdf5;border-color:#6ee7b7;color:#065f46}
+  .tree{background:#0d1526;color:#c9d6ec;border-radius:10px;padding:16px 20px;
+    font-family:"SF Mono",SFMono-Regular,Consolas,Menlo,monospace;font-size:12.5px;line-height:1.8;
+    overflow-x:auto;margin:12px 0;white-space:pre}
+  .tree b{color:#8fb0ff;font-weight:600}
+  .tree i{color:#64748b;font-style:normal}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;margin:10px 0;font-size:14px}
+  .kv dt{color:var(--muted)}
+  .kv dd{color:#0f172a}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+  .verdict{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:16px 0;
+  }
+  .verdict .card{
+    border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fbfcfe;
+  }
+  .verdict .card h4{font-size:14.5px;margin-bottom:8px;color:#0f172a}
+  .verdict .card.ok{border-color:#a7f3d0;background:#f6fef9}
+  .verdict .card.warn{border-color:#fde68a;background:#fffdf5}
+  .verdict .card.risk{border-color:#fecaca;background:#fffafa}
+  @media (max-width:1100px){
+    .sidebar{display:none}.main{margin-left:0;padding:0 20px 60px}
+    .hero{margin:0 -20px 30px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="brand">Portal · <em>Art Design Pro</em></div>
+  <div class="sub">前端重构框架分析报告 v1.0</div>
+  <div class="toc">
+    <a href="#s1">1. 背景与结论速览</a>
+    <a href="#s2" class="lv2">1.1 任务与产出</a>
+    <a href="#s2" class="lv2">1.2 结论速览</a>
+    <a href="#s2">2. Art Design Pro 框架全景</a>
+    <a href="#s2" class="lv2">2.1 仓库与版本信息</a>
+    <a href="#s2" class="lv2">2.2 技术栈与版本</a>
+    <a href="#s2" class="lv2">2.3 目录结构</a>
+    <a href="#s2" class="lv2">2.4 框架自带功能</a>
+    <a href="#s2" class="lv2">2.5 环境变量与配置</a>
+    <a href="#s2" class="lv2">2.6 构建体系</a>
+    <div class="toc-gap"></div>
+    <a href="#s3">3. 现有 Portal 前端功能基线</a>
+    <a href="#s3" class="lv2">3.1 页面清单（16 视图）</a>
+    <a href="#s3" class="lv2">3.2 布局 / 路由 / 认证</a>
+    <a href="#s3" class="lv2">3.3 状态与 API 层</a>
+    <a href="#s3" class="lv2">3.4 国际化 / 主题 / 测试</a>
+    <a href="#s4">4. 能力映射：框架 → 需求</a>
+    <a href="#s5">5. 差距清单与风险</a>
+    <a href="#s6">6. 迁移方案（阶段计划）</a>
+    <a href="#s7">7. 目录与代码对照表</a>
+    <a href="#s8">8. 待决策问题</a>
+  </div>
+</nav>
+
+<div class="main">
+<div class="content">
+
+<header class="hero">
+  <div class="inner">
+    <h1>Art Design Pro 前端重构<span class="dot"> · 框架分析报告</span></h1>
+    <p class="tagline">为 Portal（NAS 门户系统）引入 Art Design Pro v3.0.2 管理后台框架，替代现有手写布局的 Element Plus 前端，功能保持一致。本报告对框架与现有前端做全量对照分析，给出能力映射、差距清单与迁移方案。</p>
+    <div class="meta">
+      <span class="chip">报告版本 v1.0</span>
+      <span class="chip">2026-10-21</span>
+      <span class="chip">框架 Art Design Pro v3.0.2</span>
+      <span class="chip">新目录 frontend-artdesign/</span>
+      <span class="chip">功能对齐现有 frontend/（16 视图）</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="s1">
+  <h2><span class="no">1</span>背景与结论速览</h2>
+
+  <h3>1.1 任务与产出</h3>
+  <p>在 Portal 项目内新建 <code>frontend-artdesign/</code> 目录，从 GitHub 拉取 Art Design Pro 最新版本，作为<strong>下一代前端（v2）</strong>的开发底座；功能与现有 <code>frontend/</code>（v1，120/120 步骤全部完成的 v1.0 发布版）保持一致。本阶段产出：</p>
+  <ul>
+    <li>✅ 框架已拉取：<code>git clone --depth 1 https://github.com/Daymychen/art-design-pro.git frontend-artdesign</code>，最新提交 <code>f3aaf58</code>（2026-06-01），框架版本 <strong>v3.0.2</strong>；目录内保留上游 <code>.git</code>，便于后续跟踪上游更新（也可移除后并入 Portal 主仓库管理）。</li>
+    <li>✅ 框架全量结构分析（§2）。</li>
+    <li>✅ 现有前端功能基线盘点（§3，迁移需求权威清单）。</li>
+    <li>✅ 框架能力 ↔ Portal 需求映射（§4）、差距与风险（§5）、分阶段迁移方案（§6）。</li>
+  </ul>
+
+  <h3>1.2 结论速览</h3>
+  <div class="verdict">
+    <div class="card ok">
+      <h4>✅ 可行 —— 技术栈高度同源</h4>
+      <p style="font-size:13.5px">同为 Vue 3 + TypeScript + Vite + Element Plus + Pinia + vue-i18n + ECharts 6 技术栈，组件层（Element Plus）几乎零学习成本；框架带来的多布局模式、明暗主题、多标签页、权限体系、表格/搜索表单范式均为净增值。</p>
+    </div>
+    <div class="card warn">
+      <h4>⚠️ 五处必须适配的硬差异</h4>
+      <p style="font-size:13.5px">① 响应结构 <code>{code,message,data}/code=0</code> vs 框架 <code>{code,msg,data}/code=200</code>；② Portal 的 RSA+AES-GCM 全链路加密请求层需整体移植；③ 认证模型（init 向导/TOTP/LDAP/OIDC/refresh）需重写登录页与 user store；④ vue-i18n 9 vs 11 与 locale 键名（zh vs zh-CN）；⑤ 路由为 hash 模式 + 字符串组件路径 + 动态注册机制。</p>
+    </div>
+    <div class="card risk">
+      <h4>🔴 需补装 / 自建的依赖能力</h4>
+      <p style="font-size:13.5px">@vue-flow（Flow 画布）、@xterm（WebSSH）、docx-preview / pptx-preview（知识库 Office 预览）、marked + dompurify（Markdown 渲染）、vite-plugin-pwa（PWA）、vitest（单测）——框架均未内置；另需保留 4 条 WebSocket 与访客模式。</p>
+    </div>
+  </div>
+  <div class="callout info">💡 <strong>总体判断：适合迁移。</strong>框架的布局/主题/权限/组件资产能显著提升 v2 的观感与开发效率；工作量集中在「请求加密层移植 + 认证流重写 + 16 个视图逐页迁移」三块，无技术死角。建议 v1 保留并行运行（同一后端），v2 按视图逐页替换验证。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s2">
+  <h2><span class="no">2</span>Art Design Pro 框架全景</h2>
+
+  <h3>2.1 仓库与版本信息</h3>
+  <dl class="kv">
+    <dt>上游仓库</dt><dd><code>https://github.com/Daymychen/art-design-pro</code>（Daymychen，MIT 协议）</dd>
+    <dt>本地位置</dt><dd><code>/Users/linzhongyang/ZCodeProject/Portal/frontend-artdesign/</code></dd>
+    <dt>拉取方式</dt><dd><code>git clone --depth 1</code>（浅克隆，提交 <code>f3aaf58eec1a</code>，2026-06-01）</dd>
+    <dt>框架版本</dt><dd><strong>v3.0.2</strong>（<code>.env</code> 中 <code>VITE_VERSION=3.0.2</code>；CHANGELOG 最新条目 v3.0.1，2025-11-15）</dd>
+    <dt>定位</dt><dd>Vue3 中后台前端模板：主题系统 + 权限体系 + 多标签页 + 40+ demo 页面与组件库</dd>
+    <dt>包管理器</dt><dd><strong>pnpm ≥ 8.8.0</strong>（engines 约束，含 pnpm-lock.yaml）</dd>
+    <dt>Node 要求</dt><dd><strong>≥ 20.19.0</strong></dd>
+  </dl>
+
+  <h3>2.2 技术栈与版本（pnpm-lock 实际锁定）</h3>
+  <table>
+    <thead><tr><th style="width:18%">技术</th><th style="width:16%">版本</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>Vue</td><td>3.5.22</td><td>Composition API + <code>&lt;script setup&gt;</code></td></tr>
+      <tr><td>Vite</td><td>7.1.7</td><td>对比 Portal v1 的 Vite 5，构建链升级两代</td></tr>
+      <tr><td>TypeScript</td><td>5.6.3</td><td>全量类型</td></tr>
+      <tr><td>Element Plus</td><td>2.11.4</td><td>与 v1 的 2.8 同源，组件 API 兼容</td></tr>
+      <tr><td>Pinia</td><td>3.0.3</td><td>+ pinia-plugin-persistedstate 4（存储键版本化 <code>sys-v{ver}-*</code>）</td></tr>
+      <tr><td>Tailwind CSS</td><td>4.1.14</td><td>原生 Vite 插件 + OKLCH 变量 + 自定义 dark variant</td></tr>
+      <tr><td>vue-router</td><td>4.5.1</td><td><strong>hash 模式</strong>（createWebHashHistory）</td></tr>
+      <tr><td>vue-i18n</td><td>9.14.5</td><td>legacy:false + 全局 $t 导出（v1 用 v11）</td></tr>
+      <tr><td>ECharts</td><td>6.0.0</td><td>按需注册封装（src/plugins/echarts.ts，10 种图）</td></tr>
+      <tr><td>其它</td><td>—</td><td>axios 1.12、@vueuse/core 13、@iconify/vue 5、@wangeditor 5、xgplayer 3、xlsx 0.18.5、qrcode.vue、vue-draggable-plus、crypto-js、mitt、nprogress、highlight.js</td></tr>
+      <tr><td>工程规范</td><td>—</td><td>ESLint 9 扁平配置 + Prettier + Stylelint + Husky + lint-staged + commitizen(cz-git) + commitlint</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 目录结构</h3>
+<div class="tree"><b>src/</b>
+├── api/            <i>请求层：auth.ts、system-manage.ts（登录/用户信息/菜单）</i>
+├── assets/         <i>静态资源 + styles/core（app/dark/el-light/el-dark/tailwind/过渡动画）+ styles/custom</i>
+├── components/
+│   ├── core/       <i>框架核心组件库 13 大类（表格/表单/图表卡片/媒体/布局类，前缀 art-*）</i>
+│   └── business/   <i>业务组件示例（comment-widget）</i>
+├── config/         <i>SystemConfig（index.ts）+ setting.ts 默认设置 + headerBar/fastEnter/component 模块</i>
+├── directives/     <i>v-auth 按钮权限、v-roles 角色、v-highlight、v-ripple</i>
+├── enums/          <i>appEnum（MenuTypeEnum/SystemThemeEnum/LanguageEnum…）、formEnum</i>
+├── hooks/core/     <i>useTable、useTableColumns、useAuth、useTheme、useChart、useAppMode…</i>
+├── locales/        <i>vue-i18n 配置 + langs/zh.json、en.json</i>
+├── mock/           <i>本地演示数据（temp/*、chinaMap.json、changeLog）——无 mock 服务器</i>
+├── plugins/        <i>echarts 按需注册</i>
+├── router/         <i>index + core（ComponentLoader/RouteRegistry/MenuProcessor/权限校验）+ guards + modules/ + routes/</i>
+├── store/modules/  <i>user、menu、setting、worktab、table 共 5 个 store</i>
+├── types/          <i>router/api/common/config/store 类型 + auto-imports.d.ts</i>
+├── utils/          <i>http（axios 封装）、storage（版本化）、navigation、socket（WS 单例）、ui/colors…</i>
+└── views/          <i>article / auth / change / dashboard / examples / exception / index / outside / result / safeguard / system / template / widgets</i></div>
+
+  <h3>2.4 框架自带功能</h3>
+
+  <h4>主题与外观</h4>
+  <ul>
+    <li><strong>明暗模式</strong>：Light / Dark / Auto 跟随系统；<code>index.html</code> 内联防白屏脚本；切换时自动生成主题色 9 级明暗变体 CSS 变量（<code>src/hooks/core/useTheme.ts</code>、<code>src/utils/ui/colors.ts</code>）。</li>
+    <li><strong>主题色</strong>：预设 7 色 + 自定义（运行时写 <code>--el-color-primary-*</code> 全套色阶）。</li>
+    <li><strong>菜单布局 4 种</strong>：左侧 / 顶部 / 混合（顶+左）/ 双栏菜单（<code>MenuTypeEnum</code>，渲染组件在 <code>src/components/core/layouts/art-menus/</code>）。</li>
+    <li><strong>菜单主题 3 种</strong>：design / dark / light；可调菜单宽度、全局圆角 <code>customRadius</code>、边框模式、容器宽度（100% / 盒式）、标签页样式、页面过渡动画（默认 slide-left）。</li>
+    <li><strong>设置面板</strong>：<code>art-settings-panel/</code> 12 个 widget，支持「复制配置 / 重置」。</li>
+  </ul>
+
+  <h4>国际化</h4>
+  <ul>
+    <li>vue-i18n 9，<code>legacy:false + globalInjection</code>，<strong>zh / en</strong> 两个语言包（<code>src/locales/langs/</code>），导出全局 <code>$t</code> 供任意 ts 文件使用；Element Plus 文案经 <code>ElConfigProvider</code> 跟随（与 v1 同法）。</li>
+  </ul>
+
+  <h4>权限系统（双模式，<code>VITE_ACCESS_MODE</code> 切换）</h4>
+  <ul>
+    <li><strong>frontend 模式（默认）</strong>：菜单来自 <code>src/router/routes/asyncRoutes.ts</code> → <code>modules/*</code>，登录后按 <code>userStore.info.roles</code> 递归过滤 <code>meta.roles</code>。</li>
+    <li><strong>backend 模式</strong>：菜单由 <code>GET /api/v3/system/menus</code> 返回同构 JSON，同样走 MenuProcessor。</li>
+    <li><strong>路由守卫</strong>（<code>src/router/guards/beforeEach.ts</code>）：未登录跳登录 → 拉用户信息 → 动态 <code>router.addRoute()</code> → 权限校验 → 404 兜底；含初始化防死循环、并发防抖、401 自动登出。</li>
+    <li><strong>按钮权限</strong>：<code>hasAuth('add')</code> Hook + <code>v-auth</code> 指令（无权移除 DOM）+ <code>v-roles</code> 角色指令；演示角色 R_SUPER / R_ADMIN / R_USER。</li>
+  </ul>
+
+  <h4>页面模板 / Demo（迁移时的参考范式库）</h4>
+  <table>
+    <thead><tr><th style="width:16%">模块</th><th>页面</th></tr></thead>
+    <tbody>
+      <tr><td>dashboard</td><td>控制台 / 数据分析 / 电商（各带 7~13 个 modules 子组件）</td></tr>
+      <tr><td>system</td><td>用户 / 角色 / 菜单管理、个人中心、多级嵌套菜单</td></tr>
+      <tr><td>article</td><td>列表（含按钮权限示范）/ 详情 / 评论 / 发布</td></tr>
+      <tr><td>examples</td><td>权限示例 ×3、标签页、基础表格、<strong>useTable 高级表格范式</strong>、树形表格、表单、搜索表单、WebSocket 聊天</td></tr>
+      <tr><td>template</td><td>卡片、横幅、图表、地图、聊天、日历、定价（全屏页）</td></tr>
+      <tr><td>widgets</td><td>图标选择、图片裁剪、Excel 导入导出、视频播放器、数字滚动、富文本、水印、右键菜单、二维码、拖拽、文字滚动、礼花、iframe</td></tr>
+      <tr><td>auth / 其它</td><td>登录（拖拽验证码）/ 注册 / 忘记密码、403/404/500、结果页、更新日志</td></tr>
+    </tbody>
+  </table>
+
+  <h4>核心组件（components/core，前缀 art-*）</h4>
+  <ul>
+    <li><strong>表格体系</strong>：<code>art-table</code>（ElTable 封装 + 内置分页 + 斑马纹/边框/表头配置）、<code>art-table-header</code>（列筛选/刷新/密度/列配置缓存）、<code>useTable</code> / <code>useTableColumns</code> / <code>useTableHeight</code> Hook —— Portal 的端口监控表、设备清单表、容器表可直接套用此范式。</li>
+    <li><strong>表单体系</strong>：<code>art-form</code> 配置化表单、<code>art-search-bar</code> 搜索表单（展开收起）—— 应用管理页的搜索过滤可直接替换。</li>
+    <li><strong>图表</strong>：ECharts 6 封装 10 种（bar/h-bar/dual-bar/line/ring/radar/scatter/k-line/map）+ 8 种图表卡片（stats/line/donut/progress/timeline…）—— 监控页 7 个数据块可改用图表卡片重组。</li>
+    <li><strong>布局/体验</strong>：多标签页 work-tab（固定/右键/恢复）、全局搜索 Ctrl+K（含历史）、通知中心、面包屑、锁屏（crypto-js）、全屏、水印、色弱模式、顶部进度条 NProgress、页面切换动画、keep-alive（meta.keepAlive + 动态 exclude）、iframe 路由管理、WebSocket 单例封装（心跳/重连/消息队列）、mitt 事件总线。</li>
+  </ul>
+
+  <h4>请求封装（src/utils/http/index.ts）</h4>
+  <ul>
+    <li>axios 实例：timeout 15s、baseURL=<code>VITE_API_URL</code>；请求拦截注入 <code>Authorization: accessToken</code>；响应拦截按 <strong><code>{code,msg,data}</code> 且 code===200</code> 解包，401 三秒防抖登出，408/5xx 可配重试；每请求可配 showErrorMessage / showSuccessMessage；错误文案 i18n（httpMsg 命名空间）。</li>
+    <li><code>request.get/post/put/del&lt;T&gt;()</code> 直接返回 data 泛型 —— 接口清爽，但<strong>响应契约与 Portal 后端不同，必须改拦截器</strong>（见 §5-G1）。</li>
+  </ul>
+
+  <h4>Mock 方式</h4>
+  <ul>
+    <li>无本地 mock 服务器：开发环境 Vite 把 <code>/api</code> 代理到<strong>远程 Apifox Mock</strong>（<code>VITE_API_PROXY_URL</code>）；另有 <code>src/mock/temp/*</code> 静态演示数据被 demo 页直接 import；<code>pnpm clean:dev</code> 一键精简 demo。</li>
+  </ul>
+
+  <h3>2.5 环境变量与全局配置</h3>
+  <table>
+    <thead><tr><th style="width:30%">变量（.env / .env.development / .env.production）</th><th>值</th><th>迁移动作</th></tr></thead>
+    <tbody>
+      <tr><td><code>VITE_ACCESS_MODE</code></td><td>frontend</td><td>保持 frontend（Portal 菜单固定，前端路由足够）</td></tr>
+      <tr><td><code>VITE_PORT</code></td><td>3006</td><td>可改 5174 避免与 v1 冲突</td></tr>
+      <tr><td><code>VITE_API_PROXY_URL</code>（dev）</td><td>Apifox Mock 地址</td><td><strong>改为 <code>http://127.0.0.1:8000</code></strong>（Portal 后端）</td></tr>
+      <tr><td><code>VITE_API_URL</code>（prod）</td><td>Apifox Mock 地址</td><td><strong>改为 <code>/</code>（走 Nginx/Docker 同源反代）</strong></td></tr>
+      <tr><td><code>VITE_WITH_CREDENTIALS</code></td><td>false</td><td>保持 false（Portal 用 token 头）</td></tr>
+      <tr><td><code>VITE_LOCK_ENCRYPT_KEY</code></td><td>演示密钥</td><td>换随机值（锁屏功能保留则必换）</td></tr>
+    </tbody>
+  </table>
+  <p>全局配置双文件：<code>src/config/index.ts</code>（系统名/主题列表/顶栏 12 个功能开关/快速入口）与 <code>src/config/setting.ts</code>（<code>SETTING_DEFAULT_CONFIG</code> 约 30 项默认外观值）。</p>
+
+  <h3>2.6 构建体系（vite.config.ts）</h3>
+  <ul>
+    <li>插件：plugin-vue、<strong>@tailwindcss/vite</strong>、unplugin-auto-import（vue/router/pinia/vueuse + EP Resolver）、unplugin-vue-components（组件按需自动导入）、unplugin-element-plus（样式按需）、vite-plugin-compression（gzip &gt;10KB）、vue-devtools、（可选 visualizer）。</li>
+    <li>路径别名：<code>@ @views @imgs @icons @utils @stores @styles</code>。</li>
+    <li>build：target es2015、terser（drop_console/debugger）、分包警告阈值 2000；<code>pnpm build</code> = <code>vue-tsc --noEmit</code> 类型检查 + vite build。</li>
+    <li>SCSS 全局注入 EP 主题覆盖与 mixin；optimizeDeps 预构建 echarts/xlsx/xgplayer/element-plus。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s3">
+  <h2><span class="no">3</span>现有 Portal 前端功能基线（v1 · 迁移需求权威清单）</h2>
+  <p>技术栈：Vue 3.4 + Vite 5 + TS + Pinia 2 + vue-router 4（<strong>history 模式</strong>）+ vue-i18n 11 + Element Plus 2.8 + ECharts 6。34 个本地 SFC 组件，无组件库。以下为「迁移后必须 1:1 保持」的功能全景（细节以 <code>docs/feature-spec</code> 为准）。</p>
+
+  <h3>3.1 页面清单（16 视图）</h3>
+  <table>
+    <thead><tr><th style="width:15%">视图</th><th>核心功能（迁移不可丢项）</th><th style="width:13%">权限</th></tr></thead>
+    <tbody>
+      <tr><td><strong>HomeView</strong></td><td>时段问候 + 本地时钟（站点时区）；最近使用应用 chips；<strong>多标签页每标签独立布局</strong>（/me/tabs）；分组区块 + 应用磁贴：区块/磁贴两级拖拽排序（防抖持久化）、收藏置顶、折叠、1x/2x 宽、收藏星标；磁贴探活状态点（up/down/unknown+延迟 tooltip）；全局 useOpenApp 打开链路（多入口弹窗/iframe/新标签）；移动端响应式</td><td>全员</td></tr>
+      <tr><td><strong>AppsManageView</strong></td><td>搜索 + 分组过滤；表格（图标/入口标签/打开方式/可见性/启用）；编辑抽屉：图标四态（URL+favicon 抓取/上传 base64 ≤2MB/图标库/emoji）、<strong>多入口动态行编辑</strong>（domain/lan/ssh/vpn/custom + 协议下拉）、健康检查配置、标签、文档地址；分组管理（拖序/IconPicker）；回收站、模板库、导入导出、批量操作</td><td>管理员</td></tr>
+      <tr><td><strong>MonitorView</strong></td><td><strong>WS /ws/monitor</strong> 帧推送（断连降级 5s 轮询）；7 数据块（cpu/mem/net/disk/io/gpu/temp）独立刷新间隔 + 150 点窗口；系统信息卡；实时图表（每核 CPU/分区进度条/温度/GPU）；应用探活列表；进程榜；Docker 统计；可用率 24h/7d/30d；证书到期；<strong>历史曲线</strong>（指标×范围×多序列 lttb 降采样）；<strong>大屏模式</strong>；CSV 导出、7 日报表、多机 Agent</td><td>全员（部分管理员）</td></tr>
+      <tr><td><strong>PortsView</strong></td><td>4 Tab：监听清单（TCP/UDP/进程搜索 + 端口画像弹窗 + 一键入监控）/ 监控项（down 置顶、延迟曲线弹窗、编辑/批量导入 host:port）/ 事件流水 / SSH 隧道面板；监听变更历史、裸露端口、公网可达性；10s 定时刷新</td><td>全员</td></tr>
+      <tr><td><strong>LanView</strong></td><td>3 Tab：设备清单（快扫/全扫 + 进度轮询、类型过滤、详情抽屉含上下线事件、WoL/入监控）/ 路由器面板（网关信息/UPnP/SNMP 流量/客户端）/ <strong>数据库面板</strong>（服务清单、凭据管理、MySQL/Redis/Minio 三查看器：概览 stat、库表→数据行、SCAN 游标分页、桶对象浏览）；扫描设置（网段多选/自动扫描/DNS/SNMP）</td><td>全员（设置管理员）</td></tr>
+      <tr><td><strong>DockerView</strong></td><td>容器表（状态/CPU/内存）、批量重启停止、日志弹窗（尾部 200 行 4s 轮询）、详情（端口/挂载/环境变量脱敏）、镜像管理、更新检测；<strong>仅后端启用+管理员显示导航</strong></td><td>管理员</td></tr>
+      <tr><td><strong>AiView</strong></td><td>会话列表 CRUD；<strong>WS /ws/ai-chat 流式对话</strong>（delta/done/error，done 携带意图导航）、停止生成；Markdown 渲染 + 流式光标；快捷指令；Provider CRUD + 连通测试拉模型；<strong>自然语言生成应用草稿</strong>一键保存</td><td>全员</td></tr>
+      <tr><td><strong>FlowView</strong></td><td>自动化列表（触发器 manual/cron/webhook/event、动作 condition/http/notify、重试）；表单编排 + <strong>@vue-flow 画布编排</strong>（拖节点/连线/条件双出口/侧栏编辑/minimap）；试运行、历史（步骤明细）、模板、导入导出</td><td>全员</td></tr>
+      <tr><td><strong>KnowledgeView</strong></td><td>多数据源（local/git）+ 懒加载目录树；按 kind 分发查看器：markdown（marked+DOMPurify）、code 可编辑、html 沙箱、pdf、图片、音视频、<strong>office（docx-preview/pptx-preview/SheetJS 按需动态 import）</strong>、老格式走 LibreOffice 转 PDF 签名 URL、zip 条目提取；大文本分片加载；在线保存</td><td>全员（源管理管理员）</td></tr>
+      <tr><td><strong>ToolsView</strong></td><td><strong>WebSSH 终端（xterm+fit，WS /ws/ssh-terminal，凭据下拉）</strong>；Base64/URL 编解码；时间戳互转；密码生成器；WoL 魔法包（已存目标）；Ping/端口测试；二维码生成下载</td><td>全员</td></tr>
+      <tr><td><strong>EfficiencyView</strong></td><td>3 页签：日程（el-calendar 月视图+事件角标+待办+农历/重复规则）/ 文件（白名单根目录+面包屑+上传/移动/下载，管理员）/ 下载（qBittorrent 任务+磁链下发、Jellyfin 海报墙，管理员）</td><td>混合</td></tr>
+      <tr><td><strong>SettingsView</strong></td><td>13 个二级菜单：常规（站点名/时区/访客开关/语言/天气）、外观（暗色/主题色/壁纸+模糊遮罩/自定义 CSS）、应用标签、统一图标库、网络环境档案+连通矩阵、监控采样、<strong>通知 8 渠道 + 事件路由矩阵 + 阈值告警</strong>、用户管理、安全（TOTP/会话/API Token/恢复出厂）、效率集成、Redis 存储、MySQL 同步、关于+在线更新</td><td>管理员</td></tr>
+      <tr><td><strong>LogsView</strong></td><td>审计日志（筛选/分页/CSV 导出/行展开）+ 系统日志（级别/关键词/自动刷新）</td><td>管理员</td></tr>
+      <tr><td><strong>LoginView</strong></td><td><strong>后端连接自检</strong>（/health → initialized 决定登录 or 首次初始化向导；后端宕机禁提交）；注册/LDAP/OIDC 探测显隐；TOTP 验证码（code=1007 展开）；密码管理器回填兜底；Aurora 背景</td><td>公开</td></tr>
+      <tr><td><strong>GuestView</strong></td><td>免登录只读门户（/api/public/apps，仅 visibility=public 应用磁贴）；未开启提示 + 去登录</td><td>公开</td></tr>
+      <tr><td><strong>NotFoundView</strong></td><td>404 兜底（catch-all，独立整页）</td><td>公开</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2 布局 / 路由 / 认证</h3>
+  <ul>
+    <li><strong>AppLayout</strong>：单布局（侧栏 clamp(200px,16vw,216px)，&lt;1080px 折叠 68px 图标栏）+ 顶栏（页面标题 + <strong>通知中心铃铛</strong> + <strong>Ctrl+K 命令面板</strong> + <strong>网络环境切换器</strong>（自动识别+手动覆盖））；导航按权限动态显隐（docker 需后端启用探测）；访客/登录/404 不套布局。</li>
+    <li><strong>路由</strong>：history 模式，静态导入全部视图；<code>meta.public</code> / <code>meta.requiresAdmin</code> 守卫。</li>
+    <li><strong>Token</strong>：localStorage <code>portal.token / portal.refresh / portal.user</code>；access 30min 自动续期、refresh 7 天。</li>
+  </ul>
+
+  <h3>3.3 状态与 API 层</h3>
+  <ul>
+    <li><strong>6 个 store</strong>：auth（会话）、settings（全局设置 map）、env（网络环境档案）、notify（通知中心角标/列表/WS 事件）、probe（<strong>WS /ws/notify 长连接</strong>：探活帧+通知帧，指数退避重连 3s→60s）、iconLibrary（统一图标库，首次播种 Element 图标名）。</li>
+    <li><strong>API 层 26 个模块 + request.ts + secure.ts</strong>，核心特征（<strong>迁移最大风险点</strong>）：
+      <ul>
+        <li><strong>传输加密</strong>：RSA 公钥握手 → 前端生成 AES-256-GCM 会话密钥 → RSA-OAEP 封装上报；密钥仅存内存；<code>Authorization: ENC &lt;nonce&gt;:&lt;payload&gt;</code> 加密头 + <code>X-Session-Id</code> + 请求体信封加密；三条明文降级路径（HTTP / 服务端 ENCRYPT_ENABLED=false / 握手异常）。</li>
+        <li><strong>响应契约</strong>：<code>{code,message,data}</code>，<code>code=0</code> 成功；<strong>1100 会话失效 → 重握手重试一次</strong>；<strong>401 → refresh 静默续期一次重试</strong>（并发去重），失败登出跳登录；1007=TOTP。</li>
+      </ul>
+    </li>
+    <li><strong>4 条 WebSocket</strong>（token 走 URL query，均需保留）：/ws/notify（probe store）、/ws/monitor、/ws/ai-chat、/ws/ssh-terminal。dev 代理四条：<code>/api /ws /icons /tunnel</code> → 8000。</li>
+  </ul>
+
+  <h3>3.4 国际化 / 主题 / 测试 / 其它</h3>
+  <ul>
+    <li><strong>i18n</strong>：zh-CN / en，各 1370 行、37 个顶级命名空间；<code>Accept-Language</code> 跟随后端文案；切换入口在设置页。</li>
+    <li><strong>主题</strong>：单文件设计系统（253 行 CSS 变量双套 + .glass 毛玻璃 + .brand-text 渐变）；<code>html.dark</code>；主题色运行时派生 EP 全套色阶；<strong>壁纸层（纯色/渐变/图片+模糊+遮罩）+ 自定义 CSS 注入</strong>（appearance.custom_css）。</li>
+    <li><strong>PWA</strong>：vite-plugin-pwa（autoUpdate/standalone/4MB 预缓存上限/denylist /api /ws /files /icons）。</li>
+    <li><strong>测试</strong>：vitest + jsdom，13 个纯函数单测文件 50+ 用例（router 守卫/layout 序列化/theme 色阶/ssh 命令/协议拆拼/命令面板搜索/工具函数等）。</li>
+    <li><strong>关键 utils/composables</strong>：layout（首页布局序列化契约）、search（命令面板子序列模糊+权重）、useOpenApp（应用打开编排单例）、useTheme、protocolUrl、canvas（Flow 线性↔图互转，与后端同构）、export 文件名规范等 14 个模块。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s4">
+  <h2><span class="no">4</span>能力映射：框架资产 → Portal 需求</h2>
+  <p>逐项判定每个 Portal 需求在 Art Design Pro 中的对应物与动作（<span class="badge p1">直接复用</span> = 框架现成；<span class="badge core">改造适配</span> = 框架有但需改；<span class="badge p3">自建移植</span> = 框架没有，从 v1 搬）。</p>
+  <table>
+    <thead><tr><th style="width:17%">Portal 需求</th><th style="width:30%">Art Design Pro 对应物</th><th style="width:10%">判定</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>整体布局（侧栏+顶栏+内容）</td><td>4 种布局模式 + 响应式折叠</td><td><span class="badge p1">直接复用</span></td><td>免费升级：用户可自选布局，移动端折叠内置</td></tr>
+      <tr><td>明暗模式 / 主题色</td><td>Light/Dark/Auto + 7 预设色 + 自定义 + 9 级色阶派生</td><td><span class="badge p1">直接复用</span></td><td>替换 v1 自研 useTheme；壁纸层仍需移植（框架无壁纸）</td></tr>
+      <tr><td>多标签页</td><td>work-tab（固定/恢复/右键批量）</td><td><span class="badge p1">直接复用</span></td><td>注意与首页「每标签独立磁贴布局」语义区分：首页多 Tab 是业务概念，保留自研 /me/tabs</td></tr>
+      <tr><td>Ctrl+K 命令面板</td><td>全局搜索（含历史）</td><td><span class="badge core">改造适配</span></td><td>把 v1 的 search.ts 模糊算法 + 应用跳转/快捷搜索语法（kw 词）接进框架搜索结果或替换其实现</td></tr>
+      <tr><td>通知中心铃铛</td><td>art 通知中心组件</td><td><span class="badge core">改造适配</span></td><td>数据源接 v1 notify store + /ws/notify 探活 store</td></tr>
+      <tr><td>路由权限（requiresAdmin）</td><td>meta.roles + MenuProcessor 过滤</td><td><span class="badge core">改造适配</span></td><td>admin/user 映射为 R_ADMIN/R_USER（或自定义 role 常量）；docker 导航动态显隐 → 运行时改 menuStore 或 meta 控制</td></tr>
+      <tr><td>登录页</td><td>登录/注册/忘记密码三页 + 拖拽验证码</td><td><span class="badge p3">自建移植</span></td><td>登录核心逻辑必须重写：自检/init 向导/TOTP(1007)/LDAP/OIDC/加密握手；框架页做外壳</td></tr>
+      <tr><td>HTTP 请求层</td><td>utils/http（axios 封装）</td><td><span class="badge p3">自建移植</span></td><td>拦截器按 {code,message,data}=0 重写 + 整体移植 secure.ts 加密信封 + 1100/401 处理（§5-G1/G2）</td></tr>
+      <tr><td>表格页（端口监控/设备/容器/用户/审计）</td><td>art-table + useTable + art-search-bar</td><td><span class="badge p1">直接复用</span></td><td>范式参考 src/views/system/user；v1 的 el-table 写法可全部升级为此范式</td></tr>
+      <tr><td>监控图表</td><td>echarts 插件 + 图表卡片 + useChart</td><td><span class="badge core">改造适配</span></td><td>MonitorChart（replaceMerge+ResizeObserver+150 点窗口）逻辑保留，可换用 useChart 生命周期</td></tr>
+      <tr><td>拖拽排序（首页区块/磁贴）</td><td>vue-draggable-plus（框架已含）</td><td><span class="badge p1">直接复用</span></td><td>依赖同款，v1 代码近乎直搬</td></tr>
+      <tr><td>二维码</td><td>qrcode.vue（框架已含）；v1 用 qrcode 库</td><td><span class="badge core">改造适配</span></td><td>二选一统一：建议沿用 v1 qrcode（TOTP otpauth/入口码/下载 PNG 均依赖）</td></tr>
+      <tr><td>Excel 能力</td><td>xlsx + art-excel-import/export</td><td><span class="badge p1">直接复用</span></td><td>知识库 SheetJS 预览按需动态 import 的写法保留</td></tr>
+      <tr><td>i18n zh/en</td><td>vue-i18n 9 + zh.json/en.json</td><td><span class="badge core">改造适配</span></td><td>37 命名空间 × 1370 行文案搬入 json；zh-CN 键名统一；EP 文案跟随机制相同</td></tr>
+      <tr><td>WebSocket（4 条）</td><td>utils/socket WebSocketClient 单例（心跳/重连）</td><td><span class="badge core">改造适配</span></td><td>可复用其重连封装，但 4 条连接语义（token query/帧协议/降级轮询）按 v1 移植</td></tr>
+      <tr><td>Flow 画布</td><td>—（框架无）</td><td><span class="badge p3">自建移植</span></td><td>补装 @vue-flow/*，FlowCanvas + canvas.ts 线性↔图互转直搬</td></tr>
+      <tr><td>WebSSH 终端</td><td>—（框架无）</td><td><span class="badge p3">自建移植</span></td><td>补装 @xterm/xterm + addon-fit，WebSshTerminal 直搬</td></tr>
+      <tr><td>Office 预览（知识库）</td><td>—（框架仅 wangeditor 富文本）</td><td><span class="badge p3">自建移植</span></td><td>补装 docx-preview / pptx-preview；xlsx 已有；按需动态 import 保持</td></tr>
+      <tr><td>Markdown 渲染</td><td>—（框架无 marked）</td><td><span class="badge p3">自建移植</span></td><td>补装 marked + dompurify；<strong>顺带修复 v1 AiView 未 sanitize 的隐患</strong></td></tr>
+      <tr><td>访客模式 /guest</td><td>—</td><td><span class="badge p3">自建移植</span></td><td>加 staticRoute（meta 免登录），GuestView 直搬</td></tr>
+      <tr><td>PWA</td><td>—（框架无 vite-plugin-pwa）</td><td><span class="badge p3">自建移植</span></td><td>补装并照搬 v1 配置（4MB 上限 + denylist）</td></tr>
+      <tr><td>单测</td><td>—（框架无 vitest）</td><td><span class="badge p3">自建移植</span></td><td>补装 vitest + jsdom，13 个纯函数测试直搬（代码与框架无耦合）</td></tr>
+      <tr><td>网络环境切换器（顶栏）</td><td>—</td><td><span class="badge p3">自建移植</span></td><td>Portal 特色功能：env store + 顶栏组件自建，可挂进框架 headerBar 插槽区</td></tr>
+      <tr><td>锁屏 / 全屏 / 水印 / 色弱</td><td>框架全有</td><td><span class="badge p1">直接复用</span></td><td>净增值功能，v1 没有，白送</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s5">
+  <h2><span class="no">5</span>差距清单与风险</h2>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:24%">差距 / 风险</th><th style="width:10%">等级</th><th>影响与对策</th></tr></thead>
+    <tbody>
+      <tr><td class="num">G1</td><td>响应契约不同：<code>{code,msg,data}=200</code> vs Portal <code>{code,message,data}=0</code></td><td><span class="badge p3">高</span></td><td>不改后端的前提下，重写 <code>src/utils/http/index.ts</code> 响应拦截（解包字段、成功码、业务 Error 携 code）；错误文案 i18n 改挂 Portal message 直传</td></tr>
+      <tr><td class="num">G2</td><td>加密传输层（RSA 握手 + AES-GCM 信封 + ENC 头 + 1100 重握手 + 401 静默续期）</td><td><span class="badge p3">高</span></td><td>v1 的 <code>secure.ts</code> 与拦截器逻辑<strong>整体移植</strong>；框架的 Authorization 注入/401 登出/重试逻辑被其取代；明文降级三路径 + 一次性警告需保留（App.vue 挂载）</td></tr>
+      <tr><td class="num">G3</td><td>认证流差异：框架期望 <code>{token,refreshToken}</code> + <code>/api/user/info</code> 返 roles/buttons</td><td><span class="badge p3">高</span></td><td>重写 <code>src/api/auth.ts</code> 与 user store：登录走 Portal <code>/api/auth/*</code>（含 init/TOTP/LDAP/OIDC），用户信息映射 admin→R_ADMIN；refresh 并发去重逻辑移植</td></tr>
+      <tr><td class="num">G4</td><td>路由机制：hash 模式 + component 字符串路径 + 动态注册</td><td><span class="badge p2">中</span></td><td>16 个视图改写为 modules 模块（component: '/home' 字符串指向 views）；<strong>hash vs history 需决策</strong>（§8-Q1：后端/Docker 未绑 history 回退，hash 反而省事；但 URL 带 # 与 v1 不一致）；守卫的 requiresAdmin → meta.roles</td></tr>
+      <tr><td class="num">G5</td><td>vue-i18n 9（legacy:false 可用 Composition API）vs v1 的 v11</td><td><span class="badge p2">中</span></td><td>API 大体兼容；$t 全局导出方式框架已解决；1370×2 行文案 + 37 命名空间需脚本化搬迁（zh-CN→zh 键名、ts→json）</td></tr>
+      <tr><td class="num">G6</td><td>缺依赖：@vue-flow、@xterm、docx-preview、pptx-preview、marked、dompurify、qrcode、dayjs、vite-plugin-pwa、vitest</td><td><span class="badge p2">中</span></td><td>pnpm add 一次补齐（xlsx/vue-draggable-plus/echarts 框架已有）；vite.config 加 PWA 插件与 /ws /icons /tunnel 代理</td></tr>
+      <tr><td class="num">G7</td><td>localStorage 键与持久化机制不同（sys-v{ver}-* vs portal.*）</td><td><span class="badge p2">低</span></td><td>v1 与 v2 并行期互不干扰（天然隔离）；v2 内部沿用 StorageKeyManager 即可；跨版本不共享登录态可接受</td></tr>
+      <tr><td class="num">G8</td><td>首页「每标签独立布局」与框架 keep-alive/多标签页交互</td><td><span class="badge p2">低</span></td><td>首页业务 Tab 用 v1 /me/tabs 机制；框架 work-tab 的 keepAliveExclude 不影响；首页磁贴拖拽组件直搬</td></tr>
+      <tr><td class="num">G9</td><td>docker 导航动态显隐（后端启用探测）</td><td><span class="badge p2">低</span></td><td>守卫后按 /docker/status 结果改 menuStore.menuList 或用 meta 动态标记</td></tr>
+      <tr><td class="num">G10</td><td>Node ≥ 20.19 + pnpm 强制</td><td><span class="badge p2">低</span></td><td>本机需 pnpm（npm 不可用，engines 约束）；Dockerfile 构建段相应改 pnpm；Node 20.19+ 镜像</td></tr>
+      <tr><td class="num">G11</td><td>v1 已知隐患：AiView marked 直出 v-html 未 sanitize</td><td><span class="badge p1">修复</span></td><td>迁移时统一 DOMPurify.sanitize，顺带消除隐患</td></tr>
+      <tr><td class="num">G12</td><td>demo 页面与 mock 数据清理</td><td><span class="badge p2">低</span></td><td><code>pnpm clean:dev</code> 一键精简后仍需手工删 views 多余模块 + 路由 modules + 语言包 menus 段</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">⚠️ <strong>最大风险集中在 G1+G2+G3（请求/加密/认证三件套）</strong>——它们是所有页面共同的地基，必须最先做且要有真机联调验证（后端 8000 + 加密握手 + 1100/401 分支）。建议以「登录 → 拉设置 → 首页磁贴」为最小贯通里程碑。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s6">
+  <h2><span class="no">6</span>迁移方案（阶段计划）</h2>
+  <p>原则：<strong>v1 不动、v2 并行</strong>（两个前端目录同连一个后端 8000，dev 端口错开）；v2 按阶段推进，每阶段以「可运行 + 可联调」为关卡；视图迁移顺序按依赖与使用频率排定。</p>
+  <table>
+    <thead><tr><th style="width:9%">阶段</th><th style="width:22%">目标</th><th>内容</th><th style="width:16%">关卡</th></tr></thead>
+    <tbody>
+      <tr><td><strong>F0</strong></td><td>底座初始化</td><td>pnpm install + dev 跑通；品牌替换（config/index.ts 系统名 + index.html + logo）；<code>.env.development</code> 代理 /api→8000 并补 <code>/ws /icons /tunnel</code>；<code>pnpm clean:dev</code> + 手工删 demo 模块（保留 system/user 作表格范式参考，迁移完再删）；VITE_PORT 改 5174；补装 G6 依赖清单</td><td>空壳站跑通 + 代理连通 /api/health</td></tr>
+      <tr><td><strong>F1</strong></td><td>请求/加密/认证地基 <span class="badge p3">高风险优先</span></td><td>重写 utils/http 拦截器（G1）；移植 secure.ts + 明文降级警告（G2）；重写 api/auth + user store + 登录页（自检/init 向导/TOTP/LDAP/OIDC，G3）；/guest 访客 staticRoute + GuestView；守卫按新会话改造</td><td>登录→登出→refresh 续期→TOTP→访客页全流程真机通过</td></tr>
+      <tr><td><strong>F2</strong></td><td>外壳与全局</td><td>16 视图路由 modules + 菜单 + 权限矩阵（admin/user/docker 动态显隐）；i18n 文案搬迁（37 命名空间）；notify + probe 两条 store 与 WS 接入框架通知中心；命令面板接 search.ts；网络环境切换器入顶栏；settings store + 外观设置页（壁纸/自定义 CSS 移植）</td><td>菜单全量可见、通知推送、Ctrl+K、语言切换可用</td></tr>
+      <tr><td><strong>F3</strong></td><td>核心三页</td><td>HomeView（多标签布局/磁贴拖拽/useOpenApp/EntryPopup）、AppsManageView（表格范式 + 编辑抽屉 + 图标四态 + 回收站/模板/导入导出）、MonitorView（WS + 7 数据块 + 历史曲线 + 大屏模式）</td><td>磁贴布局持久化、监控实时帧、大屏模式真机通过</td></tr>
+      <tr><td><strong>F4</strong></td><td>运维四页</td><td>PortsView（4 Tab + 延迟曲线）、LanView（设备/路由器/数据库三面板 + 三查看器）、DockerView、LogsView</td><td>扫描流程 + 凭据管理 + 查看器数据钻取通过</td></tr>
+      <tr><td><strong>F5</strong></td><td>增强四页</td><td>AiView（WS 流式 + 应用草稿，补 DOMPurify）、FlowView（表单 + vue-flow 画布）、KnowledgeView（全格式查看器）、ToolsView（xterm WebSSH + 工具集）</td><td>SSH 终端可操作、画布保存可运行、Office 预览正常</td></tr>
+      <tr><td><strong>F6</strong></td><td>收尾三页 + 质量</td><td>EfficiencyView（日程/文件/下载）、SettingsView（13 菜单全量）、404；vitest 迁移 13 文件 + 补新 utils 用例；PWA 插件 + 图标；pnpm build 产出；Dockerfile/构建脚本接入（pnpm 镜像）</td><td>测试全绿 + build 通过 + 容器内运行</td></tr>
+      <tr><td><strong>F7</strong></td><td>验收切换</td><td>对照 feature-spec 220 功能点逐项走查；与 v1 并行跑一周观察；docs 更新 + 切流决策</td><td>功能对齐表 100%</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok">✅ <strong>收益预告</strong>：迁移完成后免费获得——4 种布局模式、完整明暗/主题色/圆角/壁纸体系、多标签页 + keep-alive、锁屏、水印、色弱模式、全局搜索、表格/表单/图表组件范式、Tailwind 4 原子化样式、更现代的构建链（Vite 7 + 自动按需导入 + gzip 产物）。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s7">
+  <h2><span class="no">7</span>目录与代码对照表</h2>
+  <table>
+    <thead><tr><th style="width:32%">v1（frontend/src）</th><th style="width:36%">v2（frontend-artdesign/src）</th><th>迁移方式</th></tr></thead>
+    <tbody>
+      <tr><td><code>api/request.ts + secure.ts</code></td><td><code>utils/http/index.ts</code> + <code>api/secure.ts</code></td><td>拦截器重写 + secure 直搬</td></tr>
+      <tr><td><code>api/*.ts</code>（26 模块）</td><td><code>api/*.ts</code></td><td>请求函数签名改 request.get/post 泛型风格，端点不变</td></tr>
+      <tr><td><code>stores/*.ts</code>（6 个）</td><td><code>store/modules/*.ts</code>（+框架 user/menu/setting/worktab/table）</td><td>auth 并入框架 user；settings/env/notify/probe/iconLibrary 直搬（Pinia 3 语法兼容）</td></tr>
+      <tr><td><code>router/index.ts</code>（静态表）</td><td><code>router/modules/*.ts</code>（字符串组件路径）</td><td>按模块重写；public 路由进 staticRoutes</td></tr>
+      <tr><td><code>layouts/AppLayout.vue</code></td><td>框架 layouts（4 模式）+ 顶栏插槽</td><td>自研布局退役；通知/命令面板/环境切换器挂进框架顶栏</td></tr>
+      <tr><td><code>views/*.vue</code>（16 个）</td><td><code>views/&lt;module&gt;/&lt;page&gt;/index.vue</code></td><td>逐页迁移（F3–F6），组件就近放页面目录或 components/business</td></tr>
+      <tr><td><code>components/*.vue</code>（34 个）</td><td><code>components/business/*</code></td><td>EntryPopup/CommandPalette/AppIcon/IconPicker 等直搬</td></tr>
+      <tr><td><code>composables/useTheme / useOpenApp</code></td><td><code>hooks/core/useTheme</code>（框架）+ <code>hooks/business/useOpenApp</code></td><td>useTheme 用框架的；useOpenApp 直搬</td></tr>
+      <tr><td><code>locales/zh-CN.ts / en.ts</code></td><td><code>locales/langs/zh.json / en.json</code></td><td>37 命名空间脚本化搬迁（menus 段并入框架结构）</td></tr>
+      <tr><td><code>styles/index.css</code>（设计系统）</td><td><code>assets/styles/custom/*</code> + Tailwind</td><td>.glass 等业务类保留为全局样式；主题变量体系切换为框架的</td></tr>
+      <tr><td><code>utils/*.ts</code>（14 个）</td><td><code>utils/*</code> 或 <code>hooks/business</code></td><td>纯函数直搬（layout/search/ssh/protocolUrl/canvas/export…）</td></tr>
+      <tr><td><code>__tests__/*.spec.ts</code>（13 个）</td><td><code>__tests__/*</code>（需配 vitest）</td><td>直搬；vite.config 加 test 段</td></tr>
+      <tr><td><code>vite.config.ts</code>（PWA+代理）</td><td><code>vite.config.ts</code></td><td>补 /ws /icons /tunnel 代理 + PWA 插件 + vitest</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s8">
+  <h2><span class="no">8</span>待决策问题</h2>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:26%">问题</th><th style="width:30%">选项</th><th>建议</th></tr></thead>
+    <tbody>
+      <tr><td class="num">Q1</td><td>路由模式：框架默认 hash，v1 为 history</td><td>A. 保持 hash（零配置）<br>B. 改 createWebHistory（URL 干净，但需网关/Nginx 回退配置）</td><td><strong>建议 B</strong>：Portal 是单容器 Nginx 部署，history 回退一行配置即可，与 v1 行为一致</td></tr>
+      <tr><td class="num">Q2</td><td>frontend-artdesign 内的 .git（上游 remote）</td><td>A. 保留 submodule / 独立仓库<br>B. 删除 .git 并入 Portal 主仓库</td><td><strong>建议 B</strong>：v2 即 Portal 代码，统一版本管理；留 README 注明上游版本 f3aaf58/v3.0.2 便于对照</td></tr>
+      <tr><td class="num">Q3</td><td>demo 页面清理时机</td><td>A. F0 一次删净<br>B. 保留 system/user 等范式页至 F6 再删</td><td><strong>建议 B</strong>：范式页是迁移期的活参考（表格/权限/表单），收尾阶段统一清理</td></tr>
+      <tr><td class="num">Q4</td><td>顶栏功能开关（框架 12 项：聊天/快速入口/礼花等）</td><td>逐项配置 headerBar.ts</td><td>关闭 chat / fastEnter / 礼花 / 锁屏可留；全局搜索/通知/全屏/语言/主题切换保留</td></tr>
+      <tr><td class="num">Q5</td><td>v1 何时退役</td><td>F7 验收后切流 / 长期双跑</td><td>feature-spec 220 点对齐 + 一周并行观察后切换；frontend/ 目录归档保留一个版本周期</td></tr>
+    </tbody>
+  </table>
+  <div class="callout info">📌 <strong>下一步</strong>：确认 §8 决策后即可启动 F0（pnpm install + 代理 + 品牌替换 + 清 demo），F1（请求/加密/认证三件套）为首个技术攻坚阶段。</div>
+</section>
+
+<footer>Portal · Art Design Pro 前端重构框架分析报告 v1.0 · 2026-10-21 · 框架源：github.com/Daymychen/art-design-pro @ f3aaf58 (v3.0.2) · 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  // 目录 scrollspy
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => {
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    }
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+<!-- doc-embed: 被文档索引页(index.html) iframe 嵌入时自动收起自身侧栏；独立打开不受影响，可整段安全移除 -->
+<script>(function(){
+  if (window.parent === window) return;
+  document.documentElement.classList.add('doc-embedded');
+  /* 滚动广播：当前章节变化时通知索引页联动高亮（docScroll） */
+  var last = null, ticking = false;
+  function spy(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var y = window.scrollY + 130, cur = null;
+      document.querySelectorAll('section[id], h2[id], h3[id]').forEach(function(el){
+        if (el.getBoundingClientRect().top + window.scrollY <= y) cur = el.id;
+      });
+      if (cur && cur !== last){
+        last = cur;
+        try { window.parent.postMessage({ type: 'docScroll', anchor: cur }, '*'); } catch (e) {}
+      }
+    });
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('load', spy);
+  spy();
+})();</script>
+<style>
+  html.doc-embedded .sidebar{display:none}
+  html.doc-embedded .main{margin-left:0!important;padding:0!important}
+  html.doc-embedded .hero{margin:0 0 26px!important;padding:42px 28px 34px!important}
+  html.doc-embedded section{padding:26px 30px}
+</style>
+</body>
+</html>

@@ -765,5 +765,36 @@
   document.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 </script>
+<!-- doc-embed: 被文档索引页(index.html) iframe 嵌入时自动收起自身侧栏；独立打开不受影响，可整段安全移除 -->
+<script>(function(){
+  if (window.parent === window) return;
+  document.documentElement.classList.add('doc-embedded');
+  /* 滚动广播：当前章节变化时通知索引页联动高亮（docScroll） */
+  var last = null, ticking = false;
+  function spy(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var y = window.scrollY + 130, cur = null;
+      document.querySelectorAll('section[id], h2[id], h3[id]').forEach(function(el){
+        if (el.getBoundingClientRect().top + window.scrollY <= y) cur = el.id;
+      });
+      if (cur && cur !== last){
+        last = cur;
+        try { window.parent.postMessage({ type: 'docScroll', anchor: cur }, '*'); } catch (e) {}
+      }
+    });
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('load', spy);
+  spy();
+})();</script>
+<style>
+  html.doc-embedded .sidebar{display:none}
+  html.doc-embedded .main{margin-left:0!important;padding:0!important}
+  html.doc-embedded .hero{margin:0 0 26px!important;padding:42px 28px 34px!important}
+  html.doc-embedded section{padding:26px 30px}
+</style>
 </body>
 </html>

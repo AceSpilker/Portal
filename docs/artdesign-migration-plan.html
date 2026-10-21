@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal · Art Design Pro 前后端整体迁移方案</title>
+<style>
+  :root{
+    --primary:#4f6ef7;
+    --primary-dark:#1e3a8a;
+    --ink:#1f2937;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --code-bg:#0d1526;
+    --code-ink:#dbe4f3;
+    --warn-bg:#fff7ed;
+    --warn-line:#fdba74;
+    --ok:#10b981;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.75;font-size:15px;
+  }
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:262px;overflow-y:auto;
+    background:#0b1530;color:#cbd5e1;padding:28px 0 28px 26px;z-index:10;
+  }
+  .sidebar .brand{font-weight:700;font-size:17px;color:#fff;letter-spacing:.5px;margin-bottom:4px}
+  .sidebar .brand em{color:#7f9bff;font-style:normal}
+  .sidebar .sub{font-size:12px;color:#64748b;margin-bottom:24px}
+  .toc a{
+    display:block;color:#94a3b8;text-decoration:none;font-size:13px;
+    padding:5px 14px 5px 0;border-left:2px solid transparent;padding-left:12px;margin-left:-14px;
+    transition:all .15s;
+  }
+  .toc a:hover{color:#fff}
+  .toc a.active{color:#fff;border-left-color:var(--primary);background:rgba(79,110,247,.14)}
+  .toc .lv2{padding-left:24px;font-size:12px}
+  .toc .toc-gap{margin-top:12px}
+  .main{margin-left:262px;padding:0 40px 80px}
+  .content{max-width:1000px;margin:0 auto}
+  .hero{
+    margin:0 -40px 40px;padding:64px 40px 56px;color:#fff;
+    background:linear-gradient(135deg,#0b1c48 0%,#1e3a8a 60%,#4f6ef7 140%);
+  }
+  .hero .inner{max-width:1000px;margin:0 auto}
+  .hero h1{font-size:33px;letter-spacing:1px;margin-bottom:10px}
+  .hero h1 .dot{color:#8fb0ff}
+  .hero p.tagline{font-size:16px;color:#c7d6ff;max-width:780px}
+  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .chip{
+    font-size:12.5px;padding:4px 12px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#e4ecff;
+  }
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:34px 38px;margin-bottom:28px;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  h2{
+    font-size:22px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  h2 .no{
+    font-size:12px;font-weight:700;color:var(--primary);background:#eef2ff;
+    border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;letter-spacing:.5px;
+  }
+  h3{font-size:16.5px;margin:26px 0 10px;color:#0f172a}
+  h3::before{content:"▍";color:var(--primary);margin-right:6px}
+  h4{font-size:14.5px;margin:18px 0 8px;color:#0f172a}
+  p{margin:8px 0;color:#334155}
+  ul,ol{margin:8px 0 8px 22px}
+  li{margin:5px 0;color:#334155}
+  strong{color:#0f172a}
+  .badge{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;vertical-align:2px}
+  .badge.core{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .badge.p1{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .badge.p2{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+  .badge.p3{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+  code{
+    font-family:"SF Mono",SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:12.5px;background:#f1f5f9;color:#0f172a;padding:2px 6px;border-radius:5px;
+  }
+  pre{
+    background:var(--code-bg);color:var(--code-ink);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font-size:12.5px;line-height:1.7;margin:12px 0;
+  }
+  pre code{background:none;color:inherit;padding:0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th{background:#f8fafc;text-align:left;font-weight:600;color:#0f172a}
+  th,td{border:1px solid var(--line);padding:8px 12px;vertical-align:top}
+  tbody tr:nth-child(even){background:#fbfcfe}
+  td.num{color:var(--muted);font-variant-numeric:tabular-nums}
+  .callout{
+    background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;
+    padding:12px 18px;margin:14px 0;font-size:14px;color:#7c2d12;
+  }
+  .callout.info{background:#eff6ff;border-color:#93c5fd;color:#1e3a8a}
+  .callout.ok{background:#ecfdf5;border-color:#6ee7b7;color:#065f46}
+  .tree{background:#0d1526;color:#c9d6ec;border-radius:10px;padding:16px 20px;
+    font-family:"SF Mono",SFMono-Regular,Consolas,Menlo,monospace;font-size:12.5px;line-height:1.8;
+    overflow-x:auto;margin:12px 0;white-space:pre}
+  .tree b{color:#8fb0ff;font-weight:600}
+  .tree i{color:#64748b;font-style:normal}
+  .kv{display:grid;grid-template-columns:170px 1fr;gap:6px 14px;margin:10px 0;font-size:14px}
+  .kv dt{color:var(--muted)}
+  .kv dd{color:#0f172a}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;padding-top:8px}
+  .verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:16px 0}
+  .verdict .card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fbfcfe}
+  .verdict .card h4{margin-bottom:8px}
+  .verdict .card.ok{border-color:#a7f3d0;background:#f6fef9}
+  .verdict .card.warn{border-color:#fde68a;background:#fffdf5}
+  .verdict .card.risk{border-color:#fecaca;background:#fffafa}
+  .phase{border-left:3px solid var(--primary);padding:10px 16px;margin:12px 0;background:#fbfcfe;border-radius:0 10px 10px 0}
+  .phase b{color:#0f172a}
+  @media (max-width:1100px){
+    .sidebar{display:none}.main{margin-left:0;padding:0 20px 60px}
+    .hero{margin:0 -20px 30px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="brand">Portal · <em>整体迁移方案</em></div>
+  <div class="sub">Art Design Pro 前后端适配 v1.0</div>
+  <div class="toc">
+    <a href="#s1">1. 目标与总体策略</a>
+    <a href="#s1" class="lv2">1.1 方向决策与范围</a>
+    <a href="#s1" class="lv2">1.2 三条适配原则</a>
+    <a href="#s1" class="lv2">1.3 全景图</a>
+    <a href="#s2">2. 契约差异与决策总表</a>
+    <a href="#s3">3. 后端改造详单（B1–B10）</a>
+    <a href="#s3" class="lv2">B1 响应信封 code=200/msg</a>
+    <a href="#s3" class="lv2">B2 认证端点适配</a>
+    <a href="#s3" class="lv2">B3 审计中间件缺陷修复</a>
+    <a href="#s3" class="lv2">B4–B8 保持项与理由</a>
+    <a href="#s3" class="lv2">B9 部署改造</a>
+    <a href="#s3" class="lv2">B10 测试与文档</a>
+    <a href="#s4">4. 前端 v2 改造详单（F0–F7）</a>
+    <a href="#s4" class="lv2">4.1 请求层重写（核心）</a>
+    <a href="#s4" class="lv2">4.2 登录页与用户态</a>
+    <a href="#s4" class="lv2">4.3 外壳与全局</a>
+    <a href="#s4" class="lv2">4.4 视图迁移顺序</a>
+    <a href="#s5">5. v1 并行兼容策略</a>
+    <a href="#s6">6. 阶段时间线与关卡</a>
+    <a href="#s7">7. 联调验收清单</a>
+    <a href="#s8">8. 风险与回滚</a>
+    <a href="#s9">9. 与前次报告的差异记录</a>
+  </div>
+</nav>
+
+<div class="main">
+<div class="content">
+
+<header class="hero">
+  <div class="inner">
+    <h1>Portal × Art Design Pro<span class="dot"> · 前后端整体迁移方案</span></h1>
+    <p class="tagline">以后端全面适配 Art Design Pro v3.0.2 为方向，覆盖后端契约层改造（B1–B10）、新前端 v2 建设（F0–F7）、v1 并行兼容、部署与测试的端到端迁移方案。本文档承接《artdesign-analysis》分析报告，其中 G1/G3 的"改前端适配后端"路线按本方案决策调整为"改后端适配框架"。</p>
+    <div class="meta">
+      <span class="chip">方案版本 v1.0</span>
+      <span class="chip">2026-10-21</span>
+      <span class="chip">后端 285 端点 / 42 测试文件</span>
+      <span class="chip">前端 v2 = frontend-artdesign</span>
+      <span class="chip">v1 并行可回滚</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section id="s1">
+  <h2><span class="no">1</span>目标与总体策略</h2>
+
+  <h3>1.1 方向决策与范围</h3>
+  <p><strong>决策：后端完全适配 Art Design Pro 框架的硬约定</strong>——凡框架源码默认耦合的契约（响应信封、认证端点、请求头格式），一律改后端；业务端点的数据形状（分页、字段命名）与框架无耦合，<strong>保持不动</strong>，由 v2 自有的 API 类型层消费。理由：框架硬约定只有 4 处、改动集中且可控（后端契约代码全部收敛在 <code>response.py / auth.py / schemas / deps.py / middleware.py</code>）；而 285 个业务端点若逐个改形状，收益为零、风险巨大。</p>
+  <p>本方案覆盖：后端契约改造 + 现存缺陷修复 + 部署链路（pnpm/Docker）+ 新前端 v2 全部建设内容 + v1 并行期兼容 + 测试与文档同步。<strong>不含</strong>：业务功能增删（功能 1:1 保持 feature-spec 基线）。</p>
+
+  <h3>1.2 三条适配原则</h3>
+  <ul>
+    <li><strong>原则一（改后端）</strong>：框架拦截器/守卫写死的行为 → 改后端。成功码 <code>code=200</code>、错误字段 <code>msg</code>、登录入参 <code>userName</code>、登录响应 <code>{token, refreshToken}</code>、<code>GET /api/user/info</code> 返 <code>{userId,userName,roles,buttons}</code>、Authorization 无 Bearer 前缀。</li>
+    <li><strong>原则二（超集兼容）</strong>：后端响应采用<strong>新旧字段超集</strong>（登录同时返 <code>token/refreshToken</code> 与 <code>access_token/refresh_token</code>），旧字段不删——v1 前端登录/刷新链路零改动即继续可用。</li>
+    <li><strong>原则三（v2 自有层）</strong>：框架不管的部分（加密传输、4 条 WS、静默续期、分页形状、i18n 请求头）→ 在 v2 重写的 <code>utils/http</code> 与 API 模块层实现，移植 v1 成熟代码，后端不动。</li>
+  </ul>
+
+  <h3>1.3 全景图</h3>
+<div class="tree">                 ┌─ v1 frontend/（并行保留，仅 1 处微补丁：request.ts 信封字段）
+后端 8000 ────────┼─ v2 frontend-artdesign/（Art Design Pro v3.0.2，本方案主体）
+  │  B1 信封 code=200/msg        │  F1 http 层重写（secure.ts 移植 + 新信封 + 静默续期）
+  │  B2 认证超集 + /api/user/info │  F1 登录页重写（init/TOTP/LDAP/OIDC/自检）
+  │  B3 审计中间件顺序修复        │  F2 路由 modules + R_ADMIN/R_USER + i18n 搬迁
+  │  B4-B8 加密/WS/i18n/业务端点不动│  F3-F6 16 视图迁移
+  │  B9 Dockerfile → pnpm 构建 v2 │  F7 验收（220 功能点对齐）
+  └─ B10 42 测试文件信封断言更新   └─ vitest 13 文件移植 + PWA 插件</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s2">
+  <h2><span class="no">2</span>契约差异与决策总表</h2>
+  <p>左列为后端现状（文件:行号），中列为 Art Design Pro 源码中的<strong>确切</strong>期望（已读框架源码核实），右列为决策。</p>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:28%">后端现状</th><th style="width:30%">ADP 框架期望（源码佐证）</th><th style="width:12%">决策</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td class="num">C1</td><td>成功码 <code>code=0</code>（response.py L10/L42）</td><td><code>code === ApiStatus.success</code> 即 <strong>200</strong>（http/index.ts 响应拦截器 + status.ts）</td><td><span class="badge p3">改后端</span></td><td>B1：CODE_OK 0→200；业务错误码 1001–5006 全部保持</td></tr>
+      <tr><td class="num">C2</td><td>错误文案字段 <code>message</code>（response.py L42/L49）</td><td>解构 <code>const { code, msg } = response.data</code></td><td><span class="badge p3">改后端</span></td><td>B1：信封字段 message→msg；全后端仅 2 处产出 + 审计 1 处解析</td></tr>
+      <tr><td class="num">C3</td><td>登录入参 <code>{username, password, totp_code?}</code>（schemas/auth.py L34-37）</td><td><code>{userName, password}</code>（types/api/api.d.ts LoginParams）</td><td><span class="badge p3">改后端</span></td><td>B2：LoginRequest 加 <code>userName</code> 别名（validation_alias），totp_code 保留</td></tr>
+      <tr><td class="num">C4</td><td>登录响应 <code>{access_token, refresh_token, token_type, user}</code>（TokenResponse L56-60）</td><td><code>{token, refreshToken}</code>（LoginResponse；登录页 L222 解构后 setToken）</td><td><span class="badge p3">改后端</span></td><td>B2：超集——新增 <code>token/refreshToken</code> 字段，旧字段保留（v1 免改）；init/OIDC/LDAP 三处同步</td></tr>
+      <tr><td class="num">C5</td><td>用户信息 <code>GET /api/auth/me</code> → <code>{id, username, role, totp_enabled}</code>；<strong>无 /api/user/info</strong>、无 roles/buttons 数组</td><td>守卫首跳 <code>GET /api/user/info</code> → <code>{userId:number, userName, email, avatar?, buttons:string[], roles:string[]}</code>（api/auth.ts + api.d.ts UserInfo；roles 驱动 MenuProcessor 菜单过滤）</td><td><span class="badge p3">改后端</span></td><td>B2：新增端点，role 映射 admin→<code>["R_ADMIN"]</code>、user→<code>["R_USER"]</code>，buttons 先返 <code>[]</code>；/api/auth/me 保留给 v1</td></tr>
+      <tr><td class="num">C6</td><td>Authorization 必须 <code>Bearer &lt;jwt&gt;</code>（deps.py L73）</td><td>框架拦截器<strong>原样发 token 不加 Bearer</strong>（http/index.ts 请求拦截器 headers.set）</td><td><span class="badge p3">改后端</span></td><td>B2：deps.py 允许可选 Bearer 前缀（兼容两种）；v2 加密层内层仍产 Bearer 格式</td></tr>
+      <tr><td class="num">C7</td><td>refresh：<code>POST /api/auth/refresh</code>，Authorization 头带 Bearer refresh，仅返新 access（auth.py L163-192）</td><td>框架无自动续期（401 直接登出）</td><td><span class="badge p1">不改</span></td><td>v2 保留 v1 的静默续期体验（401 → refresh → 重试一次 → 才登出），在 F1 重写的 http 层实现；端点不动</td></tr>
+      <tr><td class="num">C8</td><td>传输加密：X-Session-Id + <code>Authorization: ENC &lt;n&gt;:&lt;p&gt;</code> + 信封 <code>{enc,n,p}</code> + 1100/1101/1102（middleware.py）</td><td>框架无此概念</td><td><span class="badge p1">不改</span></td><td>B4：整套保留（安全特性）；v2 移植 v1 secure.ts；仅信封内层 message→msg 随 B1</td></tr>
+      <tr><td class="num">C9</td><td>认证失败返回真实 HTTP 401 + body code 1002/1003</td><td>HTTP 401 → handleUnauthorizedError 登出（防抖 3s）</td><td><span class="badge core">改前端</span></td><td>v2 http 层在登出前先走 C7 静默续期（v1 逻辑），框架原逻辑仅作兜底</td></tr>
+      <tr><td class="num">C10</td><td>TOTP：HTTP 422 + code 1007（auth.py L129）</td><td>登录页无此分支</td><td><span class="badge core">改前端</span></td><td>v2 登录页从 v1 移植 1007 分支（展开验证码输入框）；http 层对 1007 透传不打全局错误</td></tr>
+      <tr><td class="num">C11</td><td>验证错误：422 + code 2001 + 单条中文拼接文案（main.py L535-537）</td><td>msg 字符串即可</td><td><span class="badge p1">不改</span></td><td>字段名随 B1 变 msg，形态兼容</td></tr>
+      <tr><td class="num">C12</td><td>分页 <code>?page=&amp;page_size=</code> → <code>{items,total,page,page_size}</code></td><td>仅 demo 类型用 <code>{records,current,size,total}</code>（api.d.ts），无框架强制</td><td><span class="badge p1">不改</span></td><td>v2 自写 Portal 的 Api 类型（原则三）；避免动 285 端点</td></tr>
+      <tr><td class="num">C13</td><td>WS ×4 query token 鉴权（main.py L507-527）</td><td>框架 socket 工具类可选不强制</td><td><span class="badge p1">不改</span></td><td>B5：v2 直接复用 v1 连接逻辑（帧协议/4401/4403/退避）</td></tr>
+      <tr><td class="num">C14</td><td>i18n 靠 Accept-Language（zh-CN/en，单文件内嵌）</td><td>框架自带前端 i18n</td><td><span class="badge p1">不改</span></td><td>B6：v2 请求拦截器补 <code>Accept-Language</code> 头（v1 同款，1 行）</td></tr>
+      <tr><td class="num">C15</td><td>菜单：前端静态导航 + role 字段；无 /api/v3/system/menus</td><td>backend 模式才需要菜单接口</td><td><span class="badge p1">不改</span></td><td>B8：v2 用 frontend 权限模式（VITE_ACCESS_MODE=frontend），菜单来自路由 modules + meta.roles</td></tr>
+      <tr><td class="num">C16</td><td>SPA 托管：_SpaStaticFiles 深链接回退 + 入口 no-cache（main.py L564-600）</td><td>hash/history 均可</td><td><span class="badge p1">不改</span></td><td>推荐 v2 用 history 模式（后端回退已就绪，test_static_spa.py 已覆盖；URL 无 #）</td></tr>
+      <tr><td class="num">C17</td><td>构建：Dockerfile stage1 用 npm 构建 frontend/（L1-7）</td><td>v2 需 pnpm ≥8.8 + Node ≥20.19</td><td><span class="badge p3">改后端</span></td><td>B9：Dockerfile 改 corepack+pnpm 构建 frontend-artdesign</td></tr>
+    </tbody>
+  </table>
+  <div class="callout info">💡 <strong>后端实际要动的只有 4 类</strong>：① 信封两字段（B1）；② 认证 4 个适配点（B2）；③ 审计中间件顺序缺陷修复（B3，顺带）；④ 构建/部署（B9）。其余 C7–C16 全部"不改"。后端业务代码（35 个路由文件、285 端点）一行不动。</div>
+</section>
+
+<!-- ============================================================ -->
+<section id="s3">
+  <h2><span class="no">3</span>后端改造详单（B1–B10）</h2>
+
+  <h3>B1 · 响应信封：code=0→200、message→msg <span class="badge p3">必改 · 高</span></h3>
+  <p>改动集中在 <code>backend/app/core/response.py</code> 与两处解析点：</p>
+  <table>
+    <thead><tr><th style="width:34%">文件</th><th>改动</th></tr></thead>
+    <tbody>
+      <tr><td><code>core/response.py</code></td><td><code>CODE_OK = 0</code> → <code>200</code>（L10）；<code>ok()</code> 输出 <code>{"code":200,"msg":"ok","data":…}</code>（L40-42）；<code>fail()</code> 输出字段 <code>message</code>→<code>msg</code>（L45-50）。业务错误码常量 1001–5006 <strong>全部不变</strong></td></tr>
+      <tr><td><code>core/middleware.py</code></td><td>1100/1101/1102 三处字面量响应体 <code>message</code>→<code>msg</code>（L56、L74-75、L79/91 附近，含 "secure session required" 文案处）</td></tr>
+      <tr><td><code>core/audit_middleware.py</code></td><td>错误响应提取字段 <code>message</code>→<code>msg</code>（L61-70 处）</td></tr>
+      <tr><td><code>main.py</code></td><td>两个异常处理器经 <code>fail()</code> 产出，无需单独改；确认无其它字面量信封</td></tr>
+      <tr><td><code>core/i18n.py</code></td><td><code>ok.*</code> 文案键不变（值仍是 "ok" 等字符串，仅承载字段名变化）</td></tr>
+    </tbody>
+  </table>
+  <p><strong>波及面（已精确统计）</strong>：后端测试 42 文件中，<code>["code"]</code> 断言/读取 <strong>39 处（10 个文件</strong>，重灾区 test_p2_apps 9 处、test_auth 7 处、test_crypto 6 处）；<code>"message"</code> 读取 <strong>13 处（11 个文件）</strong>。全部机械替换（<code>== 0</code>→<code>== 200</code>、<code>["message"]</code>→<code>["msg"]</code>），一次提交完成，详见 B10。</p>
+  <div class="callout">⚠️ 唯一的 v1 兼容代价：<code>frontend/src/api/request.ts</code> 有 4 行读旧字段（L19-20 类型、L100 <code>code !== 0</code>、L101/L119 <code>body.message</code>）——按 §5 打 4 行微补丁。这是整个迁移对 v1 的<strong>全部</strong>侵入。</div>
+
+  <h3>B2 · 认证端点适配 <span class="badge p3">必改 · 高</span></h3>
+  <p>四个适配点，全部<strong>加法</strong>（超集），不破坏任何现有行为：</p>
+
+  <h4>B2.1 登录入参别名（schemas/auth.py）</h4>
+  <pre><code>class LoginRequest(BaseModel):
+    username: str | None = None
+    password: str
+    totp_code: str | None = None
+    model_config = ConfigDict(populate_by_name=True)
+    @model_validator(mode="before")
+    @classmethod
+    def _alias(cls, v):
+        if isinstance(v, dict) and v.get("userName") and not v.get("username"):
+            v["username"] = v["userName"]
+        return v</code></pre>
+  <p>ADP 登录页发 <code>{userName, password}</code>（api.d.ts LoginParams），v1 发 <code>{username,…}</code>——两种都接受。</p>
+
+  <h4>B2.2 登录响应超集（TokenResponse + 4 个产出点）</h4>
+  <p><code>TokenResponse</code> 增加 <code>token: str</code>（= access_token 别名输出）与 <code>refreshToken: str</code>（pydantic <code>@computed_field</code> 或序列化别名）。产出点 4 处同步返回超集：<code>POST /api/auth/init</code>（auth.py L54-68）、<code>POST /api/auth/login</code>（L107-160）、<code>POST /api/auth/oidc/callback</code>（enterprise.py L148-198）、<code>POST /api/auth/ldap/login</code>（L209-253）。旧字段 access_token/refresh_token/token_type/user 全保留 → <strong>v1 登录链路零改动</strong>。</p>
+
+  <h4>B2.3 新增 GET /api/user/info（auth.py，require 登录）</h4>
+  <pre><code>@router.get("/user/info")
+async def user_info_for_adp(user = Depends(get_current_user)):
+    return ok(data={
+        "userId": user.id,
+        "userName": user.username,
+        "email": "",                       # Portal 无邮箱字段，占位
+        "avatar": "",
+        "roles": ["R_ADMIN"] if user.role == "admin" else ["R_USER"],
+        "buttons": [],                     # Portal 无按钮级权限码，保留数组形态
+    })</code></pre>
+  <p>角色映射固定为 ADP 的菜单常量 <code>R_ADMIN / R_USER</code>（v2 路由 modules 的 <code>meta.roles</code> 用同名常量，settings/logs 等 161 个管理员端点对应页面标 <code>roles: ["R_ADMIN"]</code>）。<code>GET /api/auth/me</code> 保留原样给 v1 与 TOTP 面板用。</p>
+
+  <h4>B2.4 Authorization 可选 Bearer 前缀（core/deps.py L73 附近）</h4>
+  <p>ADP 拦截器原样发 token（无 Bearer）。<code>get_auth_context</code> 与 WS token 解析处改为：<code>h.startswith("Bearer ")</code> 则去前缀，否则整串即 token。同时兼容 v1（带 Bearer）与 v2 加密层内层格式。API Token <code>plt_</code> 前缀分支（L20/L41-51）不受影响。</p>
+
+  <h3>B3 · 审计中间件顺序修复 <span class="badge core">顺带修 · 现存缺陷</span></h3>
+  <p>本次分析发现的<strong>现存缺陷</strong>：中间件注册顺序为 locale → <strong>Audit（外层）</strong> → Encryption → 路由（main.py L319-328）。加密开启（默认）时，请求到达审计中间件时 Authorization 仍是 <code>ENC …</code> 密文，<code>_user_id_from_auth_header</code>（audit_middleware.py L35-51）要求 <code>Bearer </code> 前缀 → 解析失败 → <strong>加密部署下所有写操作审计日志 user_id=None</strong>（当前生产容器即此状态，测试因 conftest 关加密而未暴露）。</p>
+  <p><strong>修法</strong>：调整 <code>add_middleware</code> 顺序，让 AuditMiddleware 位于加密层<strong>内侧</strong>（先 add Audit 再 add Encryption）：审计即可读到解密回填后的 <code>Bearer &lt;jwt&gt;</code>（加密中间件 L84-95 解密后回填 inner headers），响应侧仍能拿到真实 HTTP 状态码与 JSON 明文。1100/1101/1102 传输层错误响应不再进审计（本来就不是业务写操作，语义更正确）。<strong>补一条测试</strong>：加密开启下写操作 → audit_logs.user_id 正确（test_crypto.py 或新文件）。</p>
+
+  <h3>B4–B8 · 保持项与理由 <span class="badge p1">不改</span></h3>
+  <table>
+    <thead><tr><th style="width:10%">项</th><th style="width:22%">内容</th><th>不改的理由 / v2 侧对应工作</th></tr></thead>
+    <tbody>
+      <tr><td>B4</td><td>传输加密整套（crypto.py + middleware.py + /api/crypto/*）</td><td>安全特性完整保留；豁免清单（/api/health、/api/crypto/*、/api/public/apps、/api/hooks/*、sig= 直链）不动。v2 侧 F1 移植 secure.ts（RSA-OAEP 握手、AES-GCM 信封、ENC 头、X-Session-Id、明文降级三路径）。信封内层 msg 字段随 B1 自然生效</td></tr>
+      <tr><td>B5</td><td>WebSocket ×4（/ws/notify /monitor /ai-chat /ssh-terminal）</td><td>query token 鉴权、帧格式、关闭码 4401/4403 全部不动；v2 复用 v1 连接代码（token-in-query + 指数退避 + 降级轮询）。ADP 的 WebSocketClient 工具不强制采用</td></tr>
+      <tr><td>B6</td><td>后端 i18n（Accept-Language，zh-CN/en）</td><td>v2 http 请求拦截器补 <code>Accept-Language: localStorage 语言</code> 头（1 行）；后端文案体系不动</td></tr>
+      <tr><td>B7</td><td>业务端点数据形状（分页 items/total、snake_case 字段）</td><td>框架对业务响应形状零耦合（records/current/size 仅 demo 类型）；v2 写自己的 Api 类型命名空间。避免动 285 端点 + 全量测试</td></tr>
+      <tr><td>B8</td><td>菜单接口（无 /api/v3/system/menus）</td><td>v2 用 frontend 权限模式：菜单来自前端路由 modules，meta.roles 用 R_ADMIN/R_USER；docker 导航动态显隐在 v2 侧运行时控制</td></tr>
+    </tbody>
+  </table>
+
+  <h3>B9 · 部署改造 <span class="badge p3">必改 · 中</span></h3>
+  <table>
+    <thead><tr><th style="width:22%">文件</th><th>改动</th></tr></thead>
+    <tbody>
+      <tr><td><code>Dockerfile</code> stage1</td><td>基础镜像 <code>node:20-alpine</code> → <code>node:22-alpine</code>（满足 pnpm/Vite 7 对 Node ≥20.19 的要求）；<code>RUN corepack enable && corepack prepare pnpm@latest-10 --activate</code>；工作目录指向 <code>frontend-artdesign/</code>；<code>pnpm install --frozen-lockfile</code>（配 npmmirror registry env）+ <code>pnpm build</code>（内含 vue-tsc 类型检查）；<code>COPY --from=… /build/dist</code> 路径相应调整</td></tr>
+      <tr><td><code>Dockerfile</code> stage2</td><td><code>ENV FRONTEND_DIST=/app/frontend/dist</code> 不变（目录名沿用，内容换成 v2 产物）；uvicorn/EXPOSE/healthcheck 不变</td></tr>
+      <tr><td><code>docker-compose.yml</code></td><td>结构不变（端口 8080:8000、卷、LAN_SCAN_CIDRS 等）；确认无 frontend 路径引用即可</td></tr>
+      <tr><td><code>backend/app/core/config.py</code></td><td><code>frontend_dist</code> 默认值 <code>../frontend/dist</code> → 开发期可保持（本地跑 v1 dist）或改指 <code>../frontend-artdesign/dist</code>；最终以 Docker ENV 为准（本地开发用 Vite dev server，不依赖此配置）</td></tr>
+      <tr><td><code>scripts/deploy-nas.sh</code></td><td>确认 tar 同步范围含 frontend-artdesign/（含 .git 排除规则更新）与 pnpm-lock.yaml</td></tr>
+    </tbody>
+  </table>
+  <p>SPA 深链接回退、/icons /tunnel /files 挂载、入口 no-cache（PWA autoUpdate 依赖）后端已就绪，<strong>无需改动</strong>——v2 选 history 路由模式即插即用。</p>
+
+  <h3>B10 · 测试与文档同步 <span class="badge core">必做</span></h3>
+  <ul>
+    <li><strong>既有测试更新</strong>：39 处 <code>["code"]</code>（10 文件）+ 13 处 <code>"message"</code>（11 文件）机械替换；跑 <code>cd backend && .venv/bin/python -m pytest -q</code> 直至全绿（当前基线 288 过）。</li>
+    <li><strong>新增测试</strong>：① <code>/api/user/info</code>（登录态、roles 映射、未登录 401）；② 登录 userName 别名 + 响应含 token/refreshToken 超集；③ 无 Bearer 前缀 Authorization 可用；④ 加密开启下审计 user_id 正确（B3 回归）；⑤ 1100/1101/1102 响应体字段为 msg（改 test_crypto 断言）。</li>
+    <li><strong>文档</strong>：<code>docs/api-spec</code> 升 v2.0——§1 信封（code=200/msg）、§2 错误码表（码值不变+字段名）、新增 /api/user/info、登录别名与超集字段、审计中间件顺序说明；README 目录结构补 frontend-artdesign/；dev-plan 追加 F/B 阶段条目；CLAUDE.md 如有契约描述同步。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s4">
+  <h2><span class="no">4</span>前端 v2 改造详单（F0–F7）</h2>
+
+  <h3>F0 · 底座初始化</h3>
+  <ul>
+    <li><code>pnpm install</code> 跑通；<code>VITE_PORT=5174</code>（避让 v1 的 5173）。</li>
+    <li><code>.env.development</code>：<code>VITE_API_PROXY_URL=http://127.0.0.1:8000</code>；<code>vite.config.ts</code> 代理补齐四条 <code>/api、/ws(ws:true)、/icons、/tunnel</code> → 8000（v1 同款，可用 <code>PORTAL_API_TARGET</code> 覆盖）。</li>
+    <li><code>.env.production</code>：<code>VITE_API_URL=/</code>（同源托管）；<code>VITE_ACCESS_MODE=frontend</code> 保持；<code>VITE_LOCK_ENCRYPT_KEY</code> 换随机值。</li>
+    <li><code>pnpm clean:dev</code> 清 demo；手工删 views 下多余模块（dashboard/article/template/widgets/examples 大部分），<strong>保留 system/user 页到 F6 作表格范式参考</strong>；对应路由 modules、语言包 menus 段同步删。</li>
+    <li>补装依赖：<code>@vue-flow/core|background|controls|minimap</code>、<code>@xterm/xterm @xterm/addon-fit</code>、<code>docx-preview pptx-preview marked dompurify qrcode dayjs</code>、dev: <code>vitest jsdom @vitejs/plugin-vue 已有 vite-plugin-pwa</code>。</li>
+    <li>品牌替换：系统名/logo/页签标题（src/config/index.ts + index.html）。</li>
+  </ul>
+
+  <h3>F1 · 请求层与认证重写 <span class="badge p3">核心攻坚</span></h3>
+
+  <h4>4.1 utils/http 重写（保留 ADP 外壳，注入 Portal 内核）</h4>
+  <p>文件：<code>frontend-artdesign/src/utils/http/index.ts</code>（重写）+ <code>src/api/secure.ts</code>（从 v1 整体移植）。最终单请求生命周期：</p>
+<div class="tree"><b>请求发起</b> request.get/post&lt;T&gt;({url, params/data, …})
+ │ 豁免路径(/health /crypto /public)？──是──► 明文直发
+ │ secure.ensureSession(): /api/crypto/public-key → enabled? RSA-OAEP 封装 AES-256 会话密钥
+ │   → /api/crypto/handshake → sid（密钥仅内存，v1 secure.ts 原样）
+ ├ 请求体 → 信封 {enc:1, n, p}（AES-256-GCM）
+ ├ Authorization → <code>ENC &lt;nonce&gt;:&lt;payload&gt;</code>（内层 Bearer &lt;access&gt;）+ X-Session-Id
+ ├ Accept-Language: 当前语言（zh-CN/en）          <i>← B6 对应动作</i>
+ ▼
+<b>响应拦截</b>（ADP 结构保留，判定改 Portal 语义）
+ ├ 信封解密 → body {code, msg, data}
+ ├ code === 200 → 返回 data（泛型 T）             <i>← B1 后端适配后与 ADP 原生判定一致</i>
+ ├ code === 1100 && 未重试 → 重新握手 → 原请求重试一次（_raw 留原始体）
+ ├ HTTP 401 / code 1002|1003 && 有 refresh → silentRefresh()（并发去重）→ 重试一次 → 失败才 logOut
+ ├ code === 1007 → 透传给登录页（不弹全局错误）
+ └ 其它 → HttpError(msg, code)，showErrorMessage 可配（ADP 原生能力保留）</div>
+  <p>同时保留 ADP 原生的：请求/响应类型扩展（showErrorMessage/showSuccessMessage）、失败重试配置（MAX_RETRIES，Portal 默认 0）。v1 的 <code>withCode()</code> 业务错误对象一并移植供页面分支。App.vue 挂明文降级一次性警告（v1 逻辑：非安全上下文 / enabled=false / 握手异常）。</p>
+
+  <h4>4.2 登录页与用户态</h4>
+  <ul>
+    <li><strong>登录页重写</strong>（ADP 登录页作视觉外壳）：移植 v1 LoginView 全部业务——onMounted 后端自检（/api/health → initialized 决定登录表单 or 首次初始化向导；后端宕机红色 alert 禁提交）；/api/auth/config 探测 allow_register/oidc/ldap 显隐对应入口；<code>fetchLogin({userName, password})</code> 失败 code=1007 展开 TOTP 输入（二次提交带 totp_code）；1006 限流提示；密码管理器回填兜底；移除 ADP 演示用"角色切换器"。</li>
+    <li><strong>user store 适配</strong>：登录成功 <code>setToken(token, refreshToken)</code>（B2 超集字段直配 ADP LoginResponse）；守卫自动拉 <code>/api/user/info</code> → info（userId/roles/buttons）→ MenuProcessor 按 R_ADMIN/R_USER 过滤菜单；登出调 <code>POST /api/auth/logout</code>（v1 行为）再走 store 清理。</li>
+    <li><strong>注册/忘记密码</strong>：ADP 有现成页；注册对接 <code>/api/auth/register</code>；忘记密码页隐藏（Portal 无自助找回，走管理员重置）。</li>
+    <li><strong>/guest 访客页</strong>：staticRoutes 加公开路由，GuestView 从 v1 直搬（fetch /api/public/apps 免加密豁免端点）。</li>
+  </ul>
+
+  <h3>F2 · 外壳与全局</h3>
+  <ul>
+    <li><strong>路由 modules</strong>：16 视图按模块注册（component 字符串路径），meta.roles 映射：home/apps/efficiency/monitor/ports/lan/flow/ai/knowledge/tools → 无 roles（全员）；docker → R_ADMIN + 运行时按 /api/docker/status 显隐；logs/settings → R_ADMIN；guest/login/404 → staticRoutes。路由改 <code>createWebHistory</code>（后端回退已就绪）。</li>
+    <li><strong>i18n 搬迁</strong>：v1 locales（37 命名空间 × 1370 行 × 2 语言）脚本化转为 <code>langs/zh.json / en.json</code>；zh-CN 键名统一为 zh；menus 段并入框架结构；语言切换入口：设置页（保存生效，v1 行为）+ 顶栏语言钮（即时切换）二选一或并存。</li>
+    <li><strong>store 移植</strong>（Pinia 3 语法兼容）：settings/env/notify/probe/iconLibrary 五个直搬；probe 起停挂布局 onMounted/onUnmounted；WS 逻辑复用（含断线指数退避 3s→60s）。</li>
+    <li><strong>顶栏定制</strong>：通知铃铛（接 notify store + /ws/notify）、全局搜索 Ctrl+K（内核换 v1 search.ts 子序列算法 + 应用跳转 + kw 快捷语法）、网络环境切换器（env store，自建组件挂 headerBar 区域）；headerBar.ts 关闭 chat/fastEnter/礼花。</li>
+    <li><strong>设置面板裁剪</strong>：保留布局/主题/标签页/动画；Portal 外观设置（壁纸/自定义 CSS）并入设置页外观面板（v1 AppearancePanel 迁移，壁纸变量写 html 的逻辑照搬）。</li>
+  </ul>
+
+  <h3>4.4 视图迁移顺序（F3–F6，功能 1:1 对齐 feature-spec）</h3>
+  <table>
+    <thead><tr><th style="width:9%">阶段</th><th style="width:20%">视图</th><th>要点（详见 artdesign-analysis §3.1，此处只列差异动作）</th></tr></thead>
+    <tbody>
+      <tr><td>F3</td><td>Home / AppsManage / Monitor</td><td>磁贴布局与拖拽、/me/tabs、useOpenApp、EntryPopup 直搬；监控页图表组件可换 useChart 生命周期但 replaceMerge/150 点窗口逻辑保留；大屏模式直搬</td></tr>
+      <tr><td>F4</td><td>Ports / Lan / Docker / Logs</td><td>表格页优先套 art-table + useTable 范式；DB 三查看器、RouterPanel、隧道面板直搬</td></tr>
+      <tr><td>F5</td><td>Ai / Flow / Knowledge / Tools</td><td>AiView 补 DOMPurify（修 v1 隐患）；FlowCanvas + canvas.ts 互转直搬；xterm 终端直搬；Office 按需动态 import 保持</td></tr>
+      <tr><td>F6</td><td>Efficiency / Settings / 404 + 收尾</td><td>Settings 13 菜单全量；TOTP 扫码/会话/Token/恢复出厂；system/user demo 页删除；vitest 13 文件移植 + 新 utils 用例；PWA 插件（4MB 上限 + denylist /api /ws /files /icons）；<code>pnpm build</code> 通过</td></tr>
+    </tbody>
+  </table>
+  <p>F7 验收：对照 feature-spec 220 功能点逐项走查 + §7 联调清单 + 一周并行观察。</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="s5">
+  <h2><span class="no">5</span>v1 并行兼容策略（迁移期不停机）</h2>
+  <ul>
+    <li><strong>v1 对新信封的适配 = 1 个文件 4 行</strong>：<code>frontend/src/api/request.ts</code>——L19-20 类型字段 message→msg（可选）、L100 <code>body.code !== 0</code>→<code>!== 200</code>、L101/L119 <code>body.message</code>→<code>body.msg</code>。登录/刷新/OIDC 走 B2 超集字段，v1 认证链路<strong>零改动</strong>。v1 一次性发版（portal-frontend v0.2.1）后与 v2 长期并行。</li>
+    <li><strong>开发期</strong>：v1（5173）与 v2（5174）两个 dev server 同连后端 8000，逐页对照回归。</li>
+    <li><strong>部署期</strong>：单容器只托管一套 dist——B1 合入起 Docker 构建切 v2 产物（FRONTEND_DIST 不变，内容替换）；v2 未到 F6 前的过渡版本若需发版，容器临时构建 v1（v1 已带 4 行补丁，与新后端兼容）。</li>
+    <li><strong>回滚</strong>：任一阶段可回滚——后端 B1/B2 独立 commit 可 revert（v2 的 http 层判定同步回退）；部署回滚 = Docker 构建切回 v1 dist。</li>
+    <li><strong>退役</strong>：F7 验收 + 并行观察一周后，frontend/ 归档保留一个版本周期，README/docs 更新目录说明。</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="s6">
+  <h2><span class="no">6</span>阶段时间线与关卡</h2>
+  <p>后端先行一个身位（B 阶段先于对应 F 阶段合入），每个阶段以可验证关卡收口：</p>
+  <table>
+    <thead><tr><th style="width:8%">序</th><th style="width:14%">阶段</th><th style="width:36%">内容</th><th>关卡（全部可自动化/可演示）</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>B1+B2</b></td><td>信封 + 认证适配 + B3 审计修复 + B10 测试更新与新增</td><td>后端 pytest 全绿（288+新增）；curl 演示：登录(userName)→{token,refreshToken}、/api/user/info→roles、无 Bearer 头可用、加密下审计 user_id 非 None</td></tr>
+      <tr><td>2</td><td><b>v1 补丁</b></td><td>request.ts 4 行 + 全站冒烟</td><td>v1 对新后端登录/各页正常</td></tr>
+      <tr><td>3</td><td><b>F0</b></td><td>底座：pnpm/代理/清 demo/补依赖/品牌</td><td>5174 空壳跑通，/api/health 代理连通</td></tr>
+      <tr><td>4</td><td><b>F1</b></td><td>http 重写 + secure 移植 + 登录页 + user store + /guest</td><td><strong>加密开/关两档</strong>跑通：自检→init→登录→user/info→菜单出现→登出；1007/1006/1100 重握手/401 静默续期/明文降级警告各演示一次</td></tr>
+      <tr><td>5</td><td><b>F2</b></td><td>路由 modules + i18n + 5 store + 顶栏三件 + 设置面板</td><td>16 菜单按角色正确显隐；通知推送；Ctrl+K；语言切换后端文案跟随</td></tr>
+      <tr><td>6</td><td><b>F3</b></td><td>Home / AppsManage / Monitor</td><td>磁贴布局持久化、监控实时帧、大屏模式</td></tr>
+      <tr><td>7</td><td><b>F4</b></td><td>Ports / Lan / Docker / Logs</td><td>扫描全流程 + DB 查看器钻取 + 隧道面板</td></tr>
+      <tr><td>8</td><td><b>F5</b></td><td>Ai / Flow / Knowledge / Tools</td><td>4 条 WS 全通；SSH 终端可操作；画布保存可运行；Office 预览</td></tr>
+      <tr><td>9</td><td><b>F6+B9</b></td><td>Efficiency / Settings / 404 + vitest + PWA + Dockerfile pnpm</td><td>pnpm build 过；镜像构建运行；PWA 安装与 SW 更新；后端托管深链接刷新正常</td></tr>
+      <tr><td>10</td><td><b>F7</b></td><td>feature-spec 220 点走查 + 双端并行观察 + docs 收口</td><td>对齐表 100%；一周无 P1 缺陷 → 切流</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s7">
+  <h2><span class="no">7</span>联调验收清单</h2>
+  <table>
+    <thead><tr><th style="width:16%">类别</th><th>项</th></tr></thead>
+    <tbody>
+      <tr><td><strong>认证</strong></td><td>init 向导（零用户首次）→ 登录（userName 与 username 两种入参）→ TOTP 1007 流程 → LDAP → OIDC → refresh 静默续期（access 过期前请求不中断）→ 改密全端下线 → 会话吊销 → 登出 → 访客页（开/关 guest.enabled）→ 注册（allow_register 开/关）→ 1006 限流</td></tr>
+      <tr><td><strong>加密</strong></td><td>ENCRYPT_ENABLED=true：握手→全链路信封→1100 重握手恢复→1101 重放拒绝；=false：明文直通 + 前端降级警告出现一次；HTTP 非安全上下文降级</td></tr>
+      <tr><td><strong>权限</strong></td><td>admin 见 16 菜单、user 见 11 菜单（无 logs/settings/docker）；API 直打管理员端点 3001；plt_ ro Token 写操作被拒</td></tr>
+      <tr><td><strong>WS ×4</strong></td><td>/ws/notify 探活与通知帧、/ws/monitor 2s 帧与断连降级轮询、/ws/ai-chat 流式 delta/done/意图导航/停止、/ws/ssh-terminal 裸文本透传与 4403（webssh 关闭时）；token 失效 4401</td></tr>
+      <tr><td><strong>i18n</strong></td><td>中英切换：前端文案 + 后端错误文案（Accept-Language）同步</td></tr>
+      <tr><td><strong>部署</strong></td><td>深链接 /monitor 刷新不 404；/api 未知路径返 JSON 404；PWA 安装/离线壳/SW 更新；/icons /tunnel /files/raw 直链可用；入口文件 no-cache 响应头</td></tr>
+      <tr><td><strong>审计</strong></td><td>加密开启下写操作 audit_logs.user_id 正确（B3 回归）；错误响应 error_msg 取 msg</td></tr>
+      <tr><td><strong>构建</strong></td><td>后端 pytest 全绿；前端 vue-tsc + build 过；vitest 全绿；v1 冒烟（并行期）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s8">
+  <h2><span class="no">8</span>风险与回滚</h2>
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:26%">风险</th><th style="width:10%">等级</th><th>缓解 / 回滚</th></tr></thead>
+    <tbody>
+      <tr><td class="num">R1</td><td>B1 信封替换遗漏隐藏断言/消费点（如脚本、前端零散读取）</td><td><span class="badge p2">中</span></td><td>后端 grep <code>"message"|"code"</code> 全量复核（已统计：产出点 3 处、测试 52 处）；v1 侧仅 request.ts 消费信封；阶段 1 关卡含 v1 冒烟</td></tr>
+      <tr><td class="num">R2</td><td>B3 中间件换序引发审计语义变化（状态码/响应体视角）</td><td><span class="badge p2">中</span></td><td>换序后跑全量 pytest + 新增加密审计用例；若响应缓冲语义冲突则改为在加密中间件解密后向 scope 注入明文 user_id 供外层审计读取（备选方案）</td></tr>
+      <tr><td class="num">R3</td><td>F1 http 重写引入回归（加密/续期/1100 交织路径复杂）</td><td><span class="badge p3">高</span></td><td>secure.ts 与拦截器逻辑自 v1 原样移植（已 42 测试验证的行为）；F1 关卡按 §7 加密/认证清单逐项演示；v1 并行可随时对照</td></tr>
+      <tr><td class="num">R4</td><td>pnpm/Docker 构建链问题（Node 版、lockfile、私有镜像源）</td><td><span class="badge p2">中</span></td><td>node:22-alpine + corepack 固定 pnpm 版本；npmmirror registry env；F6 阶段先行本地 docker build 验证再上 NAS</td></tr>
+      <tr><td class="num">R5</td><td>i18n 搬移量大（≈2740 行文案）出错</td><td><span class="badge p2">中</span></td><td>脚本化转换 + 键数 diff 校验（转换前后键集合一致）；F2 关卡抽查 20 键</td></tr>
+      <tr><td class="num">R6</td><td>ADP 上游版本升级带来的合并冲突</td><td><span class="badge p2">低</span></td><td>frontend-artdesign 移除上游 .git 并入主仓库（Q2 决策）；上游对照以 README 记录的 f3aaf58/v3.0.2 为准，不追新</td></tr>
+      <tr><td class="num">R7</td><td>双前端并行期 localStorage 键冲突（同源 5174 dev 不冲突；生产单托管不冲突）</td><td><span class="badge p2">低</span></td><td>天然隔离：v1 portal.* 键 vs v2 sys-v{ver}-* 键；生产只托管一套 dist</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section id="s9">
+  <h2><span class="no">9</span>与前次报告的差异记录</h2>
+  <table>
+    <thead><tr><th style="width:10%">条目</th><th style="width:36%">artdesign-analysis.html（v1.0）原路线</th><th>本方案路线（用户决策：后端完全适配）</th></tr></thead>
+    <tbody>
+      <tr><td>G1 信封</td><td>改前端拦截器适配 <code>code=0/message</code></td><td><strong>改后端</strong>：code=200/msg（B1），前端沿用框架原生判定</td></tr>
+      <tr><td>G3 认证</td><td>重写 v2 api/auth 适配旧字段</td><td><strong>改后端</strong>：userName 别名 + 超集字段 + 新增 /api/user/info（B2），v2 认证层与框架原生代码几乎零偏差</td></tr>
+      <tr><td>§8-Q1 路由</td><td>建议 history（待决策）</td><td>维持建议 history，后端回退已就绪，随 F2 落地</td></tr>
+      <tr><td>§8-Q2 .git</td><td>建议删除上游 .git 并入主仓库</td><td>维持（R6），F0 执行</td></tr>
+      <tr><td>新增发现</td><td>—</td><td>B3 审计中间件 user_id 缺陷（加密部署下审计无操作人）；本方案顺带修复</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok">✅ <strong>方案收益</strong>：后端仅动 4 类代码（信封/认证/审计顺序/构建），285 业务端点与加密体系原样保留；v2 前端认证与请求层贴框架原生形态（后续升级框架无契约摩擦）；v1 全程可用、随时回滚；并顺带修复一个生产环境审计缺陷。</div>
+  <div class="callout info">📌 <strong>下一步</strong>：确认本方案后启动阶段 1（B1+B2+B3+B10，后端单 PR），随后的执行顺序严格按 §6 时间线推进；每个阶段完成后在 logs/ 记工作日志、docs/dev-plan 追加状态。</div>
+</section>
+
+<footer>Portal × Art Design Pro 前后端整体迁移方案 v1.0 · 2026-10-21 · 依据：后端源码全量分析（285 端点/42 测试/中间件链）+ ADP v3.0.2 源码契约核实（api/auth.ts、types/api/api.d.ts、utils/http、store/user）· 纯静态 HTML，可直接在浏览器打开评审</footer>
+</div>
+</div>
+
+<script>
+  const links = [...document.querySelectorAll('.toc a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const setActive = id => {
+    links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+  const onScroll = () => {
+    let cur = targets[0] && targets[0].id;
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 120) cur = t.id;
+    }
+    if (cur) setActive(cur);
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+<!-- doc-embed: 被文档索引页(index.html) iframe 嵌入时自动收起自身侧栏；独立打开不受影响，可整段安全移除 -->
+<script>(function(){
+  if (window.parent === window) return;
+  document.documentElement.classList.add('doc-embedded');
+  /* 滚动广播：当前章节变化时通知索引页联动高亮（docScroll） */
+  var last = null, ticking = false;
+  function spy(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var y = window.scrollY + 130, cur = null;
+      document.querySelectorAll('section[id], h2[id], h3[id]').forEach(function(el){
+        if (el.getBoundingClientRect().top + window.scrollY <= y) cur = el.id;
+      });
+      if (cur && cur !== last){
+        last = cur;
+        try { window.parent.postMessage({ type: 'docScroll', anchor: cur }, '*'); } catch (e) {}
+      }
+    });
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('load', spy);
+  spy();
+})();</script>
+<style>
+  html.doc-embedded .sidebar{display:none}
+  html.doc-embedded .main{margin-left:0!important;padding:0!important}
+  html.doc-embedded .hero{margin:0 0 26px!important;padding:42px 28px 34px!important}
+  html.doc-embedded section{padding:26px 30px}
+</style>
+</body>
+</html>

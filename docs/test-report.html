@@ -64,13 +64,13 @@
 <div class="main">
 
   <section>
-    <h2><span class="no">01</span>测试环境与方法</h2>
+    <h2 id="t1"><span class="no">01</span>测试环境与方法</h2>
     <p><b>环境</b>：macOS 开发机 · 后端 FastAPI(8000, uvicorn --reload) · 前端 Vite(5173) · SQLite · Docker（MySQL 8.0.40 / Redis 7.4.1）· 传输加密已启用。</p>
     <p><b>方法</b>：三层——① 自动化基线（pytest 222 例 / Vitest 48 例 / vue-tsc / eslint / build）；② 浏览器端到端遍历与交互（Playwright 语义定位）；③ 关键链路真机等价物（本机 Docker MySQL/Redis、子进程 asyncssh SSH server）。</p>
   </section>
 
   <section>
-    <h2><span class="no">02</span>自动化基线（全绿）</h2>
+    <h2 id="t2"><span class="no">02</span>自动化基线（全绿）</h2>
     <table>
       <thead><tr><th style="width:22%">关卡</th><th style="width:18%">结果</th><th>说明</th></tr></thead>
       <tbody>
@@ -84,7 +84,7 @@
   </section>
 
   <section>
-    <h2><span class="no">03</span>分模块功能测试</h2>
+    <h2 id="t3"><span class="no">03</span>分模块功能测试</h2>
 
     <h3>认证与账户（M01；P1/P17/P22）</h3>
     <table>
@@ -182,7 +182,7 @@
   </section>
 
   <section>
-    <h2><span class="no">04</span>UI 遍历结果（11 页面零报错）</h2>
+    <h2 id="t4"><span class="no">04</span>UI 遍历结果（11 页面零报错）</h2>
     <table>
       <thead><tr><th style="width:20%">页面</th><th style="width:12%">加载</th><th style="width:48%">关键元素</th><th>结果</th></tr></thead>
       <tbody>
@@ -202,7 +202,7 @@
   </section>
 
   <section>
-    <h2><span class="no">05</span>交互深测 / 性能与安全冒烟</h2>
+    <h2 id="t5"><span class="no">05</span>交互深测 / 性能与安全冒烟</h2>
     <table>
       <thead><tr><th style="width:26%">项</th><th style="width:12%">结果</th><th>备注</th></tr></thead>
       <tbody>
@@ -222,7 +222,7 @@
   </section>
 
   <section>
-    <h2><span class="no">06</span>问题清单</h2>
+    <h2 id="t6"><span class="no">06</span>问题清单</h2>
     <table>
       <thead><tr><th style="width:6%">#</th><th style="width:10%">级别</th><th style="width:52%">问题</th><th>状态</th></tr></thead>
       <tbody>
@@ -238,7 +238,7 @@
   </section>
 
   <section>
-    <h2><span class="no">07</span>实机待办清单（非本机可测）</h2>
+    <h2 id="t7"><span class="no">07</span>实机待办清单（非本机可测）</h2>
     <table>
       <thead><tr><th style="width:8%">#</th><th>待办</th><th style="width:14%">关联</th></tr></thead>
       <tbody>
@@ -254,7 +254,7 @@
   </section>
 
   <section>
-    <h2><span class="no">08</span>结论</h2>
+    <h2 id="t8"><span class="no">08</span>结论</h2>
     <div class="callout ok">
       <b>Portal v1.0 全部 120 步骤的功能与 UI 测试在本机环境全部通过</b>：后端 222 例自动化、前端 48 例 + 四道静态关卡、11 个页面遍历零报错、12 项关键交互深测通过、3 项低级别 UI 缺口与 7 项实机待办已明确记录。<b>系统达到 v1.0 发布标准，可进入 NAS 实机部署验收阶段。</b>
     </div>
@@ -263,5 +263,29 @@
 </div>
 
 <footer>Portal · 全系统功能与 UI 测试报告 v1.0 · 2026-09-04 · 纯静态 HTML，可直接在浏览器打开评审</footer>
+<!-- doc-embed: 滚动广播（本文档无侧栏，仅需联动高亮） -->
+<script>(function(){
+  if (window.parent === window) return;
+  /* 滚动广播：当前章节变化时通知索引页联动高亮（docScroll） */
+  var last = null, ticking = false;
+  function spy(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      var y = window.scrollY + 130, cur = null;
+      document.querySelectorAll('section[id], h2[id], h3[id]').forEach(function(el){
+        if (el.getBoundingClientRect().top + window.scrollY <= y) cur = el.id;
+      });
+      if (cur && cur !== last){
+        last = cur;
+        try { window.parent.postMessage({ type: 'docScroll', anchor: cur }, '*'); } catch (e) {}
+      }
+    });
+  }
+  document.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('load', spy);
+  spy();
+})();</script>
 </body>
 </html>
